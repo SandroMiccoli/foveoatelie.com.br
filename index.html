@@ -3,7 +3,7 @@ layout: default
 title: "Obrigado — Foveō Ateliê"
 description: "Ritual pós-compra da Foveō Ateliê. Dez cards para acompanhar o cuidado com a sua vela de massagem."
 noindex: true
-preload: /assets/ritual/p-01.webp
+preload: /assets/ritual/bg-vela.webp
 ---
 <h1 class="visually-hidden">Obrigado — Foveō Ateliê</h1>
 <p class="visually-hidden" id="story-live" aria-live="polite" aria-atomic="true"></p>
@@ -16,35 +16,68 @@ preload: /assets/ritual/p-01.webp
   </button>
 
   <div class="stack">
-  <section class="frame" id="story" aria-label="Ritual pós-compra">
-    <div class="progress" aria-hidden="true">
-      {% for i in (1..10) %}
-      <span class="segment"><span class="segment-fill"></span></span>
-      {% endfor %}
+    <section class="frame" id="story" aria-label="Ritual pós-compra">
+      <div class="progress" aria-hidden="true">
+        {% for card in site.data.ritual.cards %}
+        <span class="segment"><span class="segment-fill"></span></span>
+        {% endfor %}
+      </div>
+
+      <div class="slides">
+        {% for card in site.data.ritual.cards %}
+        <article class="card theme-{{ card.theme }}{% if forloop.first %} is-current{% endif %}" data-kind="{{ card.kind }}">
+          {% if card.kind == "cover" %}
+          <div class="cover-photo">
+            <img src="{{ '/assets/ritual/bg-vela.webp' | relative_url }}" alt="">
+          </div>
+          <div class="logo-band">
+            <span class="cover-rule anim"></span>
+            <img class="logo-wordmark anim" src="{{ '/assets/logo-wordmark-claro.svg' | relative_url }}" alt="Foveō Ateliê">
+            <p class="tagline anim">Rituais de cuidado através do toque</p>
+          </div>
+          {% else %}
+          <div class="card-inner">
+            <h2 class="title anim">{% assign lines = card.title | split: "|" %}{% for line in lines %}{{ line }}{% unless forloop.last %}<br>{% endunless %}{% endfor %}</h2>
+            <span class="rule anim"></span>
+            {% if card.steps %}
+            <ol class="steps">
+              {% for step in card.steps %}
+              <li class="anim"><span class="num">{{ step.n }}</span><span>{{ step.label }}</span></li>
+              {% endfor %}
+            </ol>
+            {% endif %}
+            {% for block in card.blocks %}
+            <p class="{% if block.italic %}lede{% else %}body{% endif %} anim">{{ block.text }}</p>
+            {% endfor %}
+            {% if card.kind == "closing" %}
+            <footer class="closing anim">
+              <img class="logo-wordmark" src="{{ '/assets/logo-wordmark-escuro.svg' | relative_url }}" alt="Foveō Ateliê">
+              <div class="contact">
+                <p class="tagline">Rituais de cuidado através do toque</p>
+                <a class="wa" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp">
+                  <svg viewBox="0 0 32 32" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M16 4.6a11.4 11.4 0 0 0-9.8 17.2L5.2 27.4l5.7-1.5A11.4 11.4 0 1 0 16 4.6Z"/>
+                    <path fill="currentColor" d="M12.4 11.7c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4.2.5.6 1.6.6 1.7.1.2.1.3 0 .5l-.4.5c-.1.2-.2.3 0 .5.2.3.7 1.1 1.4 1.7.8.7 1.5.9 1.7 1 .2.1.4 0 .5-.1.2-.2.6-.7.8-.9.2-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.4.1.3 0 1-.3 1.6-.3.6-1.2 1.1-1.7 1.1-.5.1-1 .2-2.8-.5-2.1-.8-3.5-2.7-3.6-2.9-.1-.2-1-1.3-1-2.5s.6-1.8.9-2.1c.2-.2.4-.3.6-.3Z"/>
+                  </svg>
+                </a>
+              </div>
+            </footer>
+            {% else %}
+            <img class="seal anim" src="{% if card.theme == 'light' %}{{ '/assets/o-seal-escuro.svg' | relative_url }}{% else %}{{ '/assets/o-seal-claro.svg' | relative_url }}{% endif %}" alt="">
+            {% endif %}
+          </div>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+
+      <button class="zone zone-prev" type="button" aria-label="Card anterior"></button>
+      <button class="zone zone-next" type="button" aria-label="Próximo card"></button>
+    </section>
+
+    <div class="dock">
+      <button class="replay" type="button" hidden>Ver novamente</button>
     </div>
-
-    <div class="slides">
-      <img class="card is-current" src="{{ '/assets/ritual/p-01.webp' | relative_url }}" alt="Foveō Ateliê — Rituais de cuidado através do toque." width="1080" height="1919" fetchpriority="high" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-02.webp' | relative_url }}" alt="Obrigado. Obrigado por escolher a Foveō e por confiar no nosso trabalho. Esta vela foi feita à mão para transformar calor, óleo e toque em um momento de presença e cuidado." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-03.webp' | relative_url }}" alt="Foveō. Do latim fovēre: aquecer com cuidado, acolher, nutrir. Tactu foveō. Com o toque, aqueço e acolho." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-04.webp' | relative_url }}" alt="O ritual. 01 Preparar. 02 Aquecer. 03 Tocar. 04 Reverberar. Todo ritual começa por uma intenção. Antes de acender, pergunte-se o que você deseja cuidar." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-05.webp' | relative_url }}" alt="Cuidados. Nunca deixe a chama acesa sem supervisão. Mantenha longe de materiais inflamáveis. Use sobre superfície firme e resistente ao calor. Se a vela ficou acesa por muito tempo, aguarde o recipiente esfriar antes de pegá-lo." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-06.webp' | relative_url }}" alt="Preparar e aquecer. Deixe o ambiente confortável. Diminua o ritmo. Acenda a vela e aguarde cerca de 5 minutos, até que uma camada homogênea de óleo cubra toda a superfície. Sem pressa. Enquanto o óleo aquece, comece a tocar o corpo, despertando a pele para receber o calor." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-07.webp' | relative_url }}" alt="Apagar e respirar. Apague sempre com a tampa, nunca sopre: cinzas do pavio podem cair no óleo. Respire. Aguarde alguns segundos. Teste no dorso da mão: o óleo deve estar morno e confortável ao toque." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-08.webp' | relative_url }}" alt="Tocar. Em si mesmo ou em outra pessoa, todo toque carrega uma intenção. Qual é a sua? Leve o óleo à pele em pequena quantidade e deixe que cada gesto reverbere essa intenção, com o cuidado que ela merece." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-09.webp' | relative_url }}" alt="Reverberar. Quando o toque termina, algo continua. Respire. Perceba o que permanece, o que reverbera no corpo. Acenda. Aqueça. Toque. Reverbere." width="1080" height="1919" decoding="async">
-      <img class="card" src="{{ '/assets/ritual/p-10.webp' | relative_url }}" alt="Até o próximo ritual. Que esta vela reverbere o cuidado que você intencionou, em cada toque e no que permanece depois dele. Com carinho." width="1080" height="1919" decoding="async">
-    </div>
-
-    <button class="zone zone-prev" type="button" aria-label="Card anterior"></button>
-    <button class="zone zone-next" type="button" aria-label="Próximo card"></button>
-
-    <a class="wa-hit" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" hidden></a>
-  </section>
-  <div class="dock">
-    <button class="replay" type="button" hidden>Ver novamente</button>
-    <a class="whatsapp" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" hidden>Falar no WhatsApp</a>
-  </div>
   </div>
 
   <button class="arrow arrow-next" type="button" aria-label="Próximo card">
@@ -54,4 +87,5 @@ preload: /assets/ritual/p-01.webp
   </button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js" defer></script>
 <script src="{{ '/assets/js/stories.js' | relative_url }}" defer></script>
