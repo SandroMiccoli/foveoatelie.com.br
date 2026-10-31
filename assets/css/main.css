@@ -214,8 +214,20 @@ a {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2.2cqw;
+  gap: 1.5cqw;
   background: #0d0908;
+}
+
+.lockup-rule {
+  display: block;
+  height: 0.32cqw;
+  min-height: 1px;
+  background: var(--copper);
+}
+
+.logo-band .lockup-rule {
+  width: 22cqw;
+  transform-origin: center center;
 }
 
 .cover-rule {
@@ -248,35 +260,83 @@ a {
   margin-top: auto;
 }
 
-.closing .logo-wordmark {
-  width: 58cqw;
+.lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.contact {
+.closing .logo-wordmark {
+  width: 62cqw;
+}
+
+.closing .lockup-rule {
+  width: 20cqw;
+  margin: 1.15cqw 0 1.35cqw;
+  transform-origin: left center;
+}
+
+.contact,
+.actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 3cqw;
-  width: 100%;
-  margin-top: 2.4cqw;
 }
 
-.wa {
+.closing .tagline {
+  margin-top: 0;
+}
+
+.actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.15rem 0.35rem;
+  width: 100%;
+  margin-top: 2.6cqw;
+}
+
+.action {
   position: relative;
   z-index: 6;
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 12cqw;
-  height: 12cqw;
-  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
   min-height: 44px;
+  padding: 0.2rem 0.45rem;
   color: #0e0b09;
+  background: none;
+  border: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 3.15cqw;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.wa svg {
-  width: 7.2cqw;
-  height: 7.2cqw;
+.action svg {
+  width: 1.25em;
+  height: 1.25em;
+  flex: none;
+}
+
+.action:hover,
+.action:focus-visible {
+  color: var(--copper);
+}
+
+.share-status {
+  flex-basis: 100%;
+  margin: 0;
+  padding-left: 0.45rem;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 3cqw;
+  font-weight: 500;
+  color: var(--copper);
+}
+
+.share-status[hidden],
+.share-wa[hidden] {
+  display: none;
 }
 
 .progress {

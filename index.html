@@ -33,6 +33,7 @@ preload: /assets/ritual/bg-vela.webp
           <div class="logo-band">
             <span class="cover-rule anim"></span>
             <img class="logo-wordmark anim" src="{{ '/assets/logo-wordmark-claro.svg' | relative_url }}" alt="Foveō Ateliê">
+            <span class="lockup-rule anim"></span>
             <p class="tagline anim">Rituais de cuidado através do toque</p>
           </div>
           {% else %}
@@ -51,15 +52,35 @@ preload: /assets/ritual/bg-vela.webp
             {% endfor %}
             {% if card.kind == "closing" %}
             <footer class="closing anim">
-              <img class="logo-wordmark" src="{{ '/assets/logo-wordmark-escuro.svg' | relative_url }}" alt="Foveō Ateliê">
-              <div class="contact">
+              <div class="lockup">
+                <img class="logo-wordmark" src="{{ '/assets/logo-wordmark-escuro.svg' | relative_url }}" alt="Foveō Ateliê">
+                <span class="lockup-rule"></span>
                 <p class="tagline">Rituais de cuidado através do toque</p>
-                <a class="wa" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp">
+              </div>
+              <div class="actions">
+                <a class="wa action" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp">
                   <svg viewBox="0 0 32 32" aria-hidden="true">
                     <path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M16 4.6a11.4 11.4 0 0 0-9.8 17.2L5.2 27.4l5.7-1.5A11.4 11.4 0 1 0 16 4.6Z"/>
                     <path fill="currentColor" d="M12.4 11.7c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4.2.5.6 1.6.6 1.7.1.2.1.3 0 .5l-.4.5c-.1.2-.2.3 0 .5.2.3.7 1.1 1.4 1.7.8.7 1.5.9 1.7 1 .2.1.4 0 .5-.1.2-.2.6-.7.8-.9.2-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.4.1.3 0 1-.3 1.6-.3.6-1.2 1.1-1.7 1.1-.5.1-1 .2-2.8-.5-2.1-.8-3.5-2.7-3.6-2.9-.1-.2-1-1.3-1-2.5s.6-1.8.9-2.1c.2-.2.4-.3.6-.3Z"/>
                   </svg>
                 </a>
+                <a class="action" href="https://foveoatelie.com.br" target="_blank" rel="noopener noreferrer">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M4.5 11.2 12 4.5l7.5 6.7V20a.8.8 0 0 1-.8.8h-4.2v-5.2H9.5V20.8H5.3a.8.8 0 0 1-.8-.8v-8.8Z"/>
+                  </svg>
+                  <span>Site</span>
+                </a>
+                <button class="action share" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="6.2" cy="12" r="2.1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="17.2" cy="6.4" r="2.1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="17.2" cy="17.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <path fill="none" stroke="currentColor" stroke-width="1.5" d="m8.1 11.1 7.1-3.6M8.1 12.9l7.1 3.6"/>
+                  </svg>
+                  <span>Compartilhar</span>
+                </button>
+                <a class="action share-wa" href="https://wa.me/?text=" target="_blank" rel="noopener noreferrer" hidden>WhatsApp</a>
+                <p class="share-status" role="status" hidden>Link copiado</p>
               </div>
             </footer>
             {% else %}
