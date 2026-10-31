@@ -209,12 +209,12 @@ a {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 30%;
+  height: 32%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2.2cqw;
+  padding: 2.2cqw 6cqw 1.4cqw;
   background: #0d0908;
 }
 
@@ -229,54 +229,110 @@ a {
   transform-origin: center center;
 }
 
-.logo-wordmark {
-  width: 72cqw;
+.logo-completo {
+  width: min(78cqw, 100%);
   height: auto;
   display: block;
-}
-
-.tagline {
-  margin: 0;
-  font-family: "EB Garamond", Georgia, serif;
-  font-weight: 500;
-  font-size: 3.5cqw;
-  line-height: 1.2;
 }
 
 .closing {
   width: 100%;
   margin-top: auto;
-}
-
-.closing .logo-wordmark {
-  width: 58cqw;
-}
-
-.contact {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 3cqw;
-  width: 100%;
-  margin-top: 2.4cqw;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.wa {
+.signoff {
+  margin: 0;
+  font-family: "EB Garamond", Georgia, serif;
+  font-weight: 500;
+  font-size: 5.6cqw;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.signoff-brand {
+  display: inline-block;
+  margin-top: 0.08em;
+  font-size: 1.42em;
+  letter-spacing: -0.02em;
+}
+
+.closing .seal {
+  width: 7.4cqw;
+  margin: 3.4cqw 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.1rem 1.15rem;
+  width: 100%;
+  margin-top: 2.2cqw;
+}
+
+.action {
   position: relative;
   z-index: 6;
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 12cqw;
-  height: 12cqw;
-  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
   min-height: 44px;
+  padding: 0.35rem 0;
   color: #0e0b09;
+  background: none;
+  border: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 3.15cqw;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.wa svg {
-  width: 7.2cqw;
-  height: 7.2cqw;
+.action svg {
+  width: 1.25em;
+  height: 1.25em;
+  flex: none;
+}
+
+.action:hover,
+.action:focus-visible {
+  color: var(--copper);
+}
+
+.share-feedback {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin: 0;
+  padding-left: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 3cqw;
+  font-weight: 500;
+}
+
+.share-feedback[hidden] {
+  display: none;
+}
+
+.share-status {
+  color: var(--copper);
+}
+
+.share-status[hidden] {
+  display: none;
+}
+
+.share-wa {
+  color: #0e0b09;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .progress {
