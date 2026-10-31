@@ -50,7 +50,7 @@ a {
 
 .stage {
   height: 100vh;
-  height: calc(100dvh - var(--consent, 0px));
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,8 +77,7 @@ a {
   position: relative;
   flex-shrink: 0;
   aspect-ratio: 9 / 16;
-  width: min(100vw, calc((100dvh - var(--dock) - var(--consent, 0px)) * 9 / 16));
-  max-height: calc(100dvh - var(--dock) - var(--consent, 0px));
+  width: min(100vw, calc((100dvh - var(--dock)) * 9 / 16));
   background: var(--ink);
   overflow: hidden;
   touch-action: none;
@@ -470,22 +469,13 @@ a {
   color: var(--ink);
 }
 
-html.fv-consent-pending {
-  --consent: 7.75rem;
-}
-
-@media (min-width: 641px) {
-  html.fv-consent-pending {
-    --consent: 3.75rem;
-  }
-}
-
 .fv-consent {
   position: fixed;
-  z-index: 30;
+  z-index: 9999;
   display: none;
   align-items: center;
   gap: 14px 20px;
+  margin: 0;
   background: rgba(13, 9, 8, 0.94);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
@@ -517,13 +507,15 @@ html.fv-consent-pending {
   flex-shrink: 0;
 }
 
-.fv-consent button {
+.fv-consent button,
+.fv-privacy__actions button {
   appearance: none;
   font: 500 12px/1 Inter, system-ui, sans-serif;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 10px 18px;
-  width: 7.5rem;
+  min-width: 96px;
+  min-height: 44px;
   border-radius: 999px;
   cursor: pointer;
   background: transparent;
@@ -531,13 +523,16 @@ html.fv-consent-pending {
   border: 1px solid rgba(237, 230, 217, 0.35);
 }
 
-.fv-consent button[data-c="granted"] {
+.fv-consent button[data-c="granted"],
+.fv-privacy__actions button[data-c="granted"] {
   border-color: #c87431;
   color: #c87431;
 }
 
 .fv-consent button:hover,
-.fv-consent button:focus-visible {
+.fv-consent button:focus-visible,
+.fv-privacy__actions button:hover,
+.fv-privacy__actions button:focus-visible {
   background: rgba(237, 230, 217, 0.06);
 }
 
@@ -565,6 +560,152 @@ html.fv-consent-pending {
 
   .fv-consent--bar .fv-consent__actions button {
     flex: 1;
-    width: auto;
+  }
+}
+
+.fv-privacy[hidden] {
+  display: none;
+}
+
+.fv-privacy {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.fv-privacy__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 9, 8, 0.55);
+  opacity: 0;
+}
+
+.fv-privacy__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(40rem, calc(100% - 2rem));
+  max-height: min(80vh, 40rem);
+  margin: 0 0 1rem;
+  background: rgba(13, 9, 8, 0.97);
+  color: #ede6d9;
+  border: 1px solid rgba(200, 116, 49, 0.28);
+  transform: translateY(110%);
+}
+
+.fv-privacy.is-shown .fv-privacy__backdrop {
+  opacity: 1;
+}
+
+.fv-privacy.is-shown .fv-privacy__panel {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fv-privacy__backdrop {
+    transition: opacity 0.32s ease;
+  }
+
+  .fv-privacy__panel {
+    transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+.fv-privacy__close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ede6d9;
+  cursor: pointer;
+}
+
+.fv-privacy__close:hover,
+.fv-privacy__close:focus-visible {
+  color: #c87431;
+}
+
+.fv-privacy__scroll {
+  overflow: auto;
+  padding: 1.35rem 1.35rem 0.5rem;
+  padding-right: 3.25rem;
+}
+
+.fv-privacy__scroll > h2 {
+  margin: 0 2rem 0.85rem 0;
+  font-family: "EB Garamond", Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.fv-privacy .privacy-copy {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(237, 230, 217, 0.88);
+}
+
+.fv-privacy .privacy-copy h2 {
+  margin: 1.35rem 0 0.45rem;
+  font-family: "EB Garamond", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.fv-privacy .privacy-copy p {
+  margin: 0;
+}
+
+.fv-privacy .privacy-copy p + p,
+.fv-privacy .privacy-copy h2 + p {
+  margin-top: 0.75rem;
+}
+
+.fv-privacy .privacy-copy a {
+  color: #c87431;
+  text-underline-offset: 3px;
+}
+
+.fv-privacy__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 0.85rem 1.15rem calc(0.85rem + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(237, 230, 217, 0.16);
+}
+
+body.fv-privacy-open {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .fv-privacy__panel {
+    width: 100%;
+    max-height: 80vh;
+    margin: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .fv-privacy__actions button {
+    flex: 1;
   }
 }

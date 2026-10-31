@@ -26,7 +26,6 @@
       var host = location.hostname === "obrigado.foveoatelie.com.br";
       var choice = null;
       try { choice = localStorage.getItem("fv-consent"); } catch (e) {}
-      if (!choice) document.documentElement.classList.add("fv-consent-pending");
       if (!host) return;
       if (choice === "granted") gtag("consent", "update", { analytics_storage: "granted" });
       var script = document.createElement("script");
