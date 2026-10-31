@@ -353,6 +353,7 @@
   replay.addEventListener("click", restart);
 
   document.addEventListener("keydown", function (event) {
+    if (document.body.classList.contains("fv-privacy-open")) return;
     if (event.key === "ArrowRight") {
       event.preventDefault();
       next();
