@@ -1,7 +1,29 @@
+{%- assign c = site.data.colecao -%}
+{%- capture wa_url -%}https://wa.me/{{ c.whatsapp }}{%- endcapture -%}
 <div class="fv-consent fv-consent--bar" role="region" aria-label="Aviso de cookies">
   <p>Usamos cookies do Google Analytics para entender como o site é usado. Você escolhe. <a href="{{ '/privacidade/' | relative_url }}">Saiba mais</a></p>
   <div class="fv-consent__actions">
     <button type="button" data-c="denied">Recusar</button>
     <button type="button" data-c="granted">Aceitar</button>
+  </div>
+</div>
+<div class="fv-privacy" id="fv-privacy" hidden>
+  <div class="fv-privacy__backdrop" data-privacy-close></div>
+  <div class="fv-privacy__panel" role="dialog" aria-modal="true" aria-labelledby="fv-privacy-title">
+    <button type="button" class="fv-privacy__close" data-privacy-close aria-label="Fechar">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" d="M6 6l12 12M18 6L6 18"/>
+      </svg>
+    </button>
+    <div class="fv-privacy__scroll">
+      <h2 id="fv-privacy-title">Privacidade</h2>
+      <div class="privacy-copy">
+        {% include privacy-copy.html %}
+      </div>
+    </div>
+    <div class="fv-privacy__actions">
+      <button type="button" data-c="denied">Recusar</button>
+      <button type="button" data-c="granted">Aceitar</button>
+    </div>
   </div>
 </div>
