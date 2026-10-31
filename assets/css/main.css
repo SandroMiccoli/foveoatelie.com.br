@@ -100,6 +100,12 @@ em[lang="la"] {
   font-style: italic;
 }
 
+/* Garamond italic x-height is smaller than Inter; this matches the body. */
+em[lang="la"] {
+  font-size: 1.3em;
+  line-height: 1;
+}
+
 h1 {
   max-width: 11em;
 }
