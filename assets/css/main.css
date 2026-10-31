@@ -49,8 +49,8 @@ a {
 }
 
 .stage {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -58,10 +58,26 @@ a {
   background: var(--ink);
 }
 
+.stack {
+  --dock: 0px;
+  height: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stack:has(.whatsapp:not([hidden])) {
+  --dock: calc(3.25rem + env(safe-area-inset-bottom));
+}
+
 .frame {
   position: relative;
-  height: min(94dvh, calc(100vw * 16 / 9));
-  width: calc(min(94dvh, calc(100vw * 16 / 9)) * 9 / 16);
+  flex-shrink: 0;
+  aspect-ratio: 9 / 16;
+  width: min(100vw, calc((100dvh - var(--dock)) * 9 / 16));
   background: var(--ink);
   overflow: hidden;
   touch-action: none;
@@ -78,7 +94,9 @@ a {
 .card {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  background: var(--ink);
   opacity: 0;
   z-index: 0;
   pointer-events: none;
@@ -149,13 +167,36 @@ a {
   width: 66.667%;
 }
 
+.dock {
+  height: var(--dock);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  overflow: hidden;
+}
+
+.wa-hit {
+  position: absolute;
+  z-index: 6;
+  left: 86.8%;
+  top: 91.1%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.wa-hit[hidden] {
+  display: none;
+}
+
 .whatsapp,
 .replay {
-  position: absolute;
-  z-index: 5;
   color: var(--paper);
-  background: var(--ink);
-  border: 1px solid rgba(237, 230, 217, 0.55);
+  background: transparent;
+  border: 1px solid rgba(237, 230, 217, 0.45);
   border-radius: 999px;
   text-decoration: none;
   letter-spacing: 0.01em;
@@ -163,9 +204,7 @@ a {
 }
 
 .whatsapp {
-  right: 0.9rem;
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  padding: 0.7rem 0.95rem;
+  padding: 0.65rem 0.9rem;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -179,11 +218,8 @@ a {
 }
 
 .replay {
-  top: max(1.7rem, calc(env(safe-area-inset-top) + 1.15rem));
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.5rem 0.85rem;
-  min-height: 36px;
+  padding: 0.55rem 0.8rem;
+  min-height: 44px;
   font-size: 0.75rem;
   cursor: pointer;
 }
@@ -217,13 +253,8 @@ a {
 
 @media (max-width: 720px) {
   .stage {
-    display: block;
-  }
-
-  .frame {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
+    gap: 0;
+    padding: 0;
   }
 
   .arrow {

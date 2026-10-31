@@ -15,6 +15,7 @@ preload: /assets/ritual/p-01.webp
     </svg>
   </button>
 
+  <div class="stack">
   <section class="frame" id="story" aria-label="Ritual pós-compra">
     <div class="progress" aria-hidden="true">
       {% for i in (1..10) %}
@@ -38,9 +39,13 @@ preload: /assets/ritual/p-01.webp
     <button class="zone zone-prev" type="button" aria-label="Card anterior"></button>
     <button class="zone zone-next" type="button" aria-label="Próximo card"></button>
 
-    <a class="whatsapp" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" hidden>Falar no WhatsApp</a>
-    <button class="replay" type="button" hidden>Ver novamente</button>
+    <a class="wa-hit" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" hidden></a>
   </section>
+  <div class="dock">
+    <button class="replay" type="button" hidden>Ver novamente</button>
+    <a class="whatsapp" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" hidden>Falar no WhatsApp</a>
+  </div>
+  </div>
 
   <button class="arrow arrow-next" type="button" aria-label="Próximo card">
     <svg viewBox="0 0 24 24" aria-hidden="true" width="28" height="28">

@@ -9,8 +9,9 @@
   var fills = Array.prototype.slice.call(frame.querySelectorAll(".segment-fill"));
   var zonePrev = frame.querySelector(".zone-prev");
   var zoneNext = frame.querySelector(".zone-next");
-  var whatsapp = frame.querySelector(".whatsapp");
-  var replay = frame.querySelector(".replay");
+  var whatsapp = document.querySelector(".whatsapp");
+  var waHit = frame.querySelector(".wa-hit");
+  var replay = document.querySelector(".replay");
   var prevBtn = document.querySelector(".arrow-prev");
   var nextBtn = document.querySelector(".arrow-next");
   var live = document.getElementById("story-live");
@@ -62,8 +63,10 @@
   }
 
   function updateChrome() {
-    whatsapp.hidden = index !== count - 1;
-    if (index !== count - 1) replay.hidden = true;
+    var onLast = index === count - 1;
+    whatsapp.hidden = !onLast;
+    waHit.hidden = !onLast;
+    if (!onLast) replay.hidden = true;
     prevBtn.disabled = index === 0;
     nextBtn.disabled = index === count - 1;
     live.textContent = "Card " + (index + 1) + " de " + count;
@@ -212,7 +215,7 @@
   nextBtn.addEventListener("click", next);
   replay.addEventListener("click", restart);
 
-  [whatsapp, replay].forEach(function (el) {
+  [whatsapp, waHit, replay].forEach(function (el) {
     el.addEventListener("pointerdown", function (event) {
       event.stopPropagation();
     });
