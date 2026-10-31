@@ -89,6 +89,9 @@
         </mask>
       </defs>
       <rect x="-6000" y="-6000" width="14000" height="14000" fill="#0d0908" mask="url(#fv-intro-mask)"/>
+      <g id="intro-veil" opacity="1" transform="translate(540 540) scale(0.001) translate(-540 -540)">
+        <path fill="#0d0908" transform="translate(-0.26 -62.53)" d="M813,633.77c0-179.13-79.26-372.36-286.61-372.36C413.52,261.41,267,338.49,267,576.24c0,160.67,78.17,369.11,292,369.11C689.27,945.35,813,847.64,813,633.77Z"/>
+      </g>
       <g id="intro-mark" opacity="0" transform="translate(540 540) scale(0.32) translate(-540 -540)">
         <image href="{{ '/assets/o-seal-claro.svg' | relative_url }}" x="-0.26" y="-62.53" width="1080" height="1080"/>
       </g>
@@ -101,12 +104,14 @@
       if (!root || !html.classList.contains("intro-on")) return;
       var mark = document.getElementById("intro-mark");
       var hole = document.getElementById("intro-hole");
+      var veil = document.getElementById("intro-veil");
       var reduce = html.classList.contains("intro-reduce");
       var from = 0.32;
       var hold = 600;
       var fade = 1300;
       var beat = 350;
       var open = 750;
+      var veilDur = 500;
       var dur = reduce ? 900 : hold + fade + beat + open;
       // Half-axes of the seal's counter (546×683), in the 1080 viewBox.
       // End just past the scale that puts that counter over the viewport.
@@ -168,9 +173,15 @@
             var uOpen = Math.min(1, (t - hold - fade - beat) / open);
             var accel = uOpen * uOpen * uOpen;
             s = from + (to - from) * accel;
+            var uVeil = Math.min(1, (t - hold - fade - beat) / veilDur);
+            var smooth = uVeil * uVeil * (3 - 2 * uVeil);
             shown = 1;
             root.style.background = "transparent";
             if (hole) hole.setAttribute("transform", tf(s));
+            if (veil) {
+              veil.setAttribute("transform", tf(s));
+              veil.setAttribute("opacity", (1 - smooth).toFixed(3));
+            }
           }
           mark.setAttribute("opacity", shown.toFixed(3));
           mark.setAttribute("transform", tf(s));
