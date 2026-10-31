@@ -1,0 +1,23 @@
+{%- assign c = site.data.colecao -%}
+{%- capture wa_geral -%}https://wa.me/{{ c.whatsapp }}?text={{ c.mensagem_geral | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <img
+      class="seal"
+      src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
+      alt=""
+      width="1080"
+      height="1080"
+      decoding="async"
+    >
+    <a class="footer-talk" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">
+      <span class="eyebrow">{{ c.cta_geral }}</span>
+      <span class="footer-phone">{{ c.whatsapp_exibicao }}</span>
+    </a>
+    <p class="legal">© Foveō Ateliê</p>
+    <p class="legal-links">
+      <a href="{{ '/privacidade/' | relative_url }}"{% if page.url == "/privacidade/" %} aria-current="page"{% endif %}>Privacidade</a>
+      <button type="button" data-consent-open>Preferências de cookies</button>
+    </p>
+  </div>
+</footer>

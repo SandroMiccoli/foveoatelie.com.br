@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if site.analytics_enabled %}
+  {% include consent-head.html %}
+  {% endif %}
   <title>{{ page.title | default: site.title | escape }}</title>
   {% comment %}
     title=false: o título da página já traz a marca. Sem isso o plugin
@@ -37,6 +40,9 @@
 </head>
 <body>
   {{ content }}
+  {% if site.show_consent %}
+  {% include consent-bar.html %}
+  {% endif %}
   <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
 </body>
 </html>

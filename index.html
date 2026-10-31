@@ -61,7 +61,7 @@ preload_image: /assets/bg-vela-acesa.webp
     </div>
   </section>
 
-  <section class="band band--paper" id="sobre" aria-labelledby="nome-titulo">
+  <section class="band" id="sobre" aria-labelledby="nome-titulo">
     <div class="wrap">
       <div class="section-head reveal">
         <span class="macron" aria-hidden="true"></span>
@@ -70,11 +70,24 @@ preload_image: /assets/bg-vela-acesa.webp
       </div>
       <div class="split reveal">
         <div class="measure">
+          <div class="verbete">
+            <p class="verbete-head">
+              <span class="verbete-word" lang="la">foveō</span>
+              <span class="verbete-pos">v. lat.</span>
+            </p>
+            <ol class="verbete-senses">
+              <li><span>1</span> Aquecer, acalentar.</li>
+              <li><span>2</span> Proteger, favorecer.</li>
+              <li><span>3</span> Abraçar, acariciar.</li>
+              <li><span>4</span> Aliviar, mitigar.</li>
+              <li><span>5</span> Cuidar, tratar de.</li>
+            </ol>
+          </div>
+          <p><em lang="la">Foveō</em> é, em essência, uma ideia de calor que acolhe.</p>
           <p>{{ c.intro.paragrafos[0] }}</p>
-          <p>{{ c.intro.paragrafos[1] }}</p>
         </div>
         <div class="measure">
-          <p>{{ c.intro.paragrafos[2] }}</p>
+          <p>{{ c.intro.paragrafos[1] }}</p>
         </div>
       </div>
     </div>
@@ -126,7 +139,7 @@ preload_image: /assets/bg-vela-acesa.webp
             </dl>
             <div class="product-body">
               <p>{{ produto.descricao }}</p>
-              <a class="cta" href="{{ wa_produto }}" target="_blank" rel="noopener noreferrer" aria-label="{{ c.cta_produto }} — {{ produto.nome }}">{{ c.cta_produto }}</a>
+              <a class="cta" href="{{ wa_produto }}" data-wa-product="{{ produto.nome }}" target="_blank" rel="noopener noreferrer" aria-label="{{ c.cta_produto }} — {{ produto.nome }}">{{ c.cta_produto }}</a>
             </div>
           </div>
         </article>
@@ -192,20 +205,4 @@ preload_image: /assets/bg-vela-acesa.webp
   </section>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap footer-inner">
-    <img
-      class="seal"
-      src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
-      alt=""
-      width="1080"
-      height="1080"
-      decoding="async"
-    >
-    <a class="footer-talk" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">
-      <span class="eyebrow">{{ c.cta_geral }}</span>
-      <span class="footer-phone">{{ c.whatsapp_exibicao }}</span>
-    </a>
-    <p class="legal">© Foveō Ateliê</p>
-  </div>
-</footer>
+{% include footer.html %}

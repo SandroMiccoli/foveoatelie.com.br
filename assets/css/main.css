@@ -93,8 +93,14 @@ h2,
   line-height: 1.15;
 }
 
-h1 {
+h1,
+h2[lang="la"],
+em[lang="la"] {
+  font-family: var(--serif);
   font-style: italic;
+}
+
+h1 {
   max-width: 11em;
 }
 
@@ -665,7 +671,7 @@ a {
 
   .split > :first-child {
     padding-right: 1rem;
-    border-right: 1px solid var(--line-light);
+    border-right: 1px solid var(--line-dark);
   }
 
   .product-main {
@@ -774,5 +780,196 @@ a {
   .cta,
   .header-talk {
     background: transparent;
+  }
+}
+
+.verbete {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1.35rem;
+  padding-bottom: 1.15rem;
+  border-bottom: 1px solid rgba(200, 116, 49, 0.55);
+  max-width: 26rem;
+}
+
+.verbete-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.75rem;
+  margin: 0;
+}
+
+.verbete-word {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.verbete-pos {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--paper-dim);
+}
+
+.verbete-senses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.38rem;
+}
+
+.verbete-senses li {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  column-gap: 0.55rem;
+  align-items: baseline;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  line-height: 1.35;
+}
+
+.verbete-senses li span {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--copper);
+  font-variant-numeric: tabular-nums;
+}
+
+.privacy h2 {
+  font-size: var(--subhead);
+  line-height: 1.2;
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.privacy-copy a {
+  color: var(--copper);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15rem 1.1rem;
+  margin: -0.35rem 0 0;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--paper-dim);
+}
+
+.legal-links a,
+.legal-links button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 0.15rem;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-links a:hover,
+.legal-links button:hover {
+  color: var(--paper);
+}
+
+.fv-consent {
+  position: fixed;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  gap: 14px 20px;
+  background: rgba(13, 9, 8, 0.94);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #ede6d9;
+  font: 400 13px/1.5 Inter, system-ui, sans-serif;
+  border: 1px solid rgba(200, 116, 49, 0.28);
+}
+
+.fv-consent.is-open {
+  display: flex;
+}
+
+.fv-consent p {
+  margin: 0;
+  color: rgba(237, 230, 217, 0.82);
+}
+
+.fv-consent a {
+  color: #c87431;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fv-consent__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fv-consent button {
+  font: 500 12px/1 Inter, system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  min-width: 96px;
+  border-radius: 999px;
+  cursor: pointer;
+  background: transparent;
+  color: #ede6d9;
+  border: 1px solid rgba(237, 230, 217, 0.35);
+}
+
+.fv-consent button[data-c="granted"] {
+  border-color: #c87431;
+  color: #c87431;
+}
+
+.fv-consent button:hover {
+  background: rgba(237, 230, 217, 0.06);
+}
+
+.fv-consent--bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  justify-content: center;
+  padding: 12px 24px;
+  border-width: 1px 0 0;
+}
+
+@media (max-width: 640px) {
+  .fv-consent--bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+
+  .fv-consent--bar p {
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .fv-consent--bar .fv-consent__actions button {
+    flex: 1;
   }
 }

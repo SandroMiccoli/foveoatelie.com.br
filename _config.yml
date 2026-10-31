@@ -25,6 +25,11 @@ social:
 webmaster_verifications:
   google:
 
+# ID de medição do GA4. Público. O script e o aviso de cookies só
+# entram no HTML quando a Netlify faz o deploy de produção
+# (CONTEXT=production) e a branch não é dev nem obrigado.
+google_analytics: "G-H43WTD3XEE"
+
 defaults:
   - scope:
       path: ""
