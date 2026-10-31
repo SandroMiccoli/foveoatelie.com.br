@@ -1,0 +1,70 @@
+:root {
+  --ink: #0d0908;
+  --paper: #ede6d9;
+  --copper: #c87431;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--ink);
+  color: var(--paper);
+  color-scheme: dark;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--ink);
+}
+
+.stage {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(2.25rem, 8vh, 5.5rem) clamp(1.5rem, 7vw, 5rem);
+}
+
+.stage h1 {
+  margin: 0;
+  width: min(32rem, 100%);
+  line-height: 0;
+}
+
+.mark {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(100dvh - 4.5rem);
+  object-fit: contain;
+  animation: fade-in 1.5s ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark {
+    animation: none;
+  }
+}
+
+::selection {
+  background: var(--copper);
+  color: var(--ink);
+}

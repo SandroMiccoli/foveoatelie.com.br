@@ -1,0 +1,20 @@
+# Foveō Ateliê — site estático em Jekyll.
+# Catálogo, estoque e pedidos entram depois como páginas, coleções
+# e dados, em cima deste layout.
+title: "Foveō Ateliê — Rituais de cuidado através do toque"
+description: "Velas de massagem artesanais feitas em Belo Horizonte. Foveō Ateliê — rituais de cuidado através do toque."
+url: "https://foveoatelie.com.br"
+baseurl: ""
+lang: pt-BR
+
+markdown: kramdown
+permalink: pretty
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - netlify.toml
+  - vendor
+  - node_modules
+  - .bundle
