@@ -1,0 +1,102 @@
+# Textos da coleção 2026. Edite aqui — a página lê este arquivo.
+# Perfil sensorial: versão do card da coleção (Canva) onde as fontes divergem.
+# Despertar fica "Floral • Cítrico • Sedoso" (as cartilhas trazem "Especiado").
+# Permanecer fica "Cremoso • Floral • Aveludado".
+# Foto de produto: preencha `image` com um caminho, por exemplo
+# /assets/produtos/acolher.webp — vazio, o card continua só tipográfico.
+
+whatsapp: "5531996099111"
+whatsapp_exibicao: "31 996 099 111"
+mensagem_geral: "Olá! Tenho interesse na coleção 2026 da Foveō."
+cta_geral: "Falar com a Foveō"
+cta_produto: "Pedir pelo WhatsApp"
+
+hero:
+  rotulo: "Velas de massagem · Coleção 2026"
+  tagline: "Rituais de cuidado através do toque"
+  imagem: "/assets/bg-vela-acesa.webp"
+  imagem_alt: "Vela de massagem acesa em lata metálica, sobre madeira, com a chama iluminando o óleo."
+
+intro:
+  rotulo: "O nome"
+  titulo: "fovēre"
+  paragrafos:
+    - "Foveo vem do latim fovēre, verbo associado a aquecer, aquecer com cuidado, aconchegar, acalentar e nutrir. Foveo é, em essência, uma ideia de calor que acolhe."
+    - "O complemento Ateliê reforça a dimensão artesanal, experimental e autoral da marca."
+    - "Uma vela de massagem combina óleos e manteigas vegetais, cera de abelha e fragrância em uma experiência de calor, textura e toque. Ao ser aquecida, a vela se transforma em um óleo morno e fluido, próprio para ser espalhado sobre a pele e utilizado durante a massagem."
+
+colecao:
+  rotulo: "Três composições"
+  titulo: "Coleção 2026"
+  base: "Óleo de girassol + cera de abelha. Em cada vela, a manteiga vegetal e a combinação aromática são os elementos que variam para permitir diferentes tipos de rituais e toques."
+  embalagem: "Lata metálica preta de 100 ml."
+
+produtos:
+  - numero: "01"
+    slug: "acolher"
+    nome: "Acolher"
+    tagline: "Vela de massagem para acolher no calor do toque"
+    manteiga: "Manteiga de Karité"
+    aroma: "Patchouli + Vanilla"
+    perfil: "Quente • Terroso • Cremoso"
+    descricao: "A manteiga de karité traz uma textura cremosa e envolvente. Patchouli e vanilla constroem um perfil quente, profundo e confortável, pensado para um toque lento e acolhedor."
+    mensagem: "Olá! Tenho interesse na vela de massagem Acolher, da coleção 2026 da Foveō."
+    image: ""
+  - numero: "02"
+    slug: "despertar"
+    nome: "Despertar"
+    tagline: "Vela de massagem para trazer o corpo à presença"
+    manteiga: "Manteiga de Manga"
+    aroma: "Ylang Ylang + Bergamota + Gengibre"
+    perfil: "Floral • Cítrico • Sedoso"
+    descricao: "A manteiga de manga oferece uma sensação macia e sedosa. Ylang ylang, bergamota e gengibre combinam floralidade, luminosidade cítrica e calor especiado, criando uma composição sensual e vibrante."
+    mensagem: "Olá! Tenho interesse na vela de massagem Despertar, da coleção 2026 da Foveō."
+    image: ""
+  - numero: "03"
+    slug: "permanecer"
+    nome: "Permanecer"
+    tagline: "Vela de massagem para desacelerar e habitar o momento"
+    manteiga: "Manteiga de Cacau"
+    aroma: "Flor de Café"
+    perfil: "Cremoso • Floral • Aveludado"
+    descricao: "A manteiga de cacau proporciona uma textura mais densa e aveludada. A fragrância de flor de café acrescenta uma dimensão floral delicada e sofisticada, associada a uma experiência de pausa e contemplação."
+    mensagem: "Olá! Tenho interesse na vela de massagem Permanecer, da coleção 2026 da Foveō."
+    image: ""
+
+ritual:
+  rotulo: "Como acontece"
+  titulo: "O ritual"
+  lead: "O ritual começa na intenção, ganha forma no toque e reverbera para além dele."
+  nota: "Uma sequência intencional de pequenos gestos. Não exige regras rígidas nem ocasiões especiais."
+  momentos:
+    - numero: "01"
+      nome: "Preparar"
+      texto: "Organizar o ambiente, reduzir as distrações e criar disponibilidade. O ritual começa antes do toque — na preparação do espaço, na intenção, na respiração e na desaceleração."
+    - numero: "02"
+      nome: "Aquecer"
+      texto: "Acenda a vela e deixe o calor transformar a superfície em óleo. Aguarde até que se forme uma camada homogênea de óleo por toda a superfície da vela, alcançando toda a circunferência da lata. Quando houver uma quantidade suficiente de óleo, apague a chama usando a própria tampa da vela. Nunca sopre a vela: ao soprar, pequenas partículas e cinzas do pavio podem cair dentro do óleo. Depois de apagar a chama, aguarde alguns segundos e, antes de espalhar sobre o corpo, verifique a temperatura do óleo."
+    - numero: "03"
+      nome: "Tocar"
+      texto: "O óleo pode ser colocado primeiro nas mãos e então espalhado pelo corpo, ou ir diretamente à pele. Deixe o óleo acompanhar o movimento das mãos. Perceba sua temperatura, textura e deslizamento. Experimente diferentes ritmos e pressões e observe como o corpo responde."
+    - numero: "04"
+      nome: "Reverberar"
+      texto: "Quando a massagem terminar, permaneça alguns instantes percebendo o que ficou. Observe a sensação do óleo sobre a pele, o calor que permanece no corpo, o aroma que continua presente e as sensações produzidas pelo toque. Perceba como a experiência continua reverberando no corpo mesmo depois que o movimento termina."
+
+base:
+  rotulo: "Matéria e cuidado"
+  titulo: "A base"
+  materias:
+    - nome: "Óleo de girassol"
+      texto: "Leve e macio, o óleo de girassol proporciona o deslizamento necessário para a massagem. Ajuda as mãos a percorrerem o corpo com movimentos contínuos e fluidos."
+      sensacao: "sedosa · macia · fluida · deslizante"
+    - nome: "Cera de abelha"
+      texto: "A cera de abelha dá estrutura à vela quando está sólida e, com o calor da chama, se transforma gradualmente em uma mistura líquida. Na pele, contribui para uma sensação mais envolvente e prolonga a emoliência do óleo."
+      sensacao: "quente · envolvente · protetora · encorpada"
+  cuidados:
+    - "Apague a chama usando a própria tampa da vela."
+    - "Nunca sopre a vela. Ao soprar, pequenas partículas e cinzas do pavio podem cair dentro do óleo."
+    - "Aguarde alguns segundos para que o óleo se acomode. Antes de espalhar sobre o corpo, verifique a temperatura do óleo."
+  sintese:
+    - "Cuidado através do toque."
+    - "Tempo para estar presente."
+    - "Algo que permanece depois."

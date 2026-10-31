@@ -1,16 +1,209 @@
 ---
 layout: default
+preload_image: /assets/bg-vela-acesa.webp
 ---
-<main class="stage">
-  <h1>
-    <img
-      class="mark"
-      src="{{ '/assets/logo-claro.svg' | relative_url }}"
-      alt="Foveō Ateliê — Rituais de cuidado através do toque"
-      width="1014"
-      height="586"
-      decoding="async"
-      fetchpriority="high"
-    >
-  </h1>
+{%- assign c = site.data.colecao -%}
+{%- capture wa_geral -%}https://wa.me/{{ c.whatsapp }}?text={{ c.mensagem_geral | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
+
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+
+<header class="site-header">
+  <div class="wrap header-bar">
+  <a class="brand" href="#topo">
+    <span class="logo-crop">
+      <img
+        src="{{ '/assets/logo-claro.svg' | relative_url }}"
+        alt="Foveō Ateliê"
+        width="1014"
+        height="586"
+        decoding="async"
+      >
+    </span>
+  </a>
+  <nav class="nav" aria-label="Seções">
+    <a href="#colecao">Coleção</a>
+    <a href="#ritual">Ritual</a>
+    <a href="#base">A base</a>
+  </nav>
+  <a class="header-talk" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">{{ c.cta_geral }}</a>
+  </div>
+</header>
+
+<main id="conteudo">
+  <section class="hero" id="topo" aria-labelledby="tagline">
+    <div class="hero-visual">
+      <img
+        src="{{ c.hero.imagem | relative_url }}"
+        alt="{{ c.hero.imagem_alt }}"
+        width="768"
+        height="1364"
+        decoding="async"
+        fetchpriority="high"
+      >
+    </div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">{{ c.hero.rotulo }}</p>
+        <span class="logo-crop logo-crop--hero">
+          <img
+            src="{{ '/assets/logo-claro.svg' | relative_url }}"
+            alt=""
+            width="1014"
+            height="586"
+            decoding="async"
+          >
+        </span>
+        <h1 id="tagline">{{ c.hero.tagline }}</h1>
+        <a class="cta" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">{{ c.cta_geral }}</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--paper" id="sobre" aria-labelledby="nome-titulo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="macron" aria-hidden="true"></span>
+        <p class="eyebrow">{{ c.intro.rotulo }}</p>
+        <h2 id="nome-titulo" lang="la">{{ c.intro.titulo }}</h2>
+      </div>
+      <div class="split reveal">
+        <div class="measure">
+          <p>{{ c.intro.paragrafos[0] }}</p>
+          <p>{{ c.intro.paragrafos[1] }}</p>
+        </div>
+        <div class="measure">
+          <p>{{ c.intro.paragrafos[2] }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="colecao" aria-labelledby="colecao-titulo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="macron" aria-hidden="true"></span>
+        <p class="eyebrow">{{ c.colecao.rotulo }}</p>
+        <h2 id="colecao-titulo">{{ c.colecao.titulo }}</h2>
+        <p class="measure">{{ c.colecao.base }}</p>
+        <p class="spec">{{ c.colecao.embalagem }}</p>
+      </div>
+
+      <div class="products">
+        {% for produto in c.produtos %}
+        {%- capture wa_produto -%}https://wa.me/{{ c.whatsapp }}?text={{ produto.mensagem | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
+        <article class="product reveal{% if produto.image != nil and produto.image != empty %} has-image{% endif %}" id="{{ produto.slug }}" aria-labelledby="produto-{{ produto.slug }}">
+          <p class="product-num">{{ produto.numero }}</p>
+          <div class="product-main">
+            <header class="product-heading">
+              <h3 id="produto-{{ produto.slug }}">{{ produto.nome }}</h3>
+              <p class="lede">{{ produto.tagline }}</p>
+            </header>
+            {% if produto.image != nil and produto.image != empty %}
+            <figure class="product-photo">
+              <img
+                src="{{ produto.image | relative_url }}"
+                alt="{{ produto.nome }}"
+                loading="lazy"
+                decoding="async"
+              >
+            </figure>
+            {% endif %}
+            <dl class="product-meta">
+              <div>
+                <dt>Manteiga</dt>
+                <dd>{{ produto.manteiga }}</dd>
+              </div>
+              <div>
+                <dt>Fragrância</dt>
+                <dd>{{ produto.aroma }}</dd>
+              </div>
+              <div>
+                <dt>Percepção sensorial</dt>
+                <dd>{{ produto.perfil }}</dd>
+              </div>
+            </dl>
+            <div class="product-body">
+              <p>{{ produto.descricao }}</p>
+              <a class="cta" href="{{ wa_produto }}" target="_blank" rel="noopener noreferrer" aria-label="{{ c.cta_produto }} — {{ produto.nome }}">{{ c.cta_produto }}</a>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--paper" id="ritual" aria-labelledby="ritual-titulo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="macron" aria-hidden="true"></span>
+        <p class="eyebrow">{{ c.ritual.rotulo }}</p>
+        <h2 id="ritual-titulo">{{ c.ritual.titulo }}</h2>
+        <p class="lede">{{ c.ritual.lead }}</p>
+        <p class="measure">{{ c.ritual.nota }}</p>
+      </div>
+      <ol class="moments">
+        {% for momento in c.ritual.momentos %}
+        <li class="moment reveal">
+          <h3>
+            <span class="index-num">{{ momento.numero }}</span>
+            {{ momento.nome }}
+          </h3>
+          <p>{{ momento.texto }}</p>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" id="base" aria-labelledby="base-titulo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="macron" aria-hidden="true"></span>
+        <p class="eyebrow">{{ c.base.rotulo }}</p>
+        <h2 id="base-titulo">{{ c.base.titulo }}</h2>
+        <p class="spec">{{ c.colecao.embalagem }}</p>
+      </div>
+      <div class="matter">
+        {% for materia in c.base.materias %}
+        <article class="matter-card reveal">
+          <h3>{{ materia.nome }}</h3>
+          <p>{{ materia.texto }}</p>
+          <p class="sensacao"><span>Sensação</span> {{ materia.sensacao }}</p>
+        </article>
+        {% endfor %}
+      </div>
+      <div class="care-block reveal">
+        <h3>Cuidado</h3>
+        <ul class="care">
+          {% for nota in c.base.cuidados %}
+          <li>{{ nota }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <p class="closer reveal">
+        {% for linha in c.base.sintese %}
+        {{ linha }}{% unless forloop.last %}<br>{% endunless %}
+        {% endfor %}
+      </p>
+    </div>
+  </section>
 </main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <img
+      class="seal"
+      src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
+      alt=""
+      width="1080"
+      height="1080"
+      decoding="async"
+    >
+    <a class="footer-talk" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">
+      <span class="eyebrow">{{ c.cta_geral }}</span>
+      <span class="footer-phone">{{ c.whatsapp_exibicao }}</span>
+    </a>
+    <p class="legal">© Foveō Ateliê</p>
+  </div>
+</footer>
