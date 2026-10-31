@@ -28,6 +28,28 @@
   var generation = 0;
   var introPlayed = false;
 
+  function storedConsent() {
+    try { return localStorage.getItem("fv-consent"); } catch (e) { return null; }
+  }
+
+  var consentHold = !storedConsent();
+
+  function track(name, params) {
+    if (location.hostname !== "obrigado.foveoatelie.com.br") return;
+    if (storedConsent() !== "granted") return;
+    if (typeof gtag !== "function") return;
+    gtag("event", name, params || {});
+  }
+
+  function trackCard(i) {
+    var card = slides[i];
+    if (!card) return;
+    track("ritual_card_view", {
+      card_index: i + 1,
+      card_title: card.getAttribute("data-title") || ""
+    });
+  }
+
   function reduced() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -55,6 +77,11 @@
     phase = "read";
     progress = 0;
     lastTs = performance.now();
+    if (consentHold) {
+      paused = true;
+      window.cancelAnimationFrame(raf);
+      return;
+    }
     if (!paused && !ended && !holding && !document.hidden) {
       window.cancelAnimationFrame(raf);
       raf = window.requestAnimationFrame(tick);
@@ -67,6 +94,7 @@
     killCard(card);
     phase = "enter";
     window.cancelAnimationFrame(raf);
+    trackCard(index);
 
     var bits = card.querySelectorAll(".anim");
     var line = card.querySelector(".rule");
@@ -158,7 +186,7 @@
     }
     window.cancelAnimationFrame(raf);
     ended = false;
-    paused = false;
+    paused = consentHold;
     holding = false;
     progress = 0;
     replay.hidden = true;
@@ -246,7 +274,7 @@
   }
 
   function resumeAll() {
-    if (ended || holding || document.hidden) return;
+    if (ended || holding || document.hidden || consentHold) return;
     paused = false;
     if (phase === "enter" && activeTl && activeTl.progress() < 1) {
       activeTl.resume();
@@ -372,6 +400,7 @@
   }
 
   function copyShare() {
+    track("share_click", { method: "copy" });
     var done = function () { showCopied(); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(shareMessage).then(done).catch(done);
@@ -389,6 +418,8 @@
           title: "Foveō Ateliê",
           text: SHARE_TEXT,
           url: SHARE_URL
+        }).then(function () {
+          track("share_click", { method: "native" });
         }).catch(function (err) {
           if (err && err.name === "AbortError") return;
           copyShare();
@@ -398,6 +429,38 @@
       copyShare();
     });
   }
+
+  if (shareWa) {
+    shareWa.addEventListener("click", function () {
+      track("share_click", { method: "whatsapp" });
+    });
+  }
+
+  var contactLink = document.querySelector("a.wa");
+  if (contactLink) {
+    contactLink.addEventListener("click", function () {
+      track("whatsapp_click");
+    });
+  }
+
+  var siteLink = document.querySelector("a.site");
+  if (siteLink) {
+    siteLink.addEventListener("click", function () {
+      track("site_click");
+    });
+  }
+
+  window.addEventListener("fv-consent", function (event) {
+    consentHold = false;
+    if (event.detail === "granted") trackCard(index);
+    if (ended || holding || document.hidden) return;
+    paused = false;
+    if (phase === "read") {
+      lastTs = performance.now();
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(tick);
+    }
+  });
 
   updateChrome();
   introPlayed = true;

@@ -50,7 +50,7 @@ a {
 
 .stage {
   height: 100vh;
-  height: 100dvh;
+  height: calc(100dvh - var(--consent, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,7 +77,8 @@ a {
   position: relative;
   flex-shrink: 0;
   aspect-ratio: 9 / 16;
-  width: min(100vw, calc((100dvh - var(--dock)) * 9 / 16));
+  width: min(100vw, calc((100dvh - var(--dock) - var(--consent, 0px)) * 9 / 16));
+  max-height: calc(100dvh - var(--dock) - var(--consent, 0px));
   background: var(--ink);
   overflow: hidden;
   touch-action: none;
@@ -467,4 +468,103 @@ a {
 ::selection {
   background: var(--copper);
   color: var(--ink);
+}
+
+html.fv-consent-pending {
+  --consent: 7.75rem;
+}
+
+@media (min-width: 641px) {
+  html.fv-consent-pending {
+    --consent: 3.75rem;
+  }
+}
+
+.fv-consent {
+  position: fixed;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  gap: 14px 20px;
+  background: rgba(13, 9, 8, 0.94);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #ede6d9;
+  font: 400 13px/1.5 Inter, system-ui, sans-serif;
+  border: 1px solid rgba(200, 116, 49, 0.28);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.fv-consent.is-open {
+  display: flex;
+}
+
+.fv-consent p {
+  margin: 0;
+  color: rgba(237, 230, 217, 0.82);
+}
+
+.fv-consent a {
+  color: #c87431;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fv-consent__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fv-consent button {
+  appearance: none;
+  font: 500 12px/1 Inter, system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  width: 7.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  background: transparent;
+  color: #ede6d9;
+  border: 1px solid rgba(237, 230, 217, 0.35);
+}
+
+.fv-consent button[data-c="granted"] {
+  border-color: #c87431;
+  color: #c87431;
+}
+
+.fv-consent button:hover,
+.fv-consent button:focus-visible {
+  background: rgba(237, 230, 217, 0.06);
+}
+
+.fv-consent--bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  justify-content: center;
+  padding: 12px 24px;
+  border-width: 1px 0 0;
+}
+
+@media (max-width: 640px) {
+  .fv-consent--bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+
+  .fv-consent--bar p {
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .fv-consent--bar .fv-consent__actions button {
+    flex: 1;
+    width: auto;
+  }
 }

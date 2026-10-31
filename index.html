@@ -25,7 +25,7 @@ preload: /assets/ritual/bg-vela.webp
 
       <div class="slides">
         {% for card in site.data.ritual.cards %}
-        <article class="card theme-{{ card.theme }}{% if forloop.first %} is-current{% endif %}" data-kind="{{ card.kind }}">
+        <article class="card theme-{{ card.theme }}{% if forloop.first %} is-current{% endif %}" data-kind="{{ card.kind }}" data-title="{{ card.title | default: 'Capa' | replace: '|', ' ' | escape }}">
           {% if card.kind == "cover" %}
           <div class="cover-photo">
             <img src="{{ '/assets/ritual/bg-vela.webp' | relative_url }}" alt="">
@@ -66,7 +66,7 @@ preload: /assets/ritual/bg-vela.webp
                   </svg>
                   <span>Fale conosco</span>
                 </a>
-                <a class="action" href="https://foveoatelie.com.br" target="_blank" rel="noopener noreferrer">
+                <a class="action site" href="https://foveoatelie.com.br" target="_blank" rel="noopener noreferrer">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M4.5 11.2 12 4.5l7.5 6.7V20a.8.8 0 0 1-.8.8h-4.2v-5.2H9.5V20.8H5.3a.8.8 0 0 1-.8-.8v-8.8Z"/>
                   </svg>
@@ -111,6 +111,52 @@ preload: /assets/ritual/bg-vela.webp
     </svg>
   </button>
 </div>
+
+<div class="fv-consent fv-consent--bar" role="region" aria-label="Aviso de cookies">
+  <p>Usamos cookies do Google Analytics para entender como o site é usado. Você escolhe. <a href="https://foveoatelie.com.br/privacidade/">Saiba mais</a></p>
+  <div class="fv-consent__actions">
+    <button type="button" data-c="denied">Recusar</button>
+    <button type="button" data-c="granted">Aceitar</button>
+  </div>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var bar = document.querySelector(".fv-consent");
+    var choice = null;
+    try { choice = localStorage.getItem("fv-consent"); } catch (e) {}
+
+    function place() {
+      if (!bar.classList.contains("is-open")) {
+        root.style.setProperty("--consent", "0px");
+        root.classList.remove("fv-consent-pending");
+        return;
+      }
+      root.style.setProperty("--consent", bar.offsetHeight + "px");
+    }
+
+    if (!choice) bar.classList.add("is-open");
+    place();
+    window.addEventListener("resize", place);
+
+    bar.addEventListener("pointerdown", function (event) {
+      event.stopPropagation();
+    });
+    bar.addEventListener("click", function (event) {
+      event.stopPropagation();
+      var choiceEl = event.target.closest && event.target.closest("[data-c]");
+      var decision = choiceEl && choiceEl.getAttribute("data-c");
+      if (!decision) return;
+      try { localStorage.setItem("fv-consent", decision); } catch (e) {}
+      if (decision === "granted" && location.hostname === "obrigado.foveoatelie.com.br") {
+        gtag("consent", "update", { analytics_storage: "granted" });
+      }
+      bar.classList.remove("is-open");
+      place();
+      window.dispatchEvent(new CustomEvent("fv-consent", { detail: decision }));
+    });
+  })();
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js" defer></script>
 <script src="{{ '/assets/js/stories.js' | relative_url }}" defer></script>
