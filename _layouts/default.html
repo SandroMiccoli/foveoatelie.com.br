@@ -12,6 +12,32 @@
   <meta name="robots" content="noindex">
   {% endif %}
 
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag("consent", "default", {
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      analytics_storage: "denied",
+      wait_for_update: 500
+    });
+    (function () {
+      var host = location.hostname === "obrigado.foveoatelie.com.br";
+      var choice = null;
+      try { choice = localStorage.getItem("fv-consent"); } catch (e) {}
+      if (!choice) document.documentElement.classList.add("fv-consent-pending");
+      if (!host) return;
+      if (choice === "granted") gtag("consent", "update", { analytics_storage: "granted" });
+      var script = document.createElement("script");
+      script.async = true;
+      script.src = "https://www.googletagmanager.com/gtag/js?id=G-H43WTD3XEE";
+      document.head.appendChild(script);
+      gtag("js", new Date());
+      gtag("config", "G-H43WTD3XEE");
+    })();
+  </script>
+
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <meta property="og:site_name" content="Foveō Ateliê">
