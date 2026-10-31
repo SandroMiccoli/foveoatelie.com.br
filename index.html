@@ -7,6 +7,7 @@ preload_image: /assets/bg-vela-acesa.webp
 {%- assign c = site.data.colecao -%}
 {%- capture wa_geral -%}https://wa.me/{{ c.whatsapp }}?text={{ c.mensagem_geral | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
 
+<script>document.documentElement.classList.add("has-logo-handoff");</script>
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
 <header class="site-header">
@@ -55,7 +56,6 @@ preload_image: /assets/bg-vela-acesa.webp
     </div>
     <div class="hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">{{ c.hero.rotulo }}</p>
         <span class="logo-crop logo-crop--hero">
           <img
             src="{{ '/assets/logo-claro.svg' | relative_url }}"
@@ -66,7 +66,6 @@ preload_image: /assets/bg-vela-acesa.webp
           >
         </span>
         <h1 id="tagline">{{ c.hero.tagline }}</h1>
-        <a class="cta" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">{{ c.cta_geral }}</a>
       </div>
     </div>
   </section>
