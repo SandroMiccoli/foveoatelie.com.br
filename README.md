@@ -1,6 +1,6 @@
 # Foveō Ateliê
 
-Página do ateliê em Jekyll, sem framework de JavaScript. Por enquanto só o logo, centralizado, sobre o fundo escuro texturizado. Catálogo, estoque e pedidos entram depois em cima de `_config.yml`, `_layouts/` e `assets/`.
+Página do ateliê em Jekyll, sem framework de JavaScript. Por enquanto só o logo, centralizado, sobre um preto quente. Catálogo, estoque e pedidos entram depois em cima de `_config.yml`, `_layouts/` e `assets/`.
 
 ## Local
 

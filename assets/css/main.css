@@ -1,5 +1,5 @@
 :root {
-  --ink: #17130f;
+  --ink: #1a1210;
   --paper: #ede6d9;
   --copper: #c87431;
 }
@@ -23,8 +23,6 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--ink);
-  background-image: url("../grain.png");
-  background-repeat: repeat;
 }
 
 .stage {
