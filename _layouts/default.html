@@ -73,7 +73,10 @@
 
   <link rel="preload" href="{{ '/assets/logo-claro.svg' | relative_url }}" as="image" type="image/svg+xml">
   {% if page.preload_image %}
-  <link rel="preload" href="{{ page.preload_image | relative_url }}" as="image" type="image/webp" fetchpriority="high">
+  <link rel="preload" href="{{ page.preload_image | relative_url }}" as="image" type="image/webp" media="(max-width: 699px)" fetchpriority="high">
+  {% endif %}
+  {% if page.preload_image_wide %}
+  <link rel="preload" href="{{ page.preload_image_wide | relative_url }}" as="image" type="image/webp" media="(min-width: 700px)" fetchpriority="high">
   {% endif %}
   <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
 </head>

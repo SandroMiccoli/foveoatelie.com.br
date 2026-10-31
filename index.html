@@ -3,6 +3,7 @@ layout: default
 title: "Foveō Ateliê — Velas de massagem artesanais"
 description: "Velas de massagem artesanais feitas em Belo Horizonte. A coleção 2026 reúne três rituais de cuidado através do toque: Acolher, Despertar e Permanecer."
 preload_image: /assets/bg-vela-acesa.webp
+preload_image_wide: /assets/bg-vela-larga.webp
 ---
 {%- assign c = site.data.colecao -%}
 {%- capture wa_geral -%}https://wa.me/{{ c.whatsapp }}?text={{ c.mensagem_geral | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
@@ -45,14 +46,28 @@ preload_image: /assets/bg-vela-acesa.webp
 <main id="conteudo">
   <section class="hero" id="topo" aria-labelledby="tagline">
     <div class="hero-visual">
-      <img
-        src="{{ c.hero.imagem | relative_url }}"
-        alt="{{ c.hero.imagem_alt }}"
-        width="768"
-        height="1364"
-        decoding="async"
-        fetchpriority="high"
-      >
+      <picture>
+        <source
+          media="(min-width: 700px)"
+          type="image/webp"
+          srcset="{{ '/assets/bg-vela-larga-1600.webp' | relative_url }} 1600w, {{ '/assets/bg-vela-larga.webp' | relative_url }} 2400w"
+          sizes="100vw"
+        >
+        <source
+          media="(min-width: 700px)"
+          type="image/jpeg"
+          srcset="{{ '/assets/bg-vela-larga-1600.jpg' | relative_url }} 1600w, {{ '/assets/bg-vela-larga.jpg' | relative_url }} 2400w"
+          sizes="100vw"
+        >
+        <img
+          src="{{ c.hero.imagem | relative_url }}"
+          alt="{{ c.hero.imagem_alt }}"
+          width="768"
+          height="1364"
+          decoding="async"
+          fetchpriority="high"
+        >
+      </picture>
     </div>
     <div class="hero-grid">
       <div class="hero-copy">
