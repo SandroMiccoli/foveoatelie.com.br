@@ -10,87 +10,18 @@
     window.addEventListener("scroll", onScroll, { passive: true });
 
     var heroCrop = document.querySelector(".logo-crop--hero");
-    var headerCrop = document.querySelector(".site-header .logo-crop");
-    if (heroCrop && headerCrop && document.documentElement.classList.contains("has-logo-handoff")) {
-      var heroImg = heroCrop.querySelector("img");
-      var headerImg = headerCrop.querySelector("img");
-      var reduceMotion = false;
-      try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
-      var flight = null;
-      if (!reduceMotion && heroImg) {
-        flight = document.createElement("div");
-        flight.className = "logo-flight";
-        flight.setAttribute("aria-hidden", "true");
-        var flightImg = heroImg.cloneNode(true);
-        flightImg.alt = "";
-        flight.appendChild(flightImg);
-        document.body.appendChild(flight);
-      }
-      var flightWidth = -1;
-      var handoffQueued = false;
-
-      var smoothstep = function (u) {
-        return u * u * (3 - 2 * u);
+    if (heroCrop && document.documentElement.classList.contains("has-logo-handoff") && "IntersectionObserver" in window) {
+      var logoObserver = null;
+      var watchHeroLogo = function () {
+        if (logoObserver) logoObserver.disconnect();
+        var top = Math.ceil(header.getBoundingClientRect().height);
+        logoObserver = new IntersectionObserver(function (entries) {
+          header.classList.toggle("is-logo", !entries[0].isIntersecting);
+        }, { threshold: 0, rootMargin: "-" + top + "px 0px 0px 0px" });
+        logoObserver.observe(heroCrop);
       };
-
-      var placeHandoff = function () {
-        handoffQueued = false;
-        if (!heroImg || !headerImg) return;
-        if (document.documentElement.classList.contains("intro-on")) {
-          headerImg.style.opacity = "0";
-          heroImg.style.opacity = "";
-          if (flight) flight.style.opacity = "0";
-          return;
-        }
-        var heroBox = heroCrop.getBoundingClientRect();
-        var headerBox = headerCrop.getBoundingClientRect();
-        if (heroBox.width < 1 || headerBox.width < 1) return;
-        var range = Math.min(window.innerHeight * 0.42, Math.max(heroBox.height * 2.6, 180));
-        var progress = Math.max(0, Math.min(1, 1 - (heroBox.top - headerBox.top) / range));
-
-        if (reduceMotion || !flight) {
-          headerImg.style.opacity = progress.toFixed(3);
-          headerImg.style.transform = "none";
-          heroImg.style.opacity = (1 - progress).toFixed(3);
-          return;
-        }
-
-        if (Math.abs(heroBox.width - flightWidth) > 0.5) {
-          flight.style.width = heroBox.width + "px";
-          flight.style.height = heroBox.height + "px";
-          flightWidth = heroBox.width;
-        }
-        var scale = headerBox.width / heroBox.width;
-        var x = heroBox.left + (headerBox.left - heroBox.left) * progress;
-        var y = heroBox.top + (headerBox.top - heroBox.top) * progress;
-        var s = 1 + (scale - 1) * progress;
-        flight.style.transformOrigin = "0 0";
-        flight.style.transform = "translate3d(" + x.toFixed(2) + "px," + y.toFixed(2) + "px,0) scale(" + s.toFixed(4) + ")";
-
-        var fade = progress <= 0.62 ? 0 : progress >= 0.96 ? 1 : smoothstep((progress - 0.62) / 0.34);
-        heroImg.style.opacity = "0";
-        flight.style.opacity = (1 - fade).toFixed(3);
-        headerImg.style.opacity = fade.toFixed(3);
-        headerImg.style.transform = "none";
-      };
-
-      var queueHandoff = function () {
-        if (handoffQueued) return;
-        handoffQueued = true;
-        window.requestAnimationFrame(placeHandoff);
-      };
-
-      placeHandoff();
-      window.addEventListener("scroll", queueHandoff, { passive: true });
-      window.addEventListener("resize", queueHandoff);
-      window.addEventListener("fv-intro-done", queueHandoff);
-      try {
-        window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", function (event) {
-          reduceMotion = event.matches;
-          if (reduceMotion && flight) flight.style.opacity = "0";
-          queueHandoff();
-        });
-      } catch (e) {}
+      watchHeroLogo();
+      window.addEventListener("resize", watchHeroLogo);
     }
 
     var toggle = header.querySelector(".nav-toggle");

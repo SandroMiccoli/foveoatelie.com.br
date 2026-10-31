@@ -357,29 +357,14 @@ html.has-logo-handoff .site-header .brand .logo-crop img {
   opacity: 0;
 }
 
-html.has-logo-handoff .logo-crop--hero img,
-html.has-logo-handoff .site-header .brand .logo-crop img,
-html.has-logo-handoff .logo-flight {
-  transition: none;
+@media (prefers-reduced-motion: no-preference) {
+  html.has-logo-handoff .site-header .brand .logo-crop img {
+    transition: opacity 300ms ease;
+  }
 }
 
-.logo-flight {
-  position: fixed;
-  z-index: 35;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  overflow: hidden;
-  opacity: 0;
-}
-
-.logo-flight img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: auto;
-  max-width: none;
+html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
+  opacity: 1;
 }
 
 .eyebrow {
