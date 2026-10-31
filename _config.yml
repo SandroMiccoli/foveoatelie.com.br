@@ -1,0 +1,23 @@
+# Foveō Ateliê — foveoatelie.com.br
+# Base Jekyll. Catálogo, estoque e pedidos entram depois,
+# neste layout e em assets/, sem reescrever a estrutura.
+
+title: "Foveō Ateliê"
+tagline: "Rituais de cuidado através do toque"
+description: "Foveō Ateliê cria velas de massagem artesanais em Belo Horizonte. Rituais de cuidado através do toque."
+url: "https://foveoatelie.com.br"
+baseurl: ""
+lang: "pt-BR"
+locale: "pt_BR"
+
+markdown: kramdown
+permalink: pretty
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - netlify.toml
+  - vendor
+  - node_modules
+  - .bundle

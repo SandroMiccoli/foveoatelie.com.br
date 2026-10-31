@@ -1,0 +1,72 @@
+:root {
+  --bg: #17130f;
+  --ink: #ede6d9;
+  --copper: #c87431;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding:
+    max(2.75rem, env(safe-area-inset-top))
+    max(1.5rem, env(safe-area-inset-right))
+    max(2.75rem, env(safe-area-inset-bottom))
+    max(1.5rem, env(safe-area-inset-left));
+  background-color: var(--bg);
+  background-image: url("../texture/grain.png");
+  background-repeat: repeat;
+  color: var(--ink);
+  font-family: Palatino, "Palatino Linotype", "Iowan Old Style", Georgia, serif;
+}
+
+main {
+  width: min(80vw, 38rem);
+}
+
+h1 {
+  margin: 0;
+  font: inherit;
+  line-height: 0;
+}
+
+.logo {
+  display: block;
+  width: min(100%, calc(68dvh * 1026 / 581));
+  height: auto;
+  margin-inline: auto;
+  animation: fade-in 1.6s ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo {
+    animation: none;
+  }
+}
+
+::selection {
+  background: var(--copper);
+  color: var(--bg);
+}
