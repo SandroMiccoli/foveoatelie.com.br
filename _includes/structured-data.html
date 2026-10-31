@@ -1,0 +1,104 @@
+{%- comment -%}
+  TODO(Sandro): ainda não há preço. Não inventar valor.
+  Quando cada vela tiver preço, preencha `preco` em `_data/colecao.yml`
+  (string BRL com duas casas, por exemplo "189.00"). O bloco abaixo passa
+  a emitir offers. Até lá o Product fica sem Offer de propósito — o rich
+  result de produto do Google exige offers, review ou aggregateRating.
+
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "BRL",
+    "price": "189.00",
+    "availability": "https://schema.org/InStock",
+    "url": "https://foveoatelie.com.br/#acolher"
+  }
+{%- endcomment -%}
+{%- assign c = site.data.colecao -%}
+{%- assign org_id = site.url | append: "/#organization" -%}
+{%- assign logo = "/assets/logo-mark.png" | absolute_url -%}
+{%- assign whatsapp = "https://wa.me/" | append: c.whatsapp -%}
+{%- assign telefone = "+" | append: c.whatsapp -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": {{ org_id | jsonify }},
+      "name": "Foveō Ateliê",
+      "url": {{ site.url | jsonify }},
+      "logo": {
+        "@type": "ImageObject",
+        "url": {{ logo | jsonify }}
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Belo Horizonte",
+        "addressRegion": "MG",
+        "addressCountry": "BR"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "url": {{ whatsapp | jsonify }},
+        "telephone": {{ telefone | jsonify }},
+        "areaServed": "BR",
+        "availableLanguage": "pt-BR"
+      }
+    }
+    {%- for produto in c.produtos -%}
+    {%- assign product_url = site.url | append: "/#" | append: produto.slug -%}
+    ,{
+      "@type": "Product",
+      "@id": {{ product_url | jsonify }},
+      "name": {{ produto.nome | jsonify }},
+      "description": {{ produto.descricao | jsonify }},
+      "category": "Vela de massagem",
+      "url": {{ product_url | jsonify }},
+      "brand": {
+        "@type": "Brand",
+        "name": "Foveō Ateliê"
+      },
+      "manufacturer": {
+        "@id": {{ org_id | jsonify }}
+      },
+      "countryOfOrigin": "BR",
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Manteiga",
+          "value": {{ produto.manteiga | jsonify }}
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Fragrância",
+          "value": {{ produto.aroma | jsonify }}
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Percepção sensorial",
+          "value": {{ produto.perfil | jsonify }}
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Embalagem",
+          "value": {{ c.colecao.embalagem | jsonify }}
+        }
+      ]
+      {%- if produto.image != nil and produto.image != empty -%}
+      ,"image": {{ produto.image | absolute_url | jsonify }}
+      {%- endif -%}
+      {%- if produto.preco -%}
+      ,"offers": {
+        "@type": "Offer",
+        "priceCurrency": "BRL",
+        "price": {{ produto.preco | jsonify }},
+        "availability": "https://schema.org/InStock",
+        "url": {{ product_url | jsonify }}
+      }
+      {%- endif -%}
+    }
+    {%- endfor -%}
+  ]
+}
+</script>

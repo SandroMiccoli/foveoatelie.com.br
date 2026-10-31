@@ -1,14 +1,46 @@
 # Foveō Ateliê — site estático em Jekyll.
 # Catálogo, estoque e pedidos entram depois como páginas, coleções
 # e dados, em cima deste layout.
-title: "Foveō Ateliê — Rituais de cuidado através do toque"
-description: "Velas de massagem artesanais feitas em Belo Horizonte. Foveō Ateliê — rituais de cuidado através do toque."
+title: "Foveō Ateliê"
+description: "Velas de massagem artesanais feitas em Belo Horizonte. A coleção 2026 reúne três rituais de cuidado através do toque: Acolher, Despertar e Permanecer."
+# Canônico sempre no domínio de produção, inclusive em branch deploy e preview.
 url: "https://foveoatelie.com.br"
 baseurl: ""
-lang: pt-BR
+# Open Graph usa language_TERRITORY (pt_BR). O <html lang> troca o _ por hífen.
+lang: pt_BR
+locale: pt_BR
+
+# Publisher do JSON-LD do jekyll-seo-tag. O selo é quadrado (mín. 112px).
+logo: /assets/logo-mark.png
+author:
+  name: "Foveō Ateliê"
+  type: Organization
+  url: "https://foveoatelie.com.br"
+social:
+  name: "Foveō Ateliê"
+
+# Google Search Console. Cole apenas o valor de content da meta tag.
+# Mantenha null (não use "") até existir o token — string vazia ainda
+# publicaria <meta name="google-site-verification" content="">.
+webmaster_verifications:
+  google:
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      image:
+        path: /assets/og.jpg
+        width: 1200
+        height: 630
+        alt: "Foveō Ateliê — logotipo em creme e macron em cobre sobre fundo escuro. Rituais de cuidado através do toque."
 
 markdown: kramdown
 permalink: pretty
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
 
 exclude:
   - README.md

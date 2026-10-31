@@ -1,6 +1,15 @@
 [build]
-  command = "jekyll build"
+  # bundle exec carrega jekyll-seo-tag e jekyll-sitemap do Gemfile.lock.
+  command = "bundle exec jekyll build"
   publish = "_site"
 
 [build.environment]
   JEKYLL_ENV = "production"
+
+# Indexação
+# [[headers]] aqui valeria também para a produção, então o noindex não
+# fica neste arquivo. _plugins/seo_robots.rb lê CONTEXT no build:
+# production (e build local, sem CONTEXT) permanece indexável;
+# branch-deploy — dev.foveoatelie.com.br / dev--foveoatelie.netlify.app —
+# e deploy-preview gravam _site/_headers com X-Robots-Tag: noindex.
+# A Netlify não coloca esse header no deploy mais recente de cada branch.

@@ -1,5 +1,7 @@
 ---
 layout: default
+title: "Foveō Ateliê — Velas de massagem artesanais"
+description: "Velas de massagem artesanais feitas em Belo Horizonte. A coleção 2026 reúne três rituais de cuidado através do toque: Acolher, Despertar e Permanecer."
 preload_image: /assets/bg-vela-acesa.webp
 ---
 {%- assign c = site.data.colecao -%}
@@ -102,7 +104,7 @@ preload_image: /assets/bg-vela-acesa.webp
             <figure class="product-photo">
               <img
                 src="{{ produto.image | relative_url }}"
-                alt="{{ produto.nome }}"
+                alt="{{ produto.nome }}: {{ produto.tagline }}"
                 loading="lazy"
                 decoding="async"
               >

@@ -23,7 +23,7 @@ bundle exec jekyll build
 
 O repositório está ligado à Netlify. A cada push ela instala os gems do `Gemfile.lock` e roda o build descrito no `netlify.toml`:
 
-- comando: `jekyll build`
+- comando: `bundle exec jekyll build` (usa os gems do `Gemfile.lock`, inclusive `jekyll-seo-tag` e `jekyll-sitemap`)
 - pasta publicada: `_site`
 
 O domínio foveoatelie.com.br aponta para a Netlify a partir do Registro.br, com os registros que o painel da Netlify indicar.

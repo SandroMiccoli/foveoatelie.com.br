@@ -31,6 +31,9 @@ colecao:
   base: "Óleo de girassol + cera de abelha. Em cada vela, a manteiga vegetal e a combinação aromática são os elementos que variam para permitir diferentes tipos de rituais e toques."
   embalagem: "Lata metálica preta de 100 ml."
 
+# TODO(preço): ainda não há preço. Quando houver, acrescente `preco` em cada
+# produto (string BRL com duas casas, por exemplo "189.00"). O JSON-LD em
+# _includes/structured-data.html passa a emitir offers. Não inventar valor.
 produtos:
   - numero: "01"
     slug: "acolher"
