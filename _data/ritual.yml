@@ -1,0 +1,84 @@
+# Textos do ritual pós-compra. O index.html monta os cards a partir daqui.
+# Para mudar uma frase, edite este arquivo e rode `bundle exec jekyll build`.
+# Um "|" no título vira quebra de linha.
+cards:
+  - kind: cover
+    theme: cover
+
+  - kind: story
+    theme: light
+    title: "Obrigado."
+    blocks:
+      - text: "Obrigado por escolher a Foveō e por confiar no nosso trabalho."
+      - text: "Esta vela foi feita à mão para transformar calor, óleo e toque em um momento de presença e cuidado."
+
+  - kind: story
+    theme: dark
+    title: "Foveō"
+    blocks:
+      - text: "Do latim fovēre: aquecer com cuidado, acolher, nutrir."
+      - text: "Tactu foveō."
+        italic: true
+      - text: "Com o toque, aqueço e acolho."
+
+  - kind: story
+    theme: light
+    title: "O ritual"
+    steps:
+      - n: "01"
+        label: "Preparar"
+      - n: "02"
+        label: "Aquecer"
+      - n: "03"
+        label: "Tocar"
+      - n: "04"
+        label: "Reverberar"
+    blocks:
+      - text: "Todo ritual começa por uma intenção. Antes de acender, pergunte-se o que você deseja cuidar."
+
+  - kind: story
+    theme: dark
+    title: "Cuidados"
+    blocks:
+      - text: "Nunca deixe a chama acesa sem supervisão."
+      - text: "Mantenha longe de materiais inflamáveis."
+      - text: "Use sobre superfície firme e resistente ao calor."
+      - text: "Se a vela ficou acesa por muito tempo, aguarde o recipiente esfriar antes de pegá-lo."
+
+  - kind: story
+    theme: light
+    title: "Preparar e aquecer"
+    blocks:
+      - text: "Deixe o ambiente confortável. Diminua o ritmo."
+      - text: "Acenda a vela e aguarde cerca de 5 minutos, até que uma camada homogênea de óleo cubra toda a superfície."
+      - text: "Sem pressa. Enquanto o óleo aquece, comece a tocar o corpo, despertando a pele para receber o calor."
+
+  - kind: story
+    theme: dark
+    title: "Apagar e respirar"
+    blocks:
+      - text: "Apague sempre com a tampa, nunca sopre: cinzas do pavio podem cair no óleo."
+      - text: "Respire. Aguarde alguns segundos."
+      - text: "Teste no dorso da mão: o óleo deve estar morno e confortável ao toque."
+
+  - kind: story
+    theme: light
+    title: "Tocar"
+    blocks:
+      - text: "Em si mesmo ou em outra pessoa, todo toque carrega uma intenção. Qual é a sua?"
+      - text: "Leve o óleo à pele em pequena quantidade e deixe que cada gesto reverbere essa intenção, com o cuidado que ela merece."
+
+  - kind: story
+    theme: dark
+    title: "Reverberar"
+    blocks:
+      - text: "Quando o toque termina, algo continua."
+      - text: "Respire. Perceba o que permanece, o que reverbera no corpo."
+      - text: "Acenda. Aqueça. Toque. Reverbere."
+
+  - kind: closing
+    theme: light
+    title: "Até o próximo|ritual."
+    blocks:
+      - text: "Que esta vela reverbere o cuidado que você intencionou, em cada toque e no que permanece depois dele."
+      - text: "Com carinho,"

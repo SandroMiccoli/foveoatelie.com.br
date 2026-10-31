@@ -1,6 +1,6 @@
 # Foveō Ateliê
 
-Página do ateliê em Jekyll, sem framework de JavaScript. Por enquanto só o logo, centralizado, sobre um preto quente. Catálogo, estoque e pedidos entram depois em cima de `_config.yml`, `_layouts/` e `assets/`.
+Página do ateliê em Jekyll, sem framework de JavaScript. Nesta branch (`obrigado`), a raiz é o ritual pós-compra em formato de stories, publicado em obrigado.foveoatelie.com.br. O site principal, com o logo, continua na branch `main`.
 
 ## Local
 
