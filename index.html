@@ -93,6 +93,20 @@ preload_image: /assets/bg-vela-acesa.webp
         <p class="spec">{{ c.colecao.embalagem }}</p>
       </div>
 
+      <figure class="colecao-foto reveal">
+        <picture>
+          <source srcset="{{ '/assets/colecao-foto.webp' | relative_url }}" type="image/webp">
+          <img
+            src="{{ '/assets/colecao-foto.jpg' | relative_url }}"
+            alt="Velas de massagem Foveō: Manteiga de Karité com Patchouli e Vanilla, Manteiga de Manga com Ylang-ylang, Bergamota e Gengibre, Manteiga de Cacau com Flor de Café"
+            width="1600"
+            height="2143"
+            loading="lazy"
+            decoding="async"
+          >
+        </picture>
+      </figure>
+
       <div class="products">
         {% for produto in c.produtos %}
         {%- capture wa_produto -%}https://wa.me/{{ c.whatsapp }}?text={{ produto.mensagem | uri_escape | replace: '+', '%20' }}{%- endcapture -%}

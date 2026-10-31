@@ -406,6 +406,20 @@ a {
   margin-top: 0.5rem;
 }
 
+#colecao .section-head {
+  margin-bottom: clamp(1.25rem, 3vw, 1.85rem);
+}
+
+.colecao-foto {
+  margin: 0 0 clamp(2.25rem, 5vw, 3.5rem);
+}
+
+.colecao-foto img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .product {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
