@@ -271,7 +271,7 @@ a {
 }
 
 .closing .lockup-rule {
-  width: 20cqw;
+  width: 62cqw;
   margin: 1.15cqw 0 1.35cqw;
   transform-origin: left center;
 }
@@ -324,19 +324,35 @@ a {
   color: var(--copper);
 }
 
-.share-status {
+.share-feedback {
   flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
   margin: 0;
   padding-left: 0.45rem;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 3cqw;
   font-weight: 500;
+}
+
+.share-feedback[hidden] {
+  display: none;
+}
+
+.share-status {
   color: var(--copper);
 }
 
-.share-status[hidden],
-.share-wa[hidden] {
+.share-status[hidden] {
   display: none;
+}
+
+.share-wa {
+  color: #0e0b09;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .progress {

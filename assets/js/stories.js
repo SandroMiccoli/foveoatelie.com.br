@@ -354,12 +354,14 @@
   var shareStatus = document.querySelector(".share-status");
   var shareWa = document.querySelector(".share-wa");
 
+  var shareFeedback = document.querySelector(".share-feedback");
+
   if (shareWa) {
     shareWa.href = "https://wa.me/?text=" + encodeURIComponent(shareMessage);
-    if (!navigator.share) shareWa.hidden = false;
   }
 
   function showCopied() {
+    if (shareFeedback) shareFeedback.hidden = false;
     if (!shareStatus) return;
     shareStatus.hidden = false;
     window.clearTimeout(showCopied.timer);
@@ -375,7 +377,6 @@
     } else {
       done();
     }
-    if (shareWa) shareWa.hidden = false;
   }
 
   if (shareBtn) {
