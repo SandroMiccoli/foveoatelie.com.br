@@ -39,7 +39,14 @@
   var panel = document.getElementById("fv-privacy");
   var storedChoice = null;
   try { storedChoice = localStorage.getItem("fv-consent"); } catch (e) {}
-  if (bar && !storedChoice) bar.classList.add("is-open");
+  function showConsentBar() {
+    if (bar && !storedChoice) bar.classList.add("is-open");
+  }
+  if (document.documentElement.classList.contains("intro-on") && !window.__fvIntroDone) {
+    window.addEventListener("fv-intro-done", showConsentBar);
+  } else {
+    showConsentBar();
+  }
 
   var returnFocus = null;
   var barWasOpen = false;
