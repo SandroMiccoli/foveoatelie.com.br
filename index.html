@@ -1,16 +1,52 @@
 ---
 layout: default
+title: "Obrigado — Foveō Ateliê"
+description: "Ritual pós-compra da Foveō Ateliê. Dez cards para acompanhar o cuidado com a sua vela de massagem."
+noindex: true
+preload: /assets/ritual/p-01.webp
 ---
-<main class="stage">
-  <h1>
-    <img
-      class="mark"
-      src="{{ '/assets/logo-claro.svg' | relative_url }}"
-      alt="Foveō Ateliê — Rituais de cuidado através do toque"
-      width="1014"
-      height="586"
-      decoding="async"
-      fetchpriority="high"
-    >
-  </h1>
-</main>
+<h1 class="visually-hidden">Obrigado — Foveō Ateliê</h1>
+<p class="visually-hidden" id="story-live" aria-live="polite" aria-atomic="true"></p>
+
+<div class="stage">
+  <button class="arrow arrow-prev" type="button" aria-label="Card anterior" disabled>
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="28" height="28">
+      <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  <section class="frame" id="story" aria-label="Ritual pós-compra">
+    <div class="progress" aria-hidden="true">
+      {% for i in (1..10) %}
+      <span class="segment"><span class="segment-fill"></span></span>
+      {% endfor %}
+    </div>
+
+    <div class="slides">
+      <img class="card is-current" src="{{ '/assets/ritual/p-01.webp' | relative_url }}" alt="Foveō Ateliê — Rituais de cuidado através do toque." width="1080" height="1919" fetchpriority="high" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-02.webp' | relative_url }}" alt="Obrigado. Obrigado por escolher a Foveō e por confiar no nosso trabalho. Esta vela foi feita à mão para transformar calor, óleo e toque em um momento de presença e cuidado." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-03.webp' | relative_url }}" alt="Foveō. Do latim fovēre: aquecer com cuidado, acolher, nutrir. Tactu foveō. Com o toque, aqueço e acolho." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-04.webp' | relative_url }}" alt="O ritual. 01 Preparar. 02 Aquecer. 03 Tocar. 04 Reverberar. Todo ritual começa por uma intenção. Antes de acender, pergunte-se o que você deseja cuidar." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-05.webp' | relative_url }}" alt="Cuidados. Nunca deixe a chama acesa sem supervisão. Mantenha longe de materiais inflamáveis. Use sobre superfície firme e resistente ao calor. Se a vela ficou acesa por muito tempo, aguarde o recipiente esfriar antes de pegá-lo." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-06.webp' | relative_url }}" alt="Preparar e aquecer. Deixe o ambiente confortável. Diminua o ritmo. Acenda a vela e aguarde cerca de 5 minutos, até que uma camada homogênea de óleo cubra toda a superfície. Sem pressa. Enquanto o óleo aquece, comece a tocar o corpo, despertando a pele para receber o calor." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-07.webp' | relative_url }}" alt="Apagar e respirar. Apague sempre com a tampa, nunca sopre: cinzas do pavio podem cair no óleo. Respire. Aguarde alguns segundos. Teste no dorso da mão: o óleo deve estar morno e confortável ao toque." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-08.webp' | relative_url }}" alt="Tocar. Em si mesmo ou em outra pessoa, todo toque carrega uma intenção. Qual é a sua? Leve o óleo à pele em pequena quantidade e deixe que cada gesto reverbere essa intenção, com o cuidado que ela merece." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-09.webp' | relative_url }}" alt="Reverberar. Quando o toque termina, algo continua. Respire. Perceba o que permanece, o que reverbera no corpo. Acenda. Aqueça. Toque. Reverbere." width="1080" height="1919" decoding="async">
+      <img class="card" src="{{ '/assets/ritual/p-10.webp' | relative_url }}" alt="Até o próximo ritual. Que esta vela reverbere o cuidado que você intencionou, em cada toque e no que permanece depois dele. Com carinho." width="1080" height="1919" decoding="async">
+    </div>
+
+    <button class="zone zone-prev" type="button" aria-label="Card anterior"></button>
+    <button class="zone zone-next" type="button" aria-label="Próximo card"></button>
+
+    <a class="whatsapp" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer" hidden>Falar no WhatsApp</a>
+    <button class="replay" type="button" hidden>Ver novamente</button>
+  </section>
+
+  <button class="arrow arrow-next" type="button" aria-label="Próximo card">
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="28" height="28">
+      <path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+</div>
+
+<script src="{{ '/assets/js/stories.js' | relative_url }}" defer></script>
