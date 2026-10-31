@@ -36,29 +36,92 @@
   }
 
   var bar = document.querySelector(".fv-consent");
-  if (bar) {
-    var stored = null;
-    try { stored = localStorage.getItem("fv-consent"); } catch (e) {}
-    if (!stored) bar.classList.add("is-open");
+  var panel = document.getElementById("fv-privacy");
+  var storedChoice = null;
+  try { storedChoice = localStorage.getItem("fv-consent"); } catch (e) {}
+  if (bar && !storedChoice) bar.classList.add("is-open");
 
-    bar.addEventListener("click", function (event) {
-      var button = event.target.closest("button[data-c]");
-      if (!button) return;
-      var choice = button.getAttribute("data-c");
-      try { localStorage.setItem("fv-consent", choice); } catch (err) {}
-      if (typeof window.gtag === "function") {
-        window.gtag("consent", "update", {
-          analytics_storage: choice === "granted" ? "granted" : "denied"
-        });
-      }
-      bar.classList.remove("is-open");
+  var returnFocus = null;
+  var barWasOpen = false;
+
+  function setChoice(choice) {
+    storedChoice = choice;
+    try { localStorage.setItem("fv-consent", choice); } catch (err) {}
+    if (typeof window.gtag === "function") {
+      window.gtag("consent", "update", {
+        analytics_storage: choice === "granted" ? "granted" : "denied"
+      });
+    }
+    barWasOpen = false;
+    if (bar) bar.classList.remove("is-open");
+    closePanel(false);
+  }
+
+  function focusable(root) {
+    return Array.prototype.filter.call(
+      root.querySelectorAll("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])"),
+      function (el) { return el.offsetParent !== null || el === document.activeElement; }
+    );
+  }
+
+  function openPanel(trigger) {
+    if (!panel) return;
+    returnFocus = trigger || document.activeElement;
+    barWasOpen = !!(bar && bar.classList.contains("is-open"));
+    if (bar) bar.classList.remove("is-open");
+    panel.hidden = false;
+    document.body.classList.add("fv-privacy-open");
+    window.requestAnimationFrame(function () {
+      panel.classList.add("is-shown");
     });
+    var closeBtn = panel.querySelector(".fv-privacy__close");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closePanel(restoreFocus) {
+    if (!panel || panel.hidden) {
+      if (restoreFocus && returnFocus) returnFocus.focus();
+      return;
+    }
+    panel.classList.remove("is-shown");
+    var finish = function () {
+      panel.hidden = true;
+      document.body.classList.remove("fv-privacy-open");
+      if (barWasOpen && bar) bar.classList.add("is-open");
+      barWasOpen = false;
+      if (restoreFocus && returnFocus) returnFocus.focus();
+    };
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) finish();
+    else window.setTimeout(finish, 380);
   }
 
   document.addEventListener("click", function (event) {
+    var choiceBtn = event.target.closest("button[data-c]");
+    if (choiceBtn && ((bar && bar.contains(choiceBtn)) || (panel && panel.contains(choiceBtn)))) {
+      setChoice(choiceBtn.getAttribute("data-c"));
+      return;
+    }
+
+    var privacyLink = event.target.closest("a[href]");
+    if (privacyLink && panel) {
+      var path = privacyLink.pathname || "";
+      if (/\/privacidade\/?$/.test(path)) {
+        event.preventDefault();
+        openPanel(privacyLink);
+        return;
+      }
+    }
+
+    if (event.target.closest("[data-privacy-close]")) {
+      closePanel(true);
+      return;
+    }
+
     var opener = event.target.closest("[data-consent-open]");
     if (opener && bar) {
       event.preventDefault();
+      if (panel && !panel.hidden) closePanel(false);
       bar.classList.add("is-open");
       var first = bar.querySelector("button");
       if (first) first.focus();
@@ -72,6 +135,27 @@
     if (product) params.product_name = product;
     window.gtag("event", "whatsapp_click", params);
   });
+
+  document.addEventListener("keydown", function (event) {
+    if (!panel || panel.hidden) return;
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      closePanel(true);
+      return;
+    }
+    if (event.key !== "Tab") return;
+    var items = focusable(panel);
+    if (!items.length) return;
+    var first = items[0];
+    var last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, true);
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (!("IntersectionObserver" in window)) return;
