@@ -32,9 +32,7 @@ preload: /assets/ritual/bg-vela.webp
           </div>
           <div class="logo-band">
             <span class="cover-rule anim"></span>
-            <img class="logo-wordmark anim" src="{{ '/assets/logo-wordmark-claro.svg' | relative_url }}" alt="Foveō Ateliê">
-            <span class="lockup-rule anim"></span>
-            <p class="tagline anim">Rituais de cuidado através do toque</p>
+            <img class="logo-completo anim" src="{{ '/assets/logo-completo-claro.svg' | relative_url }}" alt="Foveō Ateliê — Rituais de cuidado através do toque">
           </div>
           {% else %}
           <div class="card-inner">
@@ -48,16 +46,19 @@ preload: /assets/ritual/bg-vela.webp
             </ol>
             {% endif %}
             {% for block in card.blocks %}
+            {% unless block.signoff %}
             <p class="{% if block.italic %}lede{% else %}body{% endif %} anim">{{ block.text }}</p>
+            {% endunless %}
             {% endfor %}
             {% if card.kind == "closing" %}
-            <footer class="closing anim">
-              <div class="lockup">
-                <img class="logo-wordmark" src="{{ '/assets/logo-wordmark-escuro.svg' | relative_url }}" alt="Foveō Ateliê">
-                <span class="lockup-rule"></span>
-                <p class="tagline">Rituais de cuidado através do toque</p>
-              </div>
-              <div class="actions">
+            <footer class="closing">
+              {% for block in card.blocks %}
+              {% if block.signoff %}
+              <p class="signoff anim">{{ block.text }}<br><span class="signoff-brand">{{ block.brand }}</span></p>
+              {% endif %}
+              {% endfor %}
+              <img class="seal anim" src="{{ '/assets/o-seal-escuro.svg' | relative_url }}" alt="">
+              <div class="actions anim">
                 <a class="wa action" href="https://wa.me/5531996099111" target="_blank" rel="noopener noreferrer">
                   <svg viewBox="0 0 32 32" aria-hidden="true">
                     <path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M16 4.6a11.4 11.4 0 0 0-9.8 17.2L5.2 27.4l5.7-1.5A11.4 11.4 0 1 0 16 4.6Z"/>

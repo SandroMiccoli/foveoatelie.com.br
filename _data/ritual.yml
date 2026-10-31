@@ -82,3 +82,5 @@ cards:
     blocks:
       - text: "Que esta vela reverbere o cuidado que você intencionou, em cada toque e no que permanece depois dele."
       - text: "Com carinho,"
+        signoff: true
+        brand: "Foveō"

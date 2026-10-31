@@ -97,26 +97,27 @@
     });
     activeTl = tl;
 
-    if (intro && card.getAttribute("data-kind") === "cover") {
-      gsap.set(card, { autoAlpha: 1 });
-      gsap.set(photo, { autoAlpha: 0, scale: 1.06 });
-      gsap.set(band, { autoAlpha: 0, y: 28 });
-      gsap.set(card.querySelectorAll(".logo-wordmark, .tagline"), { autoAlpha: 0, y: 14 });
-      gsap.set(coverLine, { autoAlpha: 1, y: 0, scaleX: 0 });
-      gsap.set(card.querySelector(".lockup-rule"), { autoAlpha: 1, y: 0, scaleX: 0 });
-      tl.to(photo, { autoAlpha: 1, scale: 1, duration: 1.5, ease: "power2.out" })
-        .to(band, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power3.out" })
-        .to(card.querySelector(".logo-wordmark"), { autoAlpha: 1, y: 0, duration: 0.55, ease: "power2.out" }, "-=0.15")
-        .to(card.querySelector(".lockup-rule"), { scaleX: 1, duration: 0.45, ease: "power2.inOut" }, "-=0.08")
-        .to(card.querySelector(".tagline"), { autoAlpha: 1, y: 0, duration: 0.45 }, "-=0.05")
-        .to(coverLine, { scaleX: 1, duration: 0.55, ease: "power2.inOut" }, "-=0.05");
-      return;
+    if (card.getAttribute("data-kind") === "cover") {
+      var logo = card.querySelector(".logo-completo");
+      if (intro) {
+        gsap.set(card, { autoAlpha: 1 });
+        gsap.set(photo, { autoAlpha: 0, scale: 1.06 });
+        gsap.set(band, { autoAlpha: 0, y: 28 });
+        gsap.set(logo, { autoAlpha: 0, y: 16 });
+        gsap.set(coverLine, { autoAlpha: 1, y: 0, scaleX: 0 });
+        tl.to(photo, { autoAlpha: 1, scale: 1, duration: 1.5, ease: "power2.out" })
+          .to(band, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power3.out" }, "-=0.35")
+          .to(logo, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.2")
+          .to(coverLine, { scaleX: 1, duration: 0.55, ease: "power2.inOut" }, "-=0.35");
+        return;
+      }
+      gsap.set([photo, band, logo, coverLine], { autoAlpha: 1, y: 0, scale: 1, scaleX: 1 });
     }
 
     gsap.set(card, { autoAlpha: 0 });
     tl.to(card, { autoAlpha: 1, duration: 0.6, ease: "power2.out" }, 0);
 
-    var items = card.querySelectorAll(".body, .lede, .steps li, .closing, .seal");
+    var items = card.querySelectorAll(".body, .lede, .steps li, .signoff, .actions, .seal");
     gsap.set(card.querySelectorAll(".title"), { autoAlpha: 0, y: 18 });
     if (line) gsap.set(line, { scaleX: 0 });
     gsap.set(items, { autoAlpha: 0, y: 16 });
