@@ -28,6 +28,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
     <a href="#colecao">Coleção</a>
     <a href="#ritual">Ritual</a>
     <a href="#base">A base</a>
+    <a href="#perguntas">Perguntas</a>
   </nav>
   <div class="header-actions">
     <a class="header-talk" href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer" aria-label="Falar com a Foveō pelo WhatsApp">
@@ -80,7 +81,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
             decoding="async"
           >
         </span>
-        <h1 id="tagline">{{ c.hero.tagline }}</h1>
+        <h1 id="tagline"><span class="sr-only">Foveō Ateliê. </span>{{ c.hero.tagline }}</h1>
       </div>
     </div>
   </section>
@@ -90,7 +91,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
       <div class="section-head reveal">
         <span class="macron" aria-hidden="true"></span>
         <p class="eyebrow">{{ c.intro.rotulo }}</p>
-        <h2 id="nome-titulo" lang="la">{{ c.intro.titulo }}</h2>
+        <h2 id="nome-titulo">{{ c.intro.titulo }}</h2>
       </div>
       <div class="split reveal">
         <div class="measure">
@@ -102,9 +103,12 @@ preload_image_wide: /assets/bg-vela-larga.webp
           <p>{{ c.intro.paragrafos[1] }}</p>
         </div>
       </div>
-      <p class="lema" lang="la"><strong><em>Tactu foveō.</em></strong></p>
-      <p class="lema-trad">Cuido calorosamente através do toque.</p>
     </div>
+  </section>
+
+  <section class="epigrafe" aria-label="Lema">
+    <p class="lema" lang="la"><strong><em>Tactu foveō.</em></strong></p>
+    <p class="lema-trad">Cuido calorosamente através do toque.</p>
   </section>
 
   <section class="band" id="colecao" aria-labelledby="colecao-titulo">
@@ -231,6 +235,33 @@ preload_image_wide: /assets/bg-vela-larga.webp
         {{ linha }}{% unless forloop.last %}<br>{% endunless %}
         {% endfor %}
       </p>
+    </div>
+  </section>
+
+  <section class="band band--paper" id="perguntas" aria-labelledby="perguntas-titulo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="macron" aria-hidden="true"></span>
+        <p class="eyebrow">{{ c.faq.rotulo }}</p>
+        <h2 id="perguntas-titulo">{{ c.faq.titulo }}</h2>
+      </div>
+      <div class="faq reveal">
+        {%- for item in c.faq.itens -%}
+        <details class="faq-item">
+          <summary>{{ item.pergunta }}</summary>
+          <div class="faq-panel">
+            <p>
+              {%- assign partes = item.resposta | split: "Falar com a Foveō" -%}
+              {%- if partes.size == 2 -%}
+              {{ partes[0] }}<a href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">Falar com a Foveō</a>{{ partes[1] }}
+              {%- else -%}
+              {{ item.resposta }}
+              {%- endif -%}
+            </p>
+          </div>
+        </details>
+        {%- endfor -%}
+      </div>
     </div>
   </section>
 </main>

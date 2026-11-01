@@ -7,6 +7,8 @@
 
 whatsapp: "5531996099111"
 whatsapp_exibicao: "31 996 099 111"
+instagram: "https://www.instagram.com/foveoatelie/"
+instagram_rotulo: "@foveoatelie"
 mensagem_geral: "Olá! Tenho interesse na coleção 2026 da Foveō."
 cta_geral: "Falar com a Foveō"
 cta_produto: "Pedir pelo WhatsApp"
@@ -102,3 +104,41 @@ base:
     - "Cuidado através do toque."
     - "Tempo para estar presente."
     - "Algo que permanece depois."
+
+faq:
+  rotulo: "Dúvidas"
+  titulo: "Perguntas frequentes"
+  itens:
+    - pergunta: "O que é uma vela de massagem?"
+      resposta: |-
+        É uma vela feita para virar óleo de massagem. Ao ser acesa, ela derrete e se transforma em um óleo morno e perfumado, que pode ser espalhado direto sobre a pele durante a massagem.
+    - pergunta: "Como usar?"
+      resposta: |-
+        Acenda a vela e deixe queimar por cerca de 5 minutos, até formar uma camada homogênea de óleo na superfície. Apague a chama, sempre com a tampa, espere alguns segundos e teste a temperatura no dorso da mão. Depois, despeje um pouco nas mãos ou direto sobre a pele e comece o toque.
+    - pergunta: "O óleo queima a pele?"
+      resposta: |-
+        Não. A vela é feita para derreter a uma temperatura baixa, que fica morna e confortável na pele. Logo depois de apagar a chama, o óleo pode parecer quente demais para algumas pessoas, mas não queima. Por isso, recomendamos testar sempre no dorso da mão antes de usar.
+    - pergunta: "Do que as velas são feitas?"
+      resposta: |-
+        Todas têm a mesma base, de óleo de girassol e cera de abelha. O que muda em cada vela é a manteiga vegetal (karité, manga ou cacau) e a combinação aromática.
+    - pergunta: "Por que o pavio é de madeira?"
+      resposta: |-
+        Porque ele estala baixinho enquanto queima, como uma lareira acesa. É bem gostosinho :)
+    - pergunta: "Quanto tempo dura uma vela?"
+      resposta: |-
+        A lata tem 100 ml e rende cerca de 6 massagens de corpo inteiro. Em massagens localizadas, cada vela rende muitas sessões.
+    - pergunta: "Pode ser usada como vela aromática comum?"
+      resposta: |-
+        Pode, mas ela não terá a mesma duração. Recomendamos usar para massagem mesmo.
+    - pergunta: "Serve para qualquer tipo de pele?"
+      resposta: |-
+        Nossas velas são formuladas para uso corporal e podem ser usadas em diferentes tipos de pele. Pessoas com pele sensível, dermatites ou alergia a algum dos componentes devem ter atenção especial. Recomendamos testar uma pequena quantidade em uma área da pele antes do uso.
+    - pergunta: "Como faço um pedido?"
+      resposta: |-
+        Pelo WhatsApp: é só tocar em "Falar com a Foveō" ou no botão de cada vela.
+    - pergunta: "Vocês entregam fora de Belo Horizonte?"
+      resposta: |-
+        Sim, para qualquer lugar do mundo. O frete é cobrado à parte.
+    - pergunta: "Pode ser presente?"
+      resposta: |-
+        Pode demais! Preparamos uma embalagem especial, e você pode acrescentar uma pequena mensagem, escrita à mão em um bilhete.
