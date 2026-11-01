@@ -115,6 +115,26 @@
       {%- endif -%}
     }
     {%- endfor -%}
+    ,{
+      "@type": "FAQPage",
+      "@id": {{ site.url | append: "/#perguntas" | jsonify }},
+      "url": {{ site.url | append: "/#perguntas" | jsonify }},
+      "isPartOf": {
+        "@id": {{ site_id | jsonify }}
+      },
+      "mainEntity": [
+        {%- for item in c.faq.itens -%}
+        {
+          "@type": "Question",
+          "name": {{ item.pergunta | jsonify }},
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": {{ item.resposta | jsonify }}
+          }
+        }{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ]
+    }
   ]
 }
 </script>
