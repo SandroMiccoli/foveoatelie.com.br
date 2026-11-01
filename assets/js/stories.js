@@ -8,16 +8,17 @@
   var slides = Array.prototype.slice.call(frame.querySelectorAll(".card"));
   var fills = Array.prototype.slice.call(frame.querySelectorAll(".segment-fill"));
   var zonePrev = frame.querySelector(".zone-prev");
+  var zonePause = frame.querySelector(".zone-pause");
   var zoneNext = frame.querySelector(".zone-next");
   var replay = document.querySelector(".replay");
-  var prevBtn = document.querySelector(".arrow-prev");
-  var nextBtn = document.querySelector(".arrow-next");
   var live = document.getElementById("story-live");
 
   var count = slides.length;
   var index = 0;
   var progress = 0;
   var paused = false;
+  var stickyPause = false;
+  var pausedBeforePress = false;
   var ended = false;
   var holding = false;
   var hiddenPause = false;
@@ -163,21 +164,28 @@
     }
   }
 
+  function syncPauseZone() {
+    if (!zonePause) return;
+    zonePause.disabled = ended;
+    zonePause.setAttribute("aria-label", stickyPause && !ended ? "Continuar" : "Pausar");
+  }
+
   function updateChrome() {
     var onLast = index === count - 1;
     if (!onLast) replay.hidden = true;
-    prevBtn.disabled = index === 0;
-    nextBtn.disabled = index === count - 1;
     zonePrev.disabled = index === 0;
+    zoneNext.disabled = index === count - 1;
     live.textContent = "Card " + (index + 1) + " de " + count;
     renderBars();
     slides.forEach(function (card, i) {
       card.setAttribute("aria-hidden", i === index ? "false" : "true");
     });
+    syncPauseZone();
   }
 
   function go(nextIndex, replayIntro) {
     if (nextIndex < 0 || nextIndex >= count || nextIndex === index) return;
+    stickyPause = false;
     var previous = slides[index];
     generation += 1;
     if (activeTl) {
@@ -227,6 +235,7 @@
   }
 
   function restart() {
+    stickyPause = false;
     if (index === 0) {
       introPlayed = false;
       playEntrance(slides[0], true);
@@ -244,11 +253,13 @@
   function finish() {
     ended = true;
     paused = true;
+    stickyPause = false;
     progress = 1;
     phase = "read";
     window.cancelAnimationFrame(raf);
     renderBars();
     replay.hidden = false;
+    syncPauseZone();
   }
 
   function tick(now) {
@@ -274,7 +285,7 @@
   }
 
   function resumeAll() {
-    if (ended || holding || document.hidden || consentHold) return;
+    if (ended || holding || document.hidden || consentHold || stickyPause) return;
     paused = false;
     if (phase === "enter" && activeTl && activeTl.progress() < 1) {
       activeTl.resume();
@@ -289,6 +300,7 @@
   frame.addEventListener("pointerdown", function (event) {
     if (event.button !== 0) return;
     if (event.target.closest("a, button")) return;
+    pausedBeforePress = paused || stickyPause;
     frame._ptr = {
       x: event.clientX,
       y: event.clientY,
@@ -322,20 +334,47 @@
     var held = performance.now() - ptr.t > HOLD_MS;
     var swiped = event.pointerType !== "mouse" && Math.abs(dx) > SWIPE_PX;
     if (swiped) {
-      if (dx < 0) next();
-      else prev();
-      if (!ended && paused) resumeAll();
+      if (dx < 0) stepFromTap(1);
+      else stepFromTap(-1);
       return;
     }
     if (!held && !ptr.moved) {
       var rect = frame.getBoundingClientRect();
       var ratio = (event.clientX - rect.left) / rect.width;
-      if (ratio < 1 / 3) prev();
-      else next();
-      if (!ended && paused) resumeAll();
+      if (ratio < 1 / 3) stepFromTap(-1);
+      else if (ratio > 2 / 3) stepFromTap(1);
+      else toggleFromTap();
       return;
     }
     resumeAll();
+    syncPauseZone();
+  }
+
+  function stepFromTap(direction) {
+    var before = index;
+    var canMove = (direction < 0 && before !== 0) || (direction > 0 && before !== count - 1);
+    if (canMove) stickyPause = false;
+    if (direction < 0) prev();
+    else next();
+    if (index !== before) {
+      if (!ended && paused) resumeAll();
+    } else if (!pausedBeforePress) {
+      resumeAll();
+    } else {
+      stickyPause = true;
+    }
+    syncPauseZone();
+  }
+
+  function toggleFromTap() {
+    if (ended) return;
+    if (pausedBeforePress) {
+      stickyPause = false;
+      resumeAll();
+    } else {
+      stickyPause = true;
+    }
+    syncPauseZone();
   }
 
   frame.addEventListener("pointerup", releasePointer);
@@ -346,10 +385,21 @@
     resumeAll();
   });
 
-  prevBtn.addEventListener("click", prev);
-  nextBtn.addEventListener("click", next);
   zonePrev.addEventListener("click", prev);
   zoneNext.addEventListener("click", next);
+  if (zonePause) {
+    zonePause.addEventListener("click", function () {
+      if (ended || consentHold) return;
+      if (stickyPause || paused) {
+        stickyPause = false;
+        resumeAll();
+      } else {
+        stickyPause = true;
+        pauseAll();
+      }
+      syncPauseZone();
+    });
+  }
   replay.addEventListener("click", restart);
 
   document.addEventListener("keydown", function (event) {
@@ -448,6 +498,13 @@
   if (siteLink) {
     siteLink.addEventListener("click", function () {
       track("site_click");
+    });
+  }
+
+  var igLink = document.querySelector("a.ig");
+  if (igLink) {
+    igLink.addEventListener("click", function () {
+      track("instagram_click");
     });
   }
 
