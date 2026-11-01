@@ -179,6 +179,67 @@
     }
   }, true);
 
+  (function initFaq() {
+    var items = document.querySelectorAll(".faq-item");
+    if (!items.length) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    function bind() {
+      if (typeof gsap === "undefined") return;
+      Array.prototype.forEach.call(items, function (details) {
+        var summary = details.querySelector("summary");
+        var panel = details.querySelector(".faq-panel");
+        if (!summary || !panel) return;
+        summary.addEventListener("click", function (event) {
+          event.preventDefault();
+          var state = details.getAttribute("data-state") || (details.open ? "open" : "closed");
+          gsap.killTweensOf(panel);
+          if (state === "open" || state === "opening") {
+            details.setAttribute("data-state", "closing");
+            gsap.to(panel, {
+              height: 0,
+              autoAlpha: 0,
+              y: -6,
+              duration: 0.34,
+              ease: "power2.in",
+              overwrite: true,
+              onComplete: function () {
+                details.open = false;
+                details.setAttribute("data-state", "closed");
+                gsap.set(panel, { clearProps: "height,opacity,visibility,transform" });
+              }
+            });
+            return;
+          }
+          details.open = true;
+          details.setAttribute("data-state", "opening");
+          var tween = {
+            height: "auto",
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.45,
+            ease: "power2.out",
+            overwrite: true,
+            onComplete: function () {
+              details.setAttribute("data-state", "open");
+              gsap.set(panel, { clearProps: "height" });
+            }
+          };
+          if (state === "closing") {
+            gsap.to(panel, tween);
+            return;
+          }
+          gsap.fromTo(panel, { height: 0, autoAlpha: 0, y: 10 }, tween);
+        });
+      });
+    }
+
+    var script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js";
+    script.onload = bind;
+    document.head.appendChild(script);
+  })();
+
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (!("IntersectionObserver" in window)) return;
 

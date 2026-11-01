@@ -249,14 +249,16 @@ preload_image_wide: /assets/bg-vela-larga.webp
         {%- for item in c.faq.itens -%}
         <details class="faq-item">
           <summary>{{ item.pergunta }}</summary>
-          <p>
-            {%- assign partes = item.resposta | split: "Falar com a Foveō" -%}
-            {%- if partes.size == 2 -%}
-            {{ partes[0] }}<a href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">Falar com a Foveō</a>{{ partes[1] }}
-            {%- else -%}
-            {{ item.resposta }}
-            {%- endif -%}
-          </p>
+          <div class="faq-panel">
+            <p>
+              {%- assign partes = item.resposta | split: "Falar com a Foveō" -%}
+              {%- if partes.size == 2 -%}
+              {{ partes[0] }}<a href="{{ wa_geral }}" target="_blank" rel="noopener noreferrer">Falar com a Foveō</a>{{ partes[1] }}
+              {%- else -%}
+              {{ item.resposta }}
+              {%- endif -%}
+            </p>
+          </div>
         </details>
         {%- endfor -%}
       </div>
