@@ -111,8 +111,8 @@
       gsap.set(bits, { autoAlpha: 1, y: 0, scaleX: 1, scale: 1 });
       if (photo) gsap.set(photo, { autoAlpha: 1, scale: 1 });
       if (band) gsap.set(band, { autoAlpha: 1, y: 0 });
-      if (line) gsap.set(line, { scaleX: 1 });
-      if (coverLine) gsap.set(coverLine, { scaleX: 1 });
+      if (line) gsap.set(line, { autoAlpha: 1, scaleX: 1 });
+      if (coverLine) gsap.set(coverLine, { autoAlpha: 1, scaleX: 1 });
       beginReading();
       return;
     }
@@ -148,7 +148,7 @@
 
     var items = card.querySelectorAll(".body, .lede, .steps li, .signoff, .actions, .seal");
     gsap.set(card.querySelectorAll(".title"), { autoAlpha: 0, y: 18 });
-    if (line) gsap.set(line, { scaleX: 0 });
+    if (line) gsap.set(line, { autoAlpha: 1, scaleX: 0 });
     gsap.set(items, { autoAlpha: 0, y: 16 });
 
     tl.to(card.querySelectorAll(".title"), { autoAlpha: 1, y: 0, duration: 0.55, ease: "power3.out" }, 0.12);
