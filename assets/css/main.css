@@ -237,7 +237,8 @@ a {
 
 .closing {
   width: 100%;
-  margin-top: auto;
+  flex: 1 1 auto;
+  padding-top: 6cqw;
   margin-bottom: 9cqw;
   display: flex;
   flex-direction: column;
@@ -245,7 +246,7 @@ a {
 }
 
 .signoff {
-  margin: 0;
+  margin: auto 0 0;
   font-family: "EB Garamond", Georgia, serif;
   font-weight: 500;
   font-size: 5.6cqw;
@@ -262,7 +263,7 @@ a {
 
 .closing .seal {
   width: 7.4cqw;
-  margin: 3.4cqw 0 0;
+  margin: 3.4cqw 0 10cqw;
 }
 
 .actions {
@@ -272,7 +273,7 @@ a {
   justify-content: space-between;
   gap: 0.35rem 0;
   width: 100%;
-  margin-top: 2.6cqw;
+  margin-top: auto;
 }
 
 .action {
