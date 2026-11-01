@@ -15,6 +15,7 @@
 {%- endcomment -%}
 {%- assign c = site.data.colecao -%}
 {%- assign org_id = site.url | append: "/#organization" -%}
+{%- assign site_id = site.url | append: "/#website" -%}
 {%- assign logo = "/assets/logo-mark.png" | absolute_url -%}
 {%- assign whatsapp = "https://wa.me/" | append: c.whatsapp -%}
 {%- assign telefone = "+" | append: c.whatsapp -%}
@@ -22,6 +23,17 @@
 {
   "@context": "https://schema.org",
   "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": {{ site_id | jsonify }},
+      "name": "Foveō Ateliê",
+      "alternateName": ["Foveo Atelie", "Foveō", "Foveo"],
+      "url": {{ site.url | append: "/" | jsonify }},
+      "inLanguage": "pt-BR",
+      "publisher": {
+        "@id": {{ org_id | jsonify }}
+      }
+    },
     {
       "@type": "Organization",
       "@id": {{ org_id | jsonify }},
@@ -31,6 +43,10 @@
         "@type": "ImageObject",
         "url": {{ logo | jsonify }}
       },
+      "sameAs": [
+        {{ c.instagram | jsonify }},
+        {{ whatsapp | jsonify }}
+      ],
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "Belo Horizonte",
