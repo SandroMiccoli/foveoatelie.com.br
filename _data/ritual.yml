@@ -34,7 +34,7 @@ cards:
       - n: "04"
         label: "Reverberar"
     blocks:
-      - text: "Todo ritual começa por uma intenção. Antes de acender, pergunte-se o que você deseja cuidar."
+      - text: "Todo ritual começa por uma intenção. Antes de acender, pense no que você deseja cuidar."
 
   - kind: story
     theme: dark
@@ -66,7 +66,7 @@ cards:
     title: "Tocar"
     blocks:
       - text: "Em si mesmo ou em outra pessoa, todo toque carrega uma intenção. Qual é a sua?"
-      - text: "Leve o óleo à pele em pequena quantidade e deixe que cada gesto reverbere essa intenção, com o cuidado que ela merece."
+      - text: "Leve um pouco de óleo à pele e deixe que cada gesto reverbere essa intenção, com o cuidado que ela merece."
 
   - kind: story
     theme: dark
