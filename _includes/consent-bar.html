@@ -1,7 +1,7 @@
 {%- assign c = site.data.colecao -%}
 {%- capture wa_url -%}https://wa.me/{{ c.whatsapp }}{%- endcapture -%}
 <div class="fv-consent fv-consent--bar" role="region" aria-label="Aviso de cookies">
-  <p>Usamos cookies do Google Analytics para entender como o site é usado. Você escolhe. <a href="{{ '/privacidade/' | relative_url }}">Saiba mais</a></p>
+  <p><span class="fv-consent__full">Usamos cookies do Google Analytics para entender como o site é usado. Você escolhe.</span><span class="fv-consent__short">Cookies de medição.</span> <a href="{{ '/privacidade/' | relative_url }}">Saiba mais</a></p>
   <div class="fv-consent__actions">
     <button type="button" data-c="denied">Recusar</button>
     <button type="button" data-c="granted">Aceitar</button>

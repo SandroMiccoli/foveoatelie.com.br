@@ -54,6 +54,14 @@
   var panel = document.getElementById("fv-privacy");
   var storedChoice = null;
   try { storedChoice = localStorage.getItem("fv-consent"); } catch (e) {}
+  function syncConsentSpace() {
+    var open = !!(bar && bar.classList.contains("is-open"));
+    document.documentElement.style.setProperty("--consent-h", open ? bar.offsetHeight + "px" : "0px");
+  }
+  if (bar) {
+    new MutationObserver(syncConsentSpace).observe(bar, { attributes: true, attributeFilter: ["class"] });
+    window.addEventListener("resize", syncConsentSpace);
+  }
   function showConsentBar() {
     if (bar && !storedChoice) bar.classList.add("is-open");
   }

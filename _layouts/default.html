@@ -82,7 +82,7 @@
   {% if page.preload_image_wide %}
   <link rel="preload" href="{{ page.preload_image_wide | relative_url }}" as="image" type="image/webp" media="(min-width: 700px)" fetchpriority="high">
   {% endif %}
-  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}?v={{ site.time | date: '%s' }}">
 </head>
 <body>
   <div id="intro" aria-hidden="true">
