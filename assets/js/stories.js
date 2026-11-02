@@ -1,11 +1,28 @@
 (function () {
-  // Reading time after the entrance animation. Cards are meant to be read.
-  var STORY_DURATION_MS = 6500;
+  // Reading time after the entrance animation: 3 s plus 0.25 s per word,
+  // never below the minimum. The cover has no text and uses the minimum.
+  var READ_BASE_MS = 3000;
+  var READ_PER_WORD_MS = 250;
+  var READ_MIN_MS = 4500;
   var HOLD_MS = 220;
   var SWIPE_PX = 48;
 
   var frame = document.getElementById("story");
   var slides = Array.prototype.slice.call(frame.querySelectorAll(".card"));
+
+  function wordCount(card) {
+    var nodes = card.querySelectorAll(".title, .body, .lede, .signoff, .steps li > span:last-child");
+    var words = 0;
+    Array.prototype.forEach.call(nodes, function (node) {
+      var text = (node.textContent || "").replace(/\s+/g, " ").trim();
+      if (text) words += text.split(" ").length;
+    });
+    return words;
+  }
+
+  var durations = slides.map(function (card) {
+    return Math.max(READ_MIN_MS, READ_BASE_MS + READ_PER_WORD_MS * wordCount(card));
+  });
   var fills = Array.prototype.slice.call(frame.querySelectorAll(".segment-fill"));
   var zonePrev = frame.querySelector(".zone-prev");
   var zonePause = frame.querySelector(".zone-pause");
@@ -32,8 +49,6 @@
   function storedConsent() {
     try { return localStorage.getItem("fv-consent"); } catch (e) { return null; }
   }
-
-  var consentHold = !storedConsent();
 
   function track(name, params) {
     if (location.hostname !== "obrigado.foveoatelie.com.br") return;
@@ -78,11 +93,6 @@
     phase = "read";
     progress = 0;
     lastTs = performance.now();
-    if (consentHold) {
-      paused = true;
-      window.cancelAnimationFrame(raf);
-      return;
-    }
     if (!paused && !ended && !holding && !document.hidden) {
       window.cancelAnimationFrame(raf);
       raf = window.requestAnimationFrame(tick);
@@ -170,12 +180,18 @@
     zonePause.setAttribute("aria-label", stickyPause && !ended ? "Continuar" : "Pausar");
   }
 
+  function announce() {
+    var title = slides[index].getAttribute("data-title") || "";
+    live.textContent = "Card " + (index + 1) + " de " + count + (title ? ": " + title : "");
+  }
+
   function updateChrome() {
     var onLast = index === count - 1;
     if (!onLast) replay.hidden = true;
     zonePrev.disabled = index === 0;
     zoneNext.disabled = index === count - 1;
-    live.textContent = "Card " + (index + 1) + " de " + count;
+    announce();
+    frame.setAttribute("data-theme", slides[index].classList.contains("theme-light") ? "light" : "dark");
     renderBars();
     slides.forEach(function (card, i) {
       card.setAttribute("aria-hidden", i === index ? "false" : "true");
@@ -194,7 +210,7 @@
     }
     window.cancelAnimationFrame(raf);
     ended = false;
-    paused = consentHold;
+    paused = false;
     holding = false;
     progress = 0;
     replay.hidden = true;
@@ -264,7 +280,7 @@
 
   function tick(now) {
     if (paused || ended || phase !== "read") return;
-    progress += (now - lastTs) / STORY_DURATION_MS;
+    progress += (now - lastTs) / durations[index];
     lastTs = now;
     if (progress >= 1) {
       progress = 1;
@@ -285,7 +301,7 @@
   }
 
   function resumeAll() {
-    if (ended || holding || document.hidden || consentHold || stickyPause) return;
+    if (ended || holding || document.hidden || stickyPause) return;
     paused = false;
     if (phase === "enter" && activeTl && activeTl.progress() < 1) {
       activeTl.resume();
@@ -389,7 +405,7 @@
   zoneNext.addEventListener("click", next);
   if (zonePause) {
     zonePause.addEventListener("click", function () {
-      if (ended || consentHold) return;
+      if (ended) return;
       if (stickyPause || paused) {
         stickyPause = false;
         resumeAll();
@@ -509,21 +525,11 @@
   }
 
   window.addEventListener("fv-consent", function (event) {
-    consentHold = false;
     if (event.detail === "granted") trackCard(index);
-    if (ended || holding || document.hidden) return;
-    paused = false;
-    if (phase === "read") {
-      lastTs = performance.now();
-      window.cancelAnimationFrame(raf);
-      raf = window.requestAnimationFrame(tick);
-    }
   });
 
   updateChrome();
   introPlayed = true;
   playEntrance(slides[0], true);
-  window.setTimeout(function () {
-    live.textContent = "Card 1 de " + count;
-  }, 80);
+  window.setTimeout(announce, 80);
 })();
