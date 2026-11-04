@@ -25,154 +25,276 @@ sitemap: false
   </div>
 </header>
 
+<!-- Progress bar: visible only with JS -->
+<div class="tf-progress" id="tf-progress" aria-hidden="true">
+  <div class="tf-progress-fill" id="tf-progress-fill"></div>
+</div>
+
+<!-- Arrow nav: visible only with JS -->
+<div class="tf-nav" id="tf-nav" aria-hidden="true">
+  <button class="tf-nav-btn" id="tf-nav-up" type="button" aria-label="Voltar">↑</button>
+  <button class="tf-nav-btn" id="tf-nav-down" type="button" aria-label="Avançar">↓</button>
+</div>
+
 <main id="conteudo">
-  <div class="band">
-    <div class="wrap">
-      <div class="section-head">
-        <span class="macron" aria-hidden="true"></span>
-        <h1>Conta pra gente como foi o seu ritual.</h1>
-        <p class="lede">Leva menos de 2 minutos e ajuda muito a Foveō a crescer com cuidado.</p>
-      </div>
-    </div>
-  </div>
+  <!--
+    NETLIFY FORM DETECTION: The <form> below must remain a real HTML form with
+    name="feedback", method="POST", data-netlify="true", and all named inputs
+    present in the static HTML. JS enhances the layout; it never removes inputs.
+  -->
+  <div class="tf-pager" id="tf-pager">
+    <form
+      class="tf-form"
+      name="feedback"
+      method="POST"
+      action="{{ '/feedback/obrigado/' | relative_url }}"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+    >
+      <input type="hidden" name="form-name" value="feedback">
+      <p class="sr-only">
+        <label>Não preencha se você for humano: <input name="bot-field"></label>
+      </p>
 
-  <div class="band band--paper">
-    <div class="wrap">
-      <form
-        class="feedback-form"
-        name="feedback"
-        method="POST"
-        action="{{ '/feedback/obrigado/' | relative_url }}"
-        data-netlify="true"
-        data-netlify-honeypot="bot-field"
-      >
-        <input type="hidden" name="form-name" value="feedback">
-        <p class="sr-only">
-          <label>Não preencha se você for humano: <input name="bot-field"></label>
-        </p>
-
-        <!-- 1. Qual vela -->
-        <fieldset class="form-group">
-          <legend class="form-legend">Qual vela você usou?</legend>
-          <div class="radio-list radio-list--stack">
-            <label class="radio-item">
-              <input type="radio" name="vela" value="Acolher" required>
-              <span>Acolher</span>
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="vela" value="Despertar">
-              <span>Despertar</span>
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="vela" value="Permanecer">
-              <span>Permanecer</span>
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="vela" value="Não lembro">
-              <span>Não lembro</span>
-            </label>
-          </div>
-        </fieldset>
-
-        <!-- 2. Nota de 1 a 5 -->
-        <fieldset class="form-group">
-          <legend class="form-legend">De 1 a 5, como foi a sua experiência?</legend>
-          <div class="rating-row">
-            {% for i in (1..5) %}
-            <label class="rating-item">
-              <input type="radio" name="nota" value="{{ i }}"{% if forloop.first %} required{% endif %}>
-              <span>{{ i }}</span>
-            </label>
-            {% endfor %}
-          </div>
-          <div class="rating-captions" aria-hidden="true">
-            <span>Não gostei</span>
-            <span>Foi incrível</span>
-          </div>
-        </fieldset>
-
-        <!-- 3. Sensação na pele -->
-        <div class="form-group">
-          <label class="form-label" for="sensacao">Como você sentiu a vela na pele?</label>
-          <textarea
-            id="sensacao"
-            name="sensacao"
-            class="form-textarea"
-            placeholder="Temperatura, textura do óleo, fragrância… o que vier."
-            rows="4"
-          ></textarea>
+      <!-- ── Screen 0: Welcome ──────────────────────────────── -->
+      <section class="tf-screen tf-screen--welcome" data-screen-idx="0">
+        <div class="tf-content">
+          <h1 class="tf-welcome-heading">Conta pra gente<br>como foi o seu ritual.</h1>
+          <p class="tf-welcome-sub">Leva menos de 2 minutos e ajuda muito a Foveō a crescer com cuidado.</p>
+          <button type="button" class="tf-start" data-tf-start>
+            Começar <span class="tf-enter" aria-hidden="true">↵</span>
+          </button>
         </div>
+      </section>
 
-        <!-- 4. O que mudaria -->
-        <div class="form-group">
-          <label class="form-label" for="mudaria">O que você mudaria ou sentiu falta?</label>
-          <textarea
-            id="mudaria"
-            name="mudaria"
-            class="form-textarea"
-            rows="4"
-          ></textarea>
+      <!-- ── Screen 1: Q1 Qual vela (required) ─────────────── -->
+      <section class="tf-screen" data-screen-idx="1" data-screen-required="vela" data-question="1">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">1 →</span>
+          <fieldset class="tf-fieldset">
+            <legend class="tf-question" tabindex="-1">Qual vela você usou?</legend>
+            <div class="tf-choices">
+              <label class="tf-choice" data-key="A">
+                <span class="tf-key" aria-hidden="true">A</span>
+                <input type="radio" name="vela" value="Acolher" required>
+                <span class="tf-choice-label">Acolher</span>
+              </label>
+              <label class="tf-choice" data-key="B">
+                <span class="tf-key" aria-hidden="true">B</span>
+                <input type="radio" name="vela" value="Despertar">
+                <span class="tf-choice-label">Despertar</span>
+              </label>
+              <label class="tf-choice" data-key="C">
+                <span class="tf-key" aria-hidden="true">C</span>
+                <input type="radio" name="vela" value="Permanecer">
+                <span class="tf-choice-label">Permanecer</span>
+              </label>
+              <label class="tf-choice" data-key="D">
+                <span class="tf-key" aria-hidden="true">D</span>
+                <input type="radio" name="vela" value="Não lembro">
+                <span class="tf-choice-label">Não lembro</span>
+              </label>
+            </div>
+          </fieldset>
+          <div class="tf-error" id="tf-error-1" role="alert" aria-live="polite"></div>
+          <div class="tf-actions">
+            <button type="button" class="tf-ok" data-tf-next>
+              OK <span class="tf-enter" aria-hidden="true">↵</span>
+            </button>
+          </div>
         </div>
+      </section>
 
-        <!-- 5. Para uma amiga + compartilhamento -->
-        <div class="form-group">
-          <label class="form-label" for="depoimento">Se fosse contar pra uma amiga sobre o seu ritual com a Foveō, o que você diria?</label>
-          <textarea
-            id="depoimento"
-            name="depoimento"
-            class="form-textarea"
-            rows="5"
-          ></textarea>
-          <fieldset class="form-subgroup">
-            <legend class="form-sublabel">Podemos compartilhar essa resposta no site ou no Instagram?</legend>
-            <div class="radio-list">
-              <label class="radio-item">
+      <!-- ── Screen 2: Q2 Nota 1–5 (required) ──────────────── -->
+      <section class="tf-screen" data-screen-idx="2" data-screen-required="nota" data-question="2">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">2 →</span>
+          <fieldset class="tf-fieldset">
+            <legend class="tf-question" tabindex="-1">De 1 a 5, como foi a sua experiência?</legend>
+            <div class="tf-rating">
+              {% for i in (1..5) %}
+              <label class="tf-rating-item">
+                <input type="radio" name="nota" value="{{ i }}"{% if forloop.first %} required{% endif %}>
+                <span>{{ i }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <p class="tf-rating-captions" aria-hidden="true">
+              <span>Não gostei</span>
+              <span>Foi incrível</span>
+            </p>
+          </fieldset>
+          <div class="tf-error" id="tf-error-2" role="alert" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- ── Screen 3: Q3 Sensação na pele ─────────────────── -->
+      <section class="tf-screen" data-screen-idx="3" data-question="3">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">3 →</span>
+          <div class="tf-fieldset">
+            <label class="tf-question" for="sensacao" tabindex="-1">Como você sentiu a vela na pele?</label>
+            <p class="tf-hint">Temperatura, textura do óleo, fragrância… o que vier.</p>
+            <textarea
+              id="sensacao"
+              name="sensacao"
+              class="tf-textarea"
+              rows="3"
+              placeholder="Escreva aqui…"
+            ></textarea>
+          </div>
+          <div class="tf-actions">
+            <button type="button" class="tf-ok" data-tf-next>
+              OK <span class="tf-enter" aria-hidden="true">↵</span>
+            </button>
+            <button type="button" class="tf-skip" data-tf-next>Pular</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Screen 4: Q4 O que mudaria ───────────────────── -->
+      <section class="tf-screen" data-screen-idx="4" data-question="4">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">4 →</span>
+          <div class="tf-fieldset">
+            <label class="tf-question" for="mudaria" tabindex="-1">O que você mudaria ou sentiu falta?</label>
+            <textarea
+              id="mudaria"
+              name="mudaria"
+              class="tf-textarea"
+              rows="3"
+              placeholder="Escreva aqui…"
+            ></textarea>
+          </div>
+          <div class="tf-actions">
+            <button type="button" class="tf-ok" data-tf-next>
+              OK <span class="tf-enter" aria-hidden="true">↵</span>
+            </button>
+            <button type="button" class="tf-skip" data-tf-next>Pular</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Screen 5: Q5 Depoimento ───────────────────────── -->
+      <section class="tf-screen" data-screen-idx="5" data-question="5">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">5 →</span>
+          <div class="tf-fieldset">
+            <label class="tf-question" for="depoimento" tabindex="-1">Se fosse contar pra uma amiga sobre o seu ritual com a Foveō, o que você diria?</label>
+            <textarea
+              id="depoimento"
+              name="depoimento"
+              class="tf-textarea"
+              rows="3"
+              placeholder="Escreva aqui…"
+            ></textarea>
+          </div>
+          <div class="tf-actions">
+            <button type="button" class="tf-ok" data-tf-next>
+              OK <span class="tf-enter" aria-hidden="true">↵</span>
+            </button>
+            <button type="button" class="tf-skip" data-tf-next>Pular</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Screen 6: Compartilhar (sub-question após Q5) ─── -->
+      <section class="tf-screen" data-screen-idx="6" data-question="6">
+        <div class="tf-content">
+          <fieldset class="tf-fieldset">
+            <legend class="tf-question" tabindex="-1">Podemos compartilhar essa resposta no site ou no Instagram?</legend>
+            <div class="tf-choices">
+              <label class="tf-choice" data-key="A">
+                <span class="tf-key" aria-hidden="true">A</span>
                 <input type="radio" name="compartilhar" value="Sim, com meu nome">
-                <span>Sim, com meu nome</span>
+                <span class="tf-choice-label">Sim, com meu nome</span>
               </label>
-              <label class="radio-item">
+              <label class="tf-choice" data-key="B">
+                <span class="tf-key" aria-hidden="true">B</span>
                 <input type="radio" name="compartilhar" value="Sim, anônimo">
-                <span>Sim, anônimo</span>
+                <span class="tf-choice-label">Sim, anônimo</span>
               </label>
-              <label class="radio-item">
+              <label class="tf-choice" data-key="C">
+                <span class="tf-key" aria-hidden="true">C</span>
                 <input type="radio" name="compartilhar" value="Não">
-                <span>Não</span>
+                <span class="tf-choice-label">Não</span>
+              </label>
+            </div>
+          </fieldset>
+          <div class="tf-actions">
+            <button type="button" class="tf-ok" data-tf-next>
+              OK <span class="tf-enter" aria-hidden="true">↵</span>
+            </button>
+            <button type="button" class="tf-skip" data-tf-next>Pular</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Screen 7: Q6 Novidades ─────────────────────────── -->
+      <section class="tf-screen" data-screen-idx="7" data-question="7">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">6 →</span>
+          <fieldset class="tf-fieldset">
+            <legend class="tf-question" tabindex="-1">Quer saber quando sair fragrância nova ou abrir o próximo lote?</legend>
+            <div class="tf-choices">
+              <label class="tf-choice" data-key="A">
+                <span class="tf-key" aria-hidden="true">A</span>
+                <input type="radio" name="novidades" value="Sim">
+                <span class="tf-choice-label">Sim</span>
+              </label>
+              <label class="tf-choice" data-key="B">
+                <span class="tf-key" aria-hidden="true">B</span>
+                <input type="radio" name="novidades" value="Não">
+                <span class="tf-choice-label">Não</span>
               </label>
             </div>
           </fieldset>
         </div>
+      </section>
 
-        <!-- 6. Novidades -->
-        <fieldset class="form-group">
-          <legend class="form-legend">Quer saber quando sair fragrância nova ou abrir o próximo lote?</legend>
-          <div class="radio-list">
-            <label class="radio-item">
-              <input type="radio" name="novidades" value="Sim">
-              <span>Sim</span>
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="novidades" value="Não">
-              <span>Não</span>
-            </label>
-          </div>
-          <div class="form-optional-fields">
-            <div class="form-field">
-              <label class="form-sublabel" for="nome">Nome <span class="form-optional">(opcional)</span></label>
-              <input type="text" id="nome" name="nome" class="form-input" autocomplete="name">
+      <!-- ── Screen 8: Nome + Contato (condicional: novidades=Sim) -->
+      <section class="tf-screen" data-screen-idx="8" data-skip-unless="novidades=Sim">
+        <div class="tf-content">
+          <span class="tf-num" aria-hidden="true">↳</span>
+          <div class="tf-fieldset">
+            <p class="tf-question" tabindex="-1">Como podemos te encontrar?</p>
+            <p class="tf-hint">Apenas para te avisar quando chegar novidade. Nada de spam.</p>
+            <div class="tf-fields">
+              <div class="tf-field">
+                <label class="tf-field-label" for="nome">
+                  Nome <span class="tf-optional">(opcional)</span>
+                </label>
+                <input type="text" id="nome" name="nome" class="tf-input" autocomplete="name">
+              </div>
+              <div class="tf-field">
+                <label class="tf-field-label" for="contato">
+                  WhatsApp ou e-mail <span class="tf-optional">(opcional)</span>
+                </label>
+                <input type="text" id="contato" name="contato" class="tf-input" autocomplete="off">
+              </div>
             </div>
-            <div class="form-field">
-              <label class="form-sublabel" for="contato">WhatsApp ou e-mail <span class="form-optional">(opcional)</span></label>
-              <input type="text" id="contato" name="contato" class="form-input" autocomplete="off">
-            </div>
           </div>
-        </fieldset>
-
-        <div class="form-submit">
-          <button type="submit" class="cta form-cta">Enviar</button>
+          <div class="tf-actions">
+            <button type="button" class="tf-ok" data-tf-next>
+              OK <span class="tf-enter" aria-hidden="true">↵</span>
+            </button>
+            <button type="button" class="tf-skip" data-tf-next>Pular</button>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
+      </section>
+
+      <!-- ── Screen 9: Final — Enviar ───────────────────────── -->
+      <section class="tf-screen tf-screen--final" data-screen-idx="9">
+        <div class="tf-content">
+          <span class="tf-macron" aria-hidden="true"></span>
+          <p class="tf-final-heading">Tudo pronto.</p>
+          <p class="tf-final-sub">Obrigado por compartilhar o seu ritual com a Foveō.</p>
+          <button type="submit" class="tf-submit">Enviar</button>
+        </div>
+      </section>
+
+    </form>
+  </div><!-- /.tf-pager -->
 </main>
 
 {% include footer.html %}
