@@ -5,6 +5,7 @@ description: "Essa página se perdeu no caminho."
 noindex: true
 sitemap: false
 permalink: /404.html
+no_intro: true
 ---
 
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
@@ -26,18 +27,30 @@ permalink: /404.html
 </header>
 
 <main id="conteudo">
-  <div class="band obrigado-band">
-    <div class="wrap obrigado-inner">
-      <img
-        class="seal obrigado-seal"
-        src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
-        alt=""
-        width="1080"
-        height="1080"
-        decoding="async"
-      >
-      <p class="obrigado-msg">Essa página se perdeu<br>no caminho.</p>
-      <p class="obrigado-assina">Mas a Foveō continua por aqui.</p>
+  <div class="fof-band">
+    <div class="wrap fof-inner">
+
+      <!--
+        "4Ō4" — the Ō seal SVG stands in for the zero.
+        The two 4s are serif text; the seal is sized to match cap height.
+      -->
+      <p class="fof-number" aria-label="404">
+        <span aria-hidden="true">4</span>
+        <span class="fof-oh" aria-hidden="true">
+          <img
+            class="fof-seal"
+            src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
+            alt=""
+            width="1080"
+            height="1080"
+            decoding="async"
+          >
+        </span>
+        <span aria-hidden="true">4</span>
+      </p>
+
+      <p class="fof-msg">Essa página se perdeu<br>no caminho.</p>
+      <p class="fof-assina">Mas a Foveō continua por aqui.</p>
       <a class="cta" href="{{ '/' | relative_url }}">Voltar ao início</a>
     </div>
   </div>
