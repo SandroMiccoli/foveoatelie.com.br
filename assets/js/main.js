@@ -488,12 +488,17 @@
   });
 
   // ── Submit animation ───────────────────────────────────
-  // Show a brief seal animation before the form POST navigates away.
-  // Respects prefers-reduced-motion: if reduced, submit immediately.
+  // Shows a brief seal overlay before the form POST navigates away.
+  // Skipped when feedback-transition.js has initialised Swup successfully
+  // (__fvSwupActive = true), because Swup + GSAP handle the animation then.
+  // Respects prefers-reduced-motion: if reduced, the browser submits naturally.
   var submitOverlay = document.getElementById("tf-submit-overlay");
   var tfForm = pager.querySelector("form");
   if (tfForm && submitOverlay) {
     tfForm.addEventListener("submit", function (e) {
+      // Swup is handling this — do nothing here.
+      if (window.__fvSwupActive) return;
+
       var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (reduce) return; // let the browser submit naturally
 
