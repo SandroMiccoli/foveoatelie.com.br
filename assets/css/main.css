@@ -2399,20 +2399,12 @@ body.fv-privacy-open {
 }
 
 /*
-  When GSAP is managing the overlay, suppress the CSS transitions so they
-  don't fight with GSAP's per-frame inline-style updates.
+  When GSAP is managing the overlay (feedback-transition.js sets this class),
+  suppress the CSS transitions so GSAP has exclusive control of opacity/transform.
 */
 html.fv-using-gsap .tf-submit-overlay,
 html.fv-using-gsap .tf-submit-seal {
   transition: none !important;
-}
-
-/*
-  Swup adds aria-live="polite" to its container swap. Keep the
-  transition container visible (never hidden by Swup's internals).
-*/
-#swup {
-  min-height: 0;
 }
 
 .tf-submit-overlay.is-active {

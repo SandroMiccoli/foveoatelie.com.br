@@ -4,11 +4,8 @@ title: "Feedback — Foveō Ateliê"
 description: "Conta pra gente como foi o seu ritual com a Foveō. Leva menos de 2 minutos."
 noindex: true
 sitemap: false
-no_intro: true
 ---
 {%- assign c = site.data.colecao -%}
-
-<div id="swup">
 
     <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
@@ -293,26 +290,20 @@ no_intro: true
     </form>
   </div><!-- /.tf-pager -->
 
+  <!-- Submit animation overlay — shown during the GSAP outro before navigation. -->
+  <div class="tf-submit-overlay" id="tf-submit-overlay" aria-hidden="true">
+    <img
+      src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
+      alt=""
+      class="tf-submit-seal"
+      width="540"
+      height="540"
+      decoding="async"
+    >
+  </div>
+
 </main>
 
 {% include footer.html %}
-
-</div><!-- /#swup -->
-
-<!--
-  Submit animation overlay — lives OUTSIDE #swup so Swup's container swap
-  does not remove it. feedback-transition.js also moves it to <body> at
-  runtime for extra safety when the layout changes.
--->
-<div class="tf-submit-overlay" id="tf-submit-overlay" aria-hidden="true">
-  <img
-    src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
-    alt=""
-    class="tf-submit-seal"
-    width="540"
-    height="540"
-    decoding="async"
-  >
-</div>
 
 <script src="{{ '/assets/js/feedback-transition.js' | relative_url }}"></script>
