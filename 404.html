@@ -1,0 +1,46 @@
+---
+layout: default
+title: "Página não encontrada — Foveō Ateliê"
+description: "Essa página se perdeu no caminho."
+noindex: true
+sitemap: false
+permalink: /404.html
+---
+
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+
+<header class="site-header">
+  <div class="wrap header-bar">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="logo-crop">
+        <img
+          src="{{ '/assets/logo-claro.svg' | relative_url }}"
+          alt="Foveō Ateliê"
+          width="1014"
+          height="586"
+          decoding="async"
+        >
+      </span>
+    </a>
+  </div>
+</header>
+
+<main id="conteudo">
+  <div class="band obrigado-band">
+    <div class="wrap obrigado-inner">
+      <img
+        class="seal obrigado-seal"
+        src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
+        alt=""
+        width="1080"
+        height="1080"
+        decoding="async"
+      >
+      <p class="obrigado-msg">Essa página se perdeu<br>no caminho.</p>
+      <p class="obrigado-assina">Mas a Foveō continua por aqui.</p>
+      <a class="cta" href="{{ '/' | relative_url }}">Voltar ao início</a>
+    </div>
+  </div>
+</main>
+
+{% include footer.html %}

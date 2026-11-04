@@ -54,7 +54,7 @@ sitemap: false
         <!-- 1. Qual vela -->
         <fieldset class="form-group">
           <legend class="form-legend">Qual vela você usou?</legend>
-          <div class="radio-list">
+          <div class="radio-list radio-list--stack">
             <label class="radio-item">
               <input type="radio" name="vela" value="Acolher" required>
               <span>Acolher</span>
@@ -84,6 +84,10 @@ sitemap: false
               <span>{{ i }}</span>
             </label>
             {% endfor %}
+          </div>
+          <div class="rating-captions" aria-hidden="true">
+            <span>Não gostei</span>
+            <span>Foi incrível</span>
           </div>
         </fieldset>
 
