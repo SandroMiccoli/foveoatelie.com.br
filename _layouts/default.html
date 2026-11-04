@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Add .js before CSS is painted so html:not(.js) rules never flash visible -->
+  <script>document.documentElement.classList.add("js");</script>
   <style>
     #intro { display: none; }
     html.intro-on { background: #0d0908; overflow: hidden; }
@@ -27,6 +29,7 @@
   <script>
     (function () {
       var force = /(?:^|[?&])intro=1(?:&|$)/.test(location.search);
+      {% if page.no_intro %}if (!force) return;{% endif %}
       var seen = false;
       try { seen = sessionStorage.getItem("fv-intro") === "1"; } catch (e) {}
       if (!force && seen) return;
