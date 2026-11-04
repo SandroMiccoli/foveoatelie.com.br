@@ -1432,7 +1432,8 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   color: var(--ink);
 }
 
-.tf-choice input[type="radio"] {
+.tf-choice input[type="radio"],
+.tf-choice input[type="checkbox"] {
   position: absolute;
   opacity: 0;
   width: 1px;
@@ -1444,7 +1445,8 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   white-space: nowrap;
 }
 
-.tf-choice input[type="radio"]:focus-visible ~ .tf-key {
+.tf-choice input[type="radio"]:focus-visible ~ .tf-key,
+.tf-choice input[type="checkbox"]:focus-visible ~ .tf-key {
   outline: 2px solid var(--copper);
   outline-offset: 2px;
 }
@@ -1456,16 +1458,17 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   color: var(--paper);
 }
 
-/* Rating boxes (1–5) */
+/* Rating boxes (1–5) — grid so boxes fill the content width evenly */
 .tf-rating {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
-  flex-wrap: wrap;
+  width: 100%;
   margin-bottom: 0.4rem;
 }
 
 .tf-rating-item {
-  display: inline-flex;
+  display: flex;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1483,10 +1486,10 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 }
 
 .tf-rating-item span {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: clamp(3rem, 11.5vw, 3.75rem);
+  width: 100%;
   height: clamp(3rem, 11.5vw, 3.75rem);
   border: 1px solid rgba(237, 230, 217, 0.15);
   font-family: var(--serif);
@@ -1519,7 +1522,7 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   font-family: var(--sans);
   font-size: 0.75rem;
   color: rgba(237, 230, 217, 0.4);
-  max-width: calc(5 * clamp(3rem, 11.5vw, 3.75rem) + 4 * 0.5rem);
+  width: 100%;
   margin: 0.35rem 0 0;
 }
 
@@ -1648,8 +1651,9 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 .tf-enter {
   display: inline-flex;
   align-items: center;
-  opacity: 0.65;
-  font-size: 0.9em;
+  opacity: 0.75;
+  font-size: 1.3em;
+  line-height: 1;
 }
 
 .tf-skip {
@@ -1839,9 +1843,12 @@ html:not(.js) .tf-submit {
   max-width: none; /* Full-width on no-JS */
 }
 
+html:not(.js) .tf-rating {
+  /* On no-JS, let the grid flow naturally at a comfortable touch size */
+  grid-template-columns: repeat(5, minmax(3.25rem, 1fr));
+}
+
 html:not(.js) .tf-rating-item span {
-  /* Increase touch target on no-JS */
-  width: 3.25rem;
   height: 3.25rem;
 }
 
@@ -2359,30 +2366,7 @@ body.fv-privacy-open {
   max-width: none; /* override the global img { max-width: 100% } */
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .fof-seal {
-    animation: fof-seal-appear 2s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-}
-
-@keyframes fof-seal-appear {
-  0% {
-    opacity: 0;
-    transform: scale(0.32);
-  }
-  18% {
-    opacity: 0;
-    transform: scale(0.32);
-  }
-  52% {
-    opacity: 1;
-    transform: scale(0.32);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+/* 404 seal is static — no animation */
 
 .fof-msg {
   font-family: var(--serif);
@@ -2395,9 +2379,46 @@ body.fv-privacy-open {
   margin: 0;
 }
 
-.fof-assina {
-  font-size: var(--body);
-  line-height: 1.6;
-  color: var(--paper-dim);
-  margin: 0;
+.fof-msg {
+  max-width: 24rem;
+}
+
+/* ── Submit transition overlay ─────────────────────────── */
+
+.tf-submit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.tf-submit-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tf-submit-seal {
+  width: clamp(5rem, 18vw, 8rem);
+  height: auto;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.5s ease 0.1s, transform 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+}
+
+.tf-submit-overlay.is-active .tf-submit-seal {
+  opacity: 0.9;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-submit-overlay,
+  .tf-submit-seal {
+    transition: none;
+  }
 }
