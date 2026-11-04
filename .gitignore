@@ -5,9 +5,3 @@ _site/
 vendor/
 
 .jekyll-metadata
-
-# Playwright
-node_modules/
-_playwright-report/
-test-results/
-package-lock.json
