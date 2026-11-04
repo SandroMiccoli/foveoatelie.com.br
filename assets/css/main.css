@@ -1201,6 +1201,277 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   }
 }
 
+/* ── Feedback form ──────────────────────────────────────────── */
+
+.feedback-form {
+  max-width: 38rem;
+}
+
+.form-group {
+  border: 0;
+  margin: 0 0 clamp(2rem, 5vw, 3rem);
+  padding: 0;
+}
+
+.form-subgroup {
+  border: 0;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+.form-legend,
+.form-label {
+  display: block;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(1.1rem, 2vw, 1.3rem);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 1rem;
+}
+
+.form-sublabel {
+  display: block;
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 0.75rem;
+}
+
+.form-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.95em;
+}
+
+.radio-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.radio-item {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.radio-item input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.radio-item span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.35rem 1rem;
+  border: 1px solid var(--line-light);
+  font-family: var(--sans);
+  font-size: var(--body);
+  line-height: 1.3;
+  color: var(--ink);
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.radio-item:hover span {
+  border-color: var(--copper-ink);
+}
+
+.radio-item input[type="radio"]:checked + span {
+  border-color: var(--copper-ink);
+  background: var(--copper-ink);
+  color: var(--paper);
+}
+
+.radio-item input[type="radio"]:focus-visible + span {
+  outline: 2px solid var(--copper-ink);
+  outline-offset: 2px;
+}
+
+.rating-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.rating-item {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.rating-item input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.rating-item span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-light);
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.2rem;
+  color: var(--ink-dim);
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.rating-item:hover span {
+  border-color: var(--copper-ink);
+  color: var(--copper-ink);
+}
+
+.rating-item input[type="radio"]:checked + span {
+  border-color: var(--copper-ink);
+  background: var(--copper-ink);
+  color: var(--paper);
+}
+
+.rating-item input[type="radio"]:focus-visible + span {
+  outline: 2px solid var(--copper-ink);
+  outline-offset: 2px;
+}
+
+.form-textarea,
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--line-light);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--body);
+  line-height: 1.6;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.18s ease;
+}
+
+.form-textarea {
+  resize: vertical;
+}
+
+.form-input {
+  resize: none;
+}
+
+.form-textarea::placeholder {
+  color: var(--ink-dim);
+  opacity: 1;
+}
+
+.form-textarea:focus,
+.form-textarea:focus-visible,
+.form-input:focus,
+.form-input:focus-visible {
+  outline: none;
+  border-color: var(--copper-ink);
+}
+
+.form-optional-fields {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.form-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.form-submit {
+  margin-top: clamp(2rem, 5vw, 3rem);
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line-light);
+}
+
+button.cta {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--copper);
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+@media (min-width: 760px) {
+  button.cta {
+    border: 1px solid var(--copper);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radio-item span,
+  .rating-item span,
+  .form-textarea,
+  .form-input {
+    transition: none;
+  }
+}
+
+/* ── Obrigado ───────────────────────────────────────────────── */
+
+.obrigado-band {
+  min-height: calc(100svh - 10rem);
+  display: flex;
+  align-items: center;
+}
+
+.obrigado-inner {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 1.5rem;
+}
+
+.obrigado-seal {
+  width: 5rem;
+  height: auto;
+  opacity: 0.85;
+}
+
+.obrigado-msg {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: var(--lede);
+  line-height: 1.3;
+  max-width: 20rem;
+  color: var(--paper);
+}
+
+.obrigado-assina {
+  font-size: var(--body);
+  line-height: 1.6;
+  color: var(--paper-dim);
+}
+
 .verbete {
   margin: 0 0 1.35rem;
   padding-bottom: 1.15rem;
