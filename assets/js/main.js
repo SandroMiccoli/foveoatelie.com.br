@@ -266,3 +266,219 @@
 
   nodes.forEach(function (node) { observer.observe(node); });
 })();
+
+// ── Typeform-style feedback pager ───────────────────────────────────────
+(function () {
+  var pager = document.getElementById("tf-pager");
+  if (!pager) return;
+
+  var screens = Array.prototype.slice.call(pager.querySelectorAll(".tf-screen"));
+  if (!screens.length) return;
+
+  var progressFill = document.getElementById("tf-progress-fill");
+  var progressBar  = document.getElementById("tf-progress");
+  var navEl        = document.getElementById("tf-nav");
+  var navUp        = document.getElementById("tf-nav-up");
+  var navDown      = document.getElementById("tf-nav-down");
+  var current      = 0;
+
+  // Count screens that carry a data-question attribute (for progress %)
+  var questionCount = screens.filter(function (s) {
+    return s.dataset.question;
+  }).length;
+
+  // ── Helpers ────────────────────────────────────────────────
+
+  function getProgress(idx) {
+    var n = 0;
+    for (var i = 0; i <= idx; i++) {
+      if (screens[i] && screens[i].dataset.question) n++;
+    }
+    if (!questionCount) return 0;
+    return Math.min(100, Math.round((n / questionCount) * 100));
+  }
+
+  function showError(screen, msg) {
+    var el = screen.querySelector(".tf-error");
+    if (el) el.textContent = msg;
+  }
+
+  function clearError(screen) {
+    var el = screen.querySelector(".tf-error");
+    if (el) el.textContent = "";
+  }
+
+  function validate(idx) {
+    var screen = screens[idx];
+    var required = screen && screen.dataset.screenRequired;
+    if (!required) return true;
+    var checked = screen.querySelector("[name=\"" + required + "\"]:checked");
+    if (checked) { clearError(screen); return true; }
+    showError(screen, "Por favor, escolha uma opção para continuar.");
+    return false;
+  }
+
+  // Resolve the next screen index, honoring skip-unless conditions
+  function nextIdx(from) {
+    var idx = from + 1;
+    if (idx >= screens.length) return from; // already at end
+    var skipUnless = screens[idx] && screens[idx].dataset.skipUnless;
+    if (skipUnless) {
+      var parts = skipUnless.split("=");
+      var el = document.querySelector("[name=\"" + parts[0] + "\"]:checked");
+      if (!el || el.value !== parts[1]) {
+        // Skip that conditional screen
+        idx = idx + 1 < screens.length ? idx + 1 : from;
+      }
+    }
+    return idx;
+  }
+
+  // Resolve the previous screen index, honoring skip-unless conditions
+  function prevIdx(from) {
+    var idx = from - 1;
+    if (idx < 0) return 0;
+    var skipUnless = screens[idx] && screens[idx].dataset.skipUnless;
+    if (skipUnless) {
+      var parts = skipUnless.split("=");
+      var el = document.querySelector("[name=\"" + parts[0] + "\"]:checked");
+      if (!el || el.value !== parts[1]) {
+        idx = idx - 1 >= 0 ? idx - 1 : 0;
+      }
+    }
+    return idx;
+  }
+
+  // ── goTo ───────────────────────────────────────────────────
+
+  function goTo(idx, skipFocus) {
+    if (idx < 0 || idx >= screens.length) return;
+
+    screens.forEach(function (s, i) {
+      s.classList.remove("is-current", "is-past");
+      s.setAttribute("aria-hidden", "true");
+      if (i < idx) s.classList.add("is-past");
+    });
+
+    screens[idx].classList.add("is-current");
+    screens[idx].removeAttribute("aria-hidden");
+    screens[idx].scrollTop = 0;
+    current = idx;
+
+    // Progress bar
+    if (progressFill) {
+      progressFill.style.width = getProgress(idx) + "%";
+    }
+
+    // Nav button states
+    if (navUp)   navUp.disabled   = (idx === 0);
+    if (navDown) navDown.disabled = (idx === screens.length - 1);
+
+    // Focus management (after transition)
+    if (!skipFocus) {
+      window.setTimeout(function () {
+        var focus = screens[idx].querySelector("[tabindex=\"-1\"]");
+        if (focus) focus.focus({ preventScroll: true });
+      }, 320);
+    }
+  }
+
+  function next() {
+    if (!validate(current)) return;
+    var n = nextIdx(current);
+    if (n !== current) goTo(n);
+  }
+
+  function prev() {
+    var p = prevIdx(current);
+    if (p !== current) goTo(p);
+  }
+
+  // ── Activate ───────────────────────────────────────────────
+
+  // Mark all screens aria-hidden; go to 0 without transition flash
+  screens.forEach(function (s) { s.setAttribute("aria-hidden", "true"); });
+
+  // Screen 0 is already at translateY(0) via CSS :first-child rule.
+  // Apply is-current without triggering a transition.
+  pager.classList.add("no-transition");
+  goTo(0, true);
+  window.requestAnimationFrame(function () {
+    window.requestAnimationFrame(function () {
+      pager.classList.remove("no-transition");
+    });
+  });
+
+  // Show progress bar and nav arrows
+  if (progressBar)  progressBar.classList.add("is-active");
+  if (navEl) navEl.classList.add("is-active");
+  if (navEl) navEl.removeAttribute("aria-hidden");
+
+  // ── Event listeners ────────────────────────────────────────
+
+  // Arrow nav buttons
+  if (navUp)   navUp.addEventListener("click",   prev);
+  if (navDown) navDown.addEventListener("click",  next);
+
+  // Global keyboard shortcuts
+  document.addEventListener("keydown", function (e) {
+    // Don't intercept when focus is in a textarea
+    var tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+    if (tag === "textarea") return;
+    // Don't intercept submit button Enter
+    if (tag === "button" && e.key === "Enter") return;
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      next();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      next();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      prev();
+    } else if (/^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Letter keys select choices on current screen
+      var screen = screens[current];
+      if (!screen) return;
+      var choices = screen.querySelectorAll(".tf-choice");
+      if (!choices.length) return;
+      var letterIdx = e.key.toUpperCase().charCodeAt(0) - 65;
+      if (letterIdx >= 0 && choices[letterIdx]) {
+        var radio = choices[letterIdx].querySelector("input[type=\"radio\"]");
+        if (radio && !radio.checked) {
+          e.preventDefault();
+          radio.checked = true;
+          radio.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+  });
+
+  // Auto-advance on single-choice selection (radios)
+  pager.addEventListener("change", function (e) {
+    if (e.target.type !== "radio") return;
+    var screen = e.target.closest(".tf-screen");
+    if (!screen) return;
+    clearError(screen);
+    // Auto-advance after 480 ms (Typeform-style)
+    window.setTimeout(function () {
+      if (screens[current] !== screen) return; // user already moved
+      if (!validate(current)) return;
+      next();
+    }, 480);
+  });
+
+  // OK / Skip / Start button clicks
+  pager.addEventListener("click", function (e) {
+    if (e.target.closest("[data-tf-next]")) {
+      e.preventDefault();
+      next();
+      return;
+    }
+    if (e.target.closest("[data-tf-start]")) {
+      e.preventDefault();
+      next();
+    }
+  });
+})();
