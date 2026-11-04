@@ -312,7 +312,8 @@
     var screen = screens[idx];
     var required = screen && screen.dataset.screenRequired;
     if (!required) return true;
-    var checked = screen.querySelector("[name=\"" + required + "\"]:checked");
+    // Support both plain names and array-notation names (e.g. "vela[]")
+    var checked = screen.querySelector('[name="' + required + '"]:checked');
     if (checked) { clearError(screen); return true; }
     showError(screen, "Por favor, escolha uma opção para continuar.");
     return false;
@@ -438,18 +439,22 @@
       e.preventDefault();
       prev();
     } else if (/^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      // Letter keys select choices on current screen
+      // Letter keys select/toggle choices on current screen
       var screen = screens[current];
       if (!screen) return;
       var choices = screen.querySelectorAll(".tf-choice");
       if (!choices.length) return;
       var letterIdx = e.key.toUpperCase().charCodeAt(0) - 65;
       if (letterIdx >= 0 && choices[letterIdx]) {
-        var radio = choices[letterIdx].querySelector("input[type=\"radio\"]");
-        if (radio && !radio.checked) {
+        var inp = choices[letterIdx].querySelector("input[type=\"checkbox\"], input[type=\"radio\"]");
+        if (inp) {
           e.preventDefault();
-          radio.checked = true;
-          radio.dispatchEvent(new Event("change", { bubbles: true }));
+          if (inp.type === "checkbox") {
+            inp.checked = !inp.checked;
+          } else if (!inp.checked) {
+            inp.checked = true;
+          }
+          inp.dispatchEvent(new Event("change", { bubbles: true }));
         }
       }
     }
@@ -481,4 +486,27 @@
       next();
     }
   });
+
+  // ── Submit animation ───────────────────────────────────
+  // Show a brief seal animation before the form POST navigates away.
+  // Respects prefers-reduced-motion: if reduced, submit immediately.
+  var submitOverlay = document.getElementById("tf-submit-overlay");
+  var tfForm = pager.querySelector("form");
+  if (tfForm && submitOverlay) {
+    tfForm.addEventListener("submit", function (e) {
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) return; // let the browser submit naturally
+
+      e.preventDefault();
+
+      // Activate overlay — CSS transitions handle the seal fade-in
+      submitOverlay.classList.add("is-active");
+
+      // After ~1.2 s the animation has completed; submit via native method
+      // (form.submit() does not re-fire submit event listeners)
+      window.setTimeout(function () {
+        tfForm.submit();
+      }, 1200);
+    });
+  }
 })();

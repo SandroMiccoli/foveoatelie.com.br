@@ -67,31 +67,31 @@ sitemap: false
         </div>
       </section>
 
-      <!-- ── Screen 1: Q1 Qual vela (required) ─────────────── -->
-      <section class="tf-screen" data-screen-idx="1" data-screen-required="vela" data-question="1">
+      <!-- ── Screen 1: Q1 Qual vela (required, multi-select) ── -->
+      <section class="tf-screen" data-screen-idx="1" data-screen-required="vela[]" data-question="1">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">1 →</span>
           <fieldset class="tf-fieldset">
             <legend class="tf-question" tabindex="-1">Qual vela você usou?</legend>
+            <p class="tf-hint">Pode marcar mais de uma.</p>
             <div class="tf-choices">
               <label class="tf-choice" data-key="A">
                 <span class="tf-key" aria-hidden="true">A</span>
-                <input type="radio" name="vela" value="Acolher" required>
+                <input type="checkbox" name="vela[]" value="Acolher">
                 <span class="tf-choice-label">Acolher</span>
               </label>
               <label class="tf-choice" data-key="B">
                 <span class="tf-key" aria-hidden="true">B</span>
-                <input type="radio" name="vela" value="Despertar">
+                <input type="checkbox" name="vela[]" value="Despertar">
                 <span class="tf-choice-label">Despertar</span>
               </label>
               <label class="tf-choice" data-key="C">
                 <span class="tf-key" aria-hidden="true">C</span>
-                <input type="radio" name="vela" value="Permanecer">
+                <input type="checkbox" name="vela[]" value="Permanecer">
                 <span class="tf-choice-label">Permanecer</span>
               </label>
               <label class="tf-choice" data-key="D">
                 <span class="tf-key" aria-hidden="true">D</span>
-                <input type="radio" name="vela" value="Não lembro">
+                <input type="checkbox" name="vela[]" value="Não lembro">
                 <span class="tf-choice-label">Não lembro</span>
               </label>
             </div>
@@ -108,7 +108,6 @@ sitemap: false
       <!-- ── Screen 2: Q2 Nota 1–5 (required) ──────────────── -->
       <section class="tf-screen" data-screen-idx="2" data-screen-required="nota" data-question="2">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">2 →</span>
           <fieldset class="tf-fieldset">
             <legend class="tf-question" tabindex="-1">De 1 a 5, como foi a sua experiência?</legend>
             <div class="tf-rating">
@@ -131,7 +130,6 @@ sitemap: false
       <!-- ── Screen 3: Q3 Sensação na pele ─────────────────── -->
       <section class="tf-screen" data-screen-idx="3" data-question="3">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">3 →</span>
           <div class="tf-fieldset">
             <label class="tf-question" for="sensacao" tabindex="-1">Como você sentiu a vela na pele?</label>
             <p class="tf-hint">Temperatura, textura do óleo, fragrância… o que vier.</p>
@@ -155,7 +153,6 @@ sitemap: false
       <!-- ── Screen 4: Q4 O que mudaria ───────────────────── -->
       <section class="tf-screen" data-screen-idx="4" data-question="4">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">4 →</span>
           <div class="tf-fieldset">
             <label class="tf-question" for="mudaria" tabindex="-1">O que você mudaria ou sentiu falta?</label>
             <textarea
@@ -178,7 +175,6 @@ sitemap: false
       <!-- ── Screen 5: Q5 Depoimento ───────────────────────── -->
       <section class="tf-screen" data-screen-idx="5" data-question="5">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">5 →</span>
           <div class="tf-fieldset">
             <label class="tf-question" for="depoimento" tabindex="-1">Se fosse contar pra uma amiga sobre o seu ritual com a Foveō, o que você diria?</label>
             <textarea
@@ -198,15 +194,15 @@ sitemap: false
         </div>
       </section>
 
-      <!-- ── Screen 6: Compartilhar (sub-question após Q5) ─── -->
-      <section class="tf-screen" data-screen-idx="6" data-question="6">
+      <!-- ── Screen 6: Compartilhar (required) ──────────────── -->
+      <section class="tf-screen" data-screen-idx="6" data-screen-required="compartilhar" data-question="6">
         <div class="tf-content">
           <fieldset class="tf-fieldset">
             <legend class="tf-question" tabindex="-1">Podemos compartilhar essa resposta no site ou no Instagram?</legend>
             <div class="tf-choices">
               <label class="tf-choice" data-key="A">
                 <span class="tf-key" aria-hidden="true">A</span>
-                <input type="radio" name="compartilhar" value="Sim, com meu nome">
+                <input type="radio" name="compartilhar" value="Sim, com meu nome" required>
                 <span class="tf-choice-label">Sim, com meu nome</span>
               </label>
               <label class="tf-choice" data-key="B">
@@ -221,11 +217,11 @@ sitemap: false
               </label>
             </div>
           </fieldset>
+          <div class="tf-error" id="tf-error-6" role="alert" aria-live="polite"></div>
           <div class="tf-actions">
             <button type="button" class="tf-ok" data-tf-next>
               OK <span class="tf-enter" aria-hidden="true">↵</span>
             </button>
-            <button type="button" class="tf-skip" data-tf-next>Pular</button>
           </div>
         </div>
       </section>
@@ -233,7 +229,6 @@ sitemap: false
       <!-- ── Screen 7: Q6 Novidades ─────────────────────────── -->
       <section class="tf-screen" data-screen-idx="7" data-question="7">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">6 →</span>
           <fieldset class="tf-fieldset">
             <legend class="tf-question" tabindex="-1">Quer saber quando sair fragrância nova ou abrir o próximo lote?</legend>
             <div class="tf-choices">
@@ -255,7 +250,6 @@ sitemap: false
       <!-- ── Screen 8: Nome + Contato (condicional: novidades=Sim) -->
       <section class="tf-screen" data-screen-idx="8" data-skip-unless="novidades=Sim">
         <div class="tf-content">
-          <span class="tf-num" aria-hidden="true">↳</span>
           <div class="tf-fieldset">
             <p class="tf-question" tabindex="-1">Como podemos te encontrar?</p>
             <p class="tf-hint">Apenas para te avisar quando chegar novidade. Nada de spam.</p>
@@ -295,6 +289,19 @@ sitemap: false
 
     </form>
   </div><!-- /.tf-pager -->
+
+  <!-- Submit animation overlay — shown briefly before the form POST navigates away -->
+  <div class="tf-submit-overlay" id="tf-submit-overlay" aria-hidden="true">
+    <img
+      src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
+      alt=""
+      class="tf-submit-seal"
+      width="540"
+      height="540"
+      decoding="async"
+    >
+  </div>
+
 </main>
 
 {% include footer.html %}
