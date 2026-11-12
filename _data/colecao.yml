@@ -53,7 +53,7 @@ produtos:
     manteiga: "Manteiga de Manga"
     aroma: "Ylang Ylang + Bergamota + Gengibre"
     perfil: "Floral • Cítrico • Sedoso"
-    descricao: "A manteiga de manga é a mais leve das nossas manteigas. Derrete assim que encosta na pele, espalha fácil e é absorvida com pouca sensação oleosa, deixando um toque liso e sedoso. Ajuda a pele a ficar macia e hidratada depois da massagem. O ylang ylang traz o floral, a bergamota o cítrico e o gengibre um calor picante. Uma composição aromática sensual."
+    descricao: "A manteiga de manga é a mais leve da nossa coleção. Derrete assim que encosta na pele, espalha fácil e é absorvida com pouca sensação oleosa, deixando um toque liso e sedoso. Ajuda a pele a ficar macia e hidratada depois da massagem. O ylang ylang traz o floral, a bergamota o cítrico e o gengibre um calor picante. Uma composição aromática sensual."
     mensagem: "Olá! Tenho interesse na vela de massagem Despertar, da coleção 2026 da Foveō."
     image: ""
   - numero: "03"
@@ -91,7 +91,7 @@ base:
   titulo: "A base"
   materias:
     - nome: "Óleo de girassol"
-      texto: "O óleo de girassol é a base de todas as velas Foveō. É leve e fluido, e deixa as mãos deslizarem pelo corpo em movimentos longos e contínuos. Tem bastante ácido linoleico e vitamina E, que ajudam a manter a pele hidratada e macia sem pesar. É um óleo suave, bem tolerado pela maioria das peles."
+      texto: "O óleo de girassol é a base de todas as velas Foveō. É leve e fluido, e deixa as mãos deslizarem pelo corpo em movimentos longos e contínuos. Tem bastante ácido linoleico e vitamina E, que ajudam a manter a pele hidratada e macia. É um óleo suave, bem tolerado pela maioria das peles."
       sensacao: "leve · fluida · deslizante · macia"
     - nome: "Cera de abelha"
       texto: "A cera de abelha dá forma à vela quando está sólida e, com o calor da chama, derrete aos poucos junto com o óleo e a manteiga. Na pele, deixa uma película leve que ajuda a reduzir a perda de água e faz a hidratação durar mais. É ela que dá ao óleo um toque mais encorpado, que continua na pele depois da massagem."
