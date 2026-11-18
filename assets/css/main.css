@@ -2672,6 +2672,7 @@ body.cart-open {
 
 .cart-drawer-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 1rem 1.35rem;
 }
@@ -2824,6 +2825,168 @@ body.cart-open {
 
 .cart-nudge[hidden] {
   display: none;
+}
+
+/* ── Frete (Melhor Envio + retirada em BH) ──────────────────────────── */
+
+.cart-frete {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line-dark);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.cart-frete[hidden] {
+  display: none;
+}
+
+.cart-frete-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.cart-frete-form {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.cart-frete-label {
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+.cart-frete-cep {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cart-frete-cep input {
+  flex: 1 1 9rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line-dark);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: var(--body);
+  caret-color: var(--copper);
+}
+
+.cart-frete-cep input::placeholder {
+  color: var(--paper-dim);
+  opacity: 1;
+}
+
+.cart-frete-cep input[aria-invalid="true"] {
+  border-color: var(--stock-red);
+}
+
+.cart-frete-calc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border: 1px solid var(--copper);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--copper);
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cart-frete-calc:hover:not(:disabled) {
+  background: rgba(200, 116, 49, 0.1);
+}
+
+.cart-frete-calc:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cart-frete-status {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--paper-dim);
+}
+
+.cart-frete-status[hidden] {
+  display: none;
+}
+
+.cart-frete-status.is-erro {
+  color: var(--stock-red);
+}
+
+.cart-frete-opcoes {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+}
+
+.cart-frete-opcao {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--line-dark);
+  cursor: pointer;
+}
+
+.cart-frete-opcao:last-child {
+  border-bottom: 0;
+}
+
+.cart-frete-opcao input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: var(--copper);
+}
+
+.cart-frete-opcao-texto {
+  display: grid;
+  min-width: 0;
+}
+
+.cart-frete-opcao-nome {
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.cart-frete-opcao-prazo {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--paper-dim);
+}
+
+.cart-frete-opcao-preco {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.cart-frete-opcao:has(input:checked) .cart-frete-opcao-nome,
+.cart-frete-opcao:has(input:checked) .cart-frete-opcao-preco {
+  color: var(--copper);
 }
 
 .cart-drawer-foot {

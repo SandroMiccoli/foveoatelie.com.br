@@ -61,6 +61,33 @@ preload_image_wide: /assets/bg-vela-larga.webp
     <p class="cart-empty" id="cart-empty">Sua sacola está vazia.<br>Escolha uma vela na coleção.</p>
     <ul class="cart-items" id="cart-items" aria-label="Itens na sacola"></ul>
     <p class="cart-nudge" id="cart-nudge" role="status" hidden></p>
+
+    <section class="cart-frete" id="cart-frete" aria-labelledby="cart-frete-title" hidden>
+      <h3 class="cart-frete-title" id="cart-frete-title">Frete</h3>
+      <form class="cart-frete-form" id="cart-frete-form">
+        <label class="cart-frete-label" for="cart-cep">CEP</label>
+        <div class="cart-frete-cep">
+          <input
+            id="cart-cep"
+            name="cep"
+            type="text"
+            inputmode="numeric"
+            autocomplete="postal-code"
+            enterkeyhint="done"
+            spellcheck="false"
+            autocapitalize="off"
+            maxlength="9"
+            placeholder="00000-000"
+            aria-describedby="cart-frete-status"
+          >
+          <button type="submit" class="cart-frete-calc" id="cart-frete-calc">Calcular</button>
+        </div>
+        <p class="cart-frete-status" id="cart-frete-status" role="status" hidden></p>
+      </form>
+      <fieldset class="cart-frete-opcoes" id="cart-frete-opcoes">
+        <legend class="sr-only">Opções de frete</legend>
+      </fieldset>
+    </section>
   </div>
 
   <div class="cart-drawer-foot" id="cart-foot" hidden>
@@ -72,6 +99,10 @@ preload_image_wide: /assets/bg-vela-larga.webp
       <div class="cart-totals-row cart-totals-row--discount" id="cart-discount-row" hidden>
         <dt>Desconto combo</dt>
         <dd id="cart-discount">– R$ 0</dd>
+      </div>
+      <div class="cart-totals-row" id="cart-freight-row">
+        <dt>Frete</dt>
+        <dd id="cart-freight">A escolher</dd>
       </div>
       <div class="cart-totals-row cart-totals-row--total">
         <dt>Total</dt>
