@@ -428,6 +428,14 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   letter-spacing: 0.01em;
 }
 
+.combo-note {
+  margin: 0;
+  font-size: var(--body);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--copper);
+}
+
 .cta {
   display: inline-flex;
   align-items: center;
@@ -543,7 +551,8 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 
 .section-head .measure,
 .section-head .lede,
-.section-head .spec {
+.section-head .spec,
+.section-head .combo-note {
   margin-top: 0.35rem;
 }
 
@@ -603,6 +612,76 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 .product-heading {
   display: grid;
   gap: 0.7rem;
+}
+
+.product-commerce {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.9rem;
+  margin: 0;
+}
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
+}
+
+.price-value {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: var(--lede);
+  line-height: 1;
+}
+
+.price-unit {
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--paper-dim);
+}
+
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+}
+
+.stock::before {
+  content: "";
+  width: 0.4em;
+  height: 0.4em;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.stock[hidden] {
+  display: none;
+}
+
+.stock[data-stock-level="esgotado"] {
+  color: var(--paper-dim);
+  text-transform: uppercase;
+}
+
+.stock[data-stock-level="baixo"] {
+  color: var(--copper);
+  text-transform: uppercase;
+}
+
+.stock[data-stock-level="disponivel"] {
+  color: var(--paper-dim);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .product-meta {
