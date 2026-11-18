@@ -7,6 +7,11 @@
   --ink-dim: #3f3832;
   --line-dark: rgba(237, 230, 217, 0.2);
   --line-light: rgba(13, 9, 8, 0.16);
+  /* Sinalizadores de estoque: tons abafados, pensados para a pontinha de
+     cor ao lado do rótulo — não para texto grande nem preenchimento. */
+  --stock-green: #7fac62;
+  --stock-amber: #d1a24a;
+  --stock-red: #c1584a;
   --serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --gutter: clamp(1.25rem, 4vw, 3.5rem);
@@ -643,6 +648,11 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   color: var(--paper-dim);
 }
 
+/* Mesma tipografia nos quatro estados (Disponível, Últimas N unidades,
+   Última unidade, Esgotado) — só a pontinha antes do rótulo muda de cor.
+   O texto é sempre quem informa; a cor é só um reforço discreto, nunca
+   a única pista (contraste AA de --paper-dim e --stock-* sobre --ink e
+   --ink-dim confere; a pontinha em si não precisa, por ser só reforço). */
 .stock {
   display: inline-flex;
   align-items: center;
@@ -652,36 +662,38 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   font-weight: 500;
   letter-spacing: 0.1em;
   line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--paper-dim);
 }
 
 .stock::before {
   content: "";
-  width: 0.4em;
-  height: 0.4em;
+  width: 0.5em;
+  height: 0.5em;
   flex: none;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--paper-dim);
 }
 
 .stock[hidden] {
   display: none;
 }
 
-.stock[data-stock-level="esgotado"] {
-  color: var(--paper-dim);
-  text-transform: uppercase;
+.stock[data-stock-level="esgotado"]::before {
+  background: var(--paper-dim);
+  opacity: 0.55;
 }
 
-.stock[data-stock-level="baixo"] {
-  color: var(--copper);
-  text-transform: uppercase;
+.stock[data-stock-level="critico"]::before {
+  background: var(--stock-red);
 }
 
-.stock[data-stock-level="disponivel"] {
-  color: var(--paper-dim);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: none;
+.stock[data-stock-level="baixo"]::before {
+  background: var(--stock-amber);
+}
+
+.stock[data-stock-level="disponivel"]::before {
+  background: var(--stock-green);
 }
 
 .product-meta {

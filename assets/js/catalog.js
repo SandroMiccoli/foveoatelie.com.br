@@ -47,10 +47,12 @@ window.FoveoCatalog = (function () {
     return trios * 15000 + porResto;
   }
 
+  // nivel só escolhe a cor da pontinha ao lado do rótulo (ver main.css);
+  // o texto em si é sempre o que carrega a informação.
   function rotuloEstoque(qtd) {
     if (typeof qtd !== "number" || !isFinite(qtd) || qtd < 0) return null;
     if (qtd === 0) return { texto: "Esgotado", nivel: "esgotado" };
-    if (qtd === 1) return { texto: "Última unidade", nivel: "baixo" };
+    if (qtd === 1) return { texto: "Última unidade", nivel: "critico" };
     if (qtd <= 3) return { texto: "Últimas " + qtd + " unidades", nivel: "baixo" };
     return { texto: "Disponível", nivel: "disponivel" };
   }
