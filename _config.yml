@@ -40,6 +40,14 @@ defaults:
         height: 630
         alt: "Foveō Ateliê — Rituais de cuidado através do toque"
 
+# Catálogo ao vivo (estoque 2 de 2026): assets/js/catalog.js lê a view
+# pública `catalogo` no Supabase direto via fetch, sem o bundle do
+# supabase-js. A chave é "publishable" — pública, só leitura, segura no
+# front-end. Nunca trocar por uma service role key aqui.
+supabase:
+  url: "https://bbksditqlgdjftwowtje.supabase.co"
+  anon_key: "sb_publishable_6xLjzmCZXShNyEzcqXyKAw_fefRsDOC"
+
 markdown: kramdown
 permalink: pretty
 

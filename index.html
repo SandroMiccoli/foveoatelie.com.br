@@ -119,6 +119,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
         <p class="measure">Em cada vela, a manteiga vegetal e a combinação aromática mudam, abrindo espaço para rituais e toques diferentes. O que se repete em todas é a base: óleo de girassol e cera de abelha.</p>
         <p class="spec">Lata metálica preta de 100 ml · pavio de madeira.</p>
         <p class="measure">O pavio de madeira estala baixinho enquanto queima, como uma lareira acesa.</p>
+        <p class="combo-note">{{ c.colecao.preco.unitario }} cada · {{ c.colecao.preco.combo }}</p>
       </div>
 
       <figure class="colecao-foto reveal">
@@ -135,7 +136,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
         </picture>
       </figure>
 
-      <div class="products">
+      <div class="products" data-supabase-url="{{ site.supabase.url }}" data-supabase-key="{{ site.supabase.anon_key }}">
         {% for produto in c.produtos %}
         {%- capture wa_produto -%}https://wa.me/{{ c.whatsapp }}?text={{ produto.mensagem | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
         <article class="product reveal{% if produto.image != nil and produto.image != empty %} has-image{% endif %}" id="{{ produto.slug }}" aria-labelledby="produto-{{ produto.slug }}">
@@ -144,6 +145,10 @@ preload_image_wide: /assets/bg-vela-larga.webp
             <header class="product-heading">
               <h3 id="produto-{{ produto.slug }}">{{ produto.nome }}</h3>
               <p class="lede">{{ produto.tagline }}</p>
+              <div class="product-commerce">
+                <p class="price"><span class="price-value" data-price>{{ c.colecao.preco.unitario }}</span><span class="price-unit"> cada</span></p>
+                <p class="stock" data-stock hidden><span class="stock-dot" aria-hidden="true"></span><span data-stock-label></span></p>
+              </div>
             </header>
             {% if produto.image != nil and produto.image != empty %}
             <figure class="product-photo">

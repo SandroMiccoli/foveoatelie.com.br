@@ -7,6 +7,11 @@
   --ink-dim: #3f3832;
   --line-dark: rgba(237, 230, 217, 0.2);
   --line-light: rgba(13, 9, 8, 0.16);
+  /* Sinalizadores de estoque: tons abafados, pensados para a pontinha de
+     cor ao lado do rótulo — não para texto grande nem preenchimento. */
+  --stock-green: #7fac62;
+  --stock-amber: #d1a24a;
+  --stock-red: #cc6456;
   --serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --gutter: clamp(1.25rem, 4vw, 3.5rem);
@@ -428,6 +433,14 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   letter-spacing: 0.01em;
 }
 
+.combo-note {
+  margin: 0;
+  font-size: var(--body);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--copper);
+}
+
 .cta {
   display: inline-flex;
   align-items: center;
@@ -543,7 +556,8 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 
 .section-head .measure,
 .section-head .lede,
-.section-head .spec {
+.section-head .spec,
+.section-head .combo-note {
   margin-top: 0.35rem;
 }
 
@@ -603,6 +617,142 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 .product-heading {
   display: grid;
   gap: 0.7rem;
+}
+
+.product-commerce {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
+  margin: 0;
+}
+
+.price-value {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: var(--lede);
+  line-height: 1;
+}
+
+.price-unit {
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--paper-dim);
+}
+
+/* Mesma tipografia nos quatro estados (Disponível, Últimas N unidades,
+   Última unidade, Esgotado) — o rótulo e a pontinha compartilham a cor
+   do estado (menos Esgotado, que fica neutro), mas o texto em si é
+   sempre quem informa; a cor é reforço, nunca a única pista (contraste
+   AA de --paper-dim e --stock-* sobre --ink confere, inclusive para
+   --stock-red, calibrado pra passar de 4.5:1). */
+.stock {
+  display: inline-flex;
+  align-items: center;
+  /* Gap generoso de propósito: o halo da pontinha chega a crescer até
+     ~1.7em de diâmetro (ver stock-dot-ping); folga suficiente pra ele
+     nunca encostar no rótulo mesmo no pico da animação. */
+  gap: 0.75em;
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+.stock[data-stock-level="critico"] {
+  color: var(--stock-red);
+}
+
+.stock[data-stock-level="baixo"] {
+  color: var(--stock-amber);
+}
+
+.stock[data-stock-level="disponivel"] {
+  color: var(--stock-green);
+}
+
+.stock-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  /* Pequeno ajuste óptico: o ponto puro geometricamente centrado fica
+     um fiapo alto perto de caixa alta; desce um triz para alinhar com
+     o centro visual do texto. */
+  top: 0.05em;
+}
+
+.stock[hidden] {
+  display: none;
+}
+
+.stock[data-stock-level="esgotado"] .stock-dot {
+  opacity: 0.55;
+}
+
+/* Ping: halo da mesma cor nasce sobre a pontinha, cresce e desaparece,
+   num laço lento. Só nos estados que pedem atenção — Esgotado fica
+   parado. Só transform/opacity, pra rodar no compositor sem reflow. */
+.stock-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stock[data-stock-level="critico"] .stock-dot,
+  .stock[data-stock-level="baixo"] .stock-dot,
+  .stock[data-stock-level="disponivel"] .stock-dot {
+    animation: stock-dot-glow 2.3s ease-in-out infinite;
+  }
+
+  .stock[data-stock-level="critico"] .stock-dot::after,
+  .stock[data-stock-level="baixo"] .stock-dot::after,
+  .stock[data-stock-level="disponivel"] .stock-dot::after {
+    animation: stock-dot-ping 2.3s cubic-bezier(0.22, 0.7, 0.3, 1) infinite;
+  }
+}
+
+@keyframes stock-dot-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  40% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes stock-dot-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
 }
 
 .product-meta {
