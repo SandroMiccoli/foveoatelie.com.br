@@ -78,7 +78,7 @@ cards:
 
   - kind: closing
     theme: light
-    title: "Até o próximo|ritual."
+    title: "Até o próximo|ritual!"
     blocks:
       - text: "Que esta vela te acompanhe em muitos momentos de cuidado."
       - text: "Com carinho,"
