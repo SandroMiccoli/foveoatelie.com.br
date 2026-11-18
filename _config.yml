@@ -35,10 +35,10 @@ defaults:
       path: ""
     values:
       image:
-        path: /assets/og-foveo-1200x630.jpg
+        path: /assets/og.jpg
         width: 1200
         height: 630
-        alt: "Foveō Ateliê — vela de massagem acesa sobre madeira, com o logotipo à esquerda."
+        alt: "Foveō Ateliê — Rituais de cuidado através do toque"
 
 markdown: kramdown
 permalink: pretty

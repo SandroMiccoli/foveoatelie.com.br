@@ -487,26 +487,4 @@
     }
   });
 
-  // ── Submit animation ───────────────────────────────────
-  // Show a brief seal animation before the form POST navigates away.
-  // Respects prefers-reduced-motion: if reduced, submit immediately.
-  var submitOverlay = document.getElementById("tf-submit-overlay");
-  var tfForm = pager.querySelector("form");
-  if (tfForm && submitOverlay) {
-    tfForm.addEventListener("submit", function (e) {
-      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduce) return; // let the browser submit naturally
-
-      e.preventDefault();
-
-      // Activate overlay — CSS transitions handle the seal fade-in
-      submitOverlay.classList.add("is-active");
-
-      // After ~1.2 s the animation has completed; submit via native method
-      // (form.submit() does not re-fire submit event listeners)
-      window.setTimeout(function () {
-        tfForm.submit();
-      }, 1200);
-    });
-  }
 })();
