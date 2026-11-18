@@ -183,7 +183,6 @@ preload_image_wide: /assets/bg-vela-larga.webp
 
       <div class="products" data-supabase-url="{{ site.supabase.url }}" data-supabase-key="{{ site.supabase.anon_key }}">
         {% for produto in c.produtos %}
-        {%- capture wa_produto -%}https://wa.me/{{ c.whatsapp }}?text={{ produto.mensagem | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
         <article class="product reveal{% if produto.image != nil and produto.image != empty %} has-image{% endif %}" id="{{ produto.slug }}" aria-labelledby="produto-{{ produto.slug }}">
           <p class="product-num">{{ produto.numero }}</p>
           <div class="product-main">
@@ -222,7 +221,6 @@ preload_image_wide: /assets/bg-vela-larga.webp
             </dl>
             <div class="product-body">
               <p>{{ produto.descricao }}</p>
-              <a class="cta" href="{{ wa_produto }}" data-wa-product="{{ produto.nome }}" target="_blank" rel="noopener noreferrer" aria-label="{{ c.cta_produto }} — {{ produto.nome }}">{{ c.cta_produto }}</a>
             </div>
           </div>
         </article>
