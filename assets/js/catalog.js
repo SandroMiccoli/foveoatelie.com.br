@@ -70,8 +70,9 @@ window.FoveoCatalog = (function () {
     var estoqueEl = card.querySelector("[data-stock]");
     if (estoqueEl) {
       var rotulo = rotuloEstoque(produto.disponivel_real);
-      if (rotulo) {
-        estoqueEl.textContent = rotulo.texto;
+      var labelEl = estoqueEl.querySelector("[data-stock-label]");
+      if (rotulo && labelEl) {
+        labelEl.textContent = rotulo.texto;
         estoqueEl.hidden = false;
         estoqueEl.setAttribute("data-stock-level", rotulo.nivel);
       }

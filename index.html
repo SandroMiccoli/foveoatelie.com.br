@@ -147,7 +147,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
               <p class="lede">{{ produto.tagline }}</p>
               <p class="product-commerce">
                 <span class="price"><span class="price-value" data-price>{{ c.colecao.preco.unitario }}</span><span class="price-unit"> cada</span></span>
-                <span class="stock" data-stock hidden></span>
+                <span class="stock" data-stock hidden><span class="stock-dot" aria-hidden="true"></span><span data-stock-label></span></span>
               </p>
             </header>
             {% if produto.image != nil and produto.image != empty %}

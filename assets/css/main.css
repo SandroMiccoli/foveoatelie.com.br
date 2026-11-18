@@ -666,34 +666,86 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   color: var(--paper-dim);
 }
 
-.stock::before {
-  content: "";
-  width: 0.5em;
-  height: 0.5em;
+.stock-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
   flex: none;
   border-radius: 50%;
-  background: var(--paper-dim);
+  background: currentColor;
+  color: var(--paper-dim);
 }
 
 .stock[hidden] {
   display: none;
 }
 
-.stock[data-stock-level="esgotado"]::before {
-  background: var(--paper-dim);
+.stock[data-stock-level="esgotado"] .stock-dot {
+  color: var(--paper-dim);
   opacity: 0.55;
 }
 
-.stock[data-stock-level="critico"]::before {
-  background: var(--stock-red);
+.stock[data-stock-level="critico"] .stock-dot {
+  color: var(--stock-red);
 }
 
-.stock[data-stock-level="baixo"]::before {
-  background: var(--stock-amber);
+.stock[data-stock-level="baixo"] .stock-dot {
+  color: var(--stock-amber);
 }
 
-.stock[data-stock-level="disponivel"]::before {
-  background: var(--stock-green);
+.stock[data-stock-level="disponivel"] .stock-dot {
+  color: var(--stock-green);
+}
+
+/* Ping: halo da mesma cor nasce sobre a pontinha, cresce e desaparece,
+   num laço lento. Só nos estados que pedem atenção — Esgotado fica
+   parado. Só transform/opacity, pra rodar no compositor sem reflow. */
+.stock-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stock[data-stock-level="critico"] .stock-dot,
+  .stock[data-stock-level="baixo"] .stock-dot,
+  .stock[data-stock-level="disponivel"] .stock-dot {
+    animation: stock-dot-glow 2.3s ease-in-out infinite;
+  }
+
+  .stock[data-stock-level="critico"] .stock-dot::after,
+  .stock[data-stock-level="baixo"] .stock-dot::after,
+  .stock[data-stock-level="disponivel"] .stock-dot::after {
+    animation: stock-dot-ping 2.3s cubic-bezier(0.22, 0.7, 0.3, 1) infinite;
+  }
+}
+
+@keyframes stock-dot-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  40% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes stock-dot-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
 }
 
 .product-meta {
