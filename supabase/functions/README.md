@@ -75,7 +75,7 @@ Em Suas integrações, na aplicação do Checkout Pro, modo Teste (e depois Prod
 
 A order também manda `config.online.callback_url` com essa mesma URL. No guia atual da Orders API a notificação de order se configura no painel; o `callback_url` é o campo de webhook por order no SDK atual (`config.online.callback_url`). As duas apontam para o mesmo lugar. URL configurada na criação tem prioridade sobre a do painel, segundo o guia de webhooks.
 
-A função responde 200 em até 22 segundos. Assinatura inválida, com o secret definido, responde 401.
+A função responde 200 em até 22 segundos. Assinatura inválida, com o secret definido, responde 401. O log dessa rejeição traz o `ts`, se veio `x-request-id`, o `data.id`, os manifestos tentados e os 8 primeiros caracteres do `v1` recebido e do calculado. A chave não entra no log.
 
 A conferência segue o validador do SDK: manifesto `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`, HMAC-SHA256 em hex, comparado com `v1`. Se `data.id` tiver letra, tenta também a forma em minúsculas, porque o guia pede o id alfanumérico em minúsculo e o SDK atual usa o valor como chegou. O `ts` da Orders API vem em milissegundos (13 dígitos); o de pagamentos antigos vem em segundos. A janela é de 10 minutos.
 
@@ -83,11 +83,11 @@ A conferência segue o validador do SDK: manifesto `id:<data.id>;request-id:<x-r
 
 Na sacola: nome, e-mail, WhatsApp e, se não for retirada em BH, o endereço. O CEP continua o da cotação. "Pagar com Mercado Pago" manda para o `checkout_url`.
 
-Volta do checkout, com `auto_return: "all"`, em `/pedido/?pedido=<uuid>`. As rotas antigas (`/pedido/confirmado/`, `/pedido/recusado/`, `/pedido/pendente/`) mostram a mesma página. Ela chama `consultar-pedido` e lê o status no banco. A sacola do navegador só some quando o status é `pago`.
+Volta do checkout, com `auto_return: "all"`, em `/pedido/?pedido=<uuid>`. As rotas antigas (`/pedido/confirmado/`, `/pedido/recusado/`, `/pedido/pendente/`) mostram a mesma página. Ela chama `consultar-pedido`. Se o pedido ainda está `pendente` e já tem `mp_order_id`, a função busca a order no Mercado Pago com o token nosso e aplica o mesmo caminho do webhook, no máximo uma vez a cada 5 segundos por pedido. A sacola do navegador só some quando o status é `pago`.
 
 - `pago`: "Pagamento aprovado", o primeiro nome, o resumo e a quarta-feira da postagem. O botão abre o WhatsApp da Foveō com o número curto do pedido (6 primeiros hex do UUID, em maiúsculas).
-- `pendente`: "Pagamento em análise". A página consulta de novo a cada 3 segundos, por até 1 minuto. Se continuar pendente, avisa que Pix e cartão podem levar alguns minutos.
-- `recusado`, `expirado` ou `cancelado`: a sacola fica, com um link de volta pra ela.
+- `pendente`: "Pagamento em análise", o resumo, o aviso de que Pix e cartão podem levar alguns minutos e que a página atualiza sozinha. A consulta automática dura cerca de 1 minuto. "Conferir pagamento de novo" e o WhatsApp (com o número do pedido e "pagamento em análise") continuam na tela.
+- `recusado`, `expirado` ou `cancelado`: a sacola fica. Tem o link de volta pra ela e o WhatsApp.
 
 O fechamento é sexta à noite, no fuso de São Paulo. A postagem é a quarta da semana seguinte (sexta + 5 dias). Sábado e domingo entram na outra semana. Quinta 19/11/2026 posta em 25/11. Sábado 21/11 posta em 02/12. A data usa `pago_em`, ou `created_at` se o pagamento ainda não tiver hora. Retirada em BH usa a mesma quarta, pra combinar pelo WhatsApp.
 

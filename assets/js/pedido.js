@@ -16,7 +16,10 @@
   var nota = document.getElementById("pedido-nota");
   var resumo = document.getElementById("pedido-resumo");
   var prazo = document.getElementById("pedido-prazo");
+  var acoes = document.getElementById("pedido-acoes");
   var acao = document.getElementById("pedido-acao");
+  var whats = document.getElementById("pedido-whatsapp");
+  var conferir = document.getElementById("pedido-conferir");
   var inicio = Date.now();
   var pedidoId = "";
   var esvaziou = false;
@@ -138,14 +141,45 @@
     return "Seu pedido será postado na quarta\u2011feira, " + dia + ". O código de rastreio chega pelo WhatsApp.";
   }
 
-  function linkWhatsapp(dados) {
+  function linkWhatsapp(dados, extra) {
     var numero = (raiz.getAttribute("data-whatsapp") || "").replace(/\D/g, "");
     if (!numero) return "";
     var itens = (dados.itens || []).map(function (item) {
       return item.qtd + " " + item.nome;
     }).join(", ");
     var texto = "Olá! Fiz o pedido #" + dados.numero + " da Foveō: " + itens + ". Total " + formatarBRL(dados.total_centavos) + ".";
+    if (extra) texto += " " + extra;
     return "https://wa.me/" + numero + "?text=" + encodeURIComponent(texto);
+  }
+
+  function esconderAcoes() {
+    if (conferir) {
+      conferir.hidden = true;
+      conferir.disabled = false;
+      conferir.textContent = "Conferir pagamento de novo";
+      conferir.removeAttribute("aria-busy");
+    }
+    definirAcao("", "");
+    if (whats) {
+      whats.hidden = true;
+      whats.removeAttribute("href");
+    }
+    if (acoes) acoes.hidden = true;
+  }
+
+  function mostrarAcoes() {
+    if (!acoes) return;
+    var algum = (conferir && !conferir.hidden) || (acao && !acao.hidden) || (whats && !whats.hidden);
+    acoes.hidden = !algum;
+  }
+
+  function ligarWhatsapp(dados, extra) {
+    var href = linkWhatsapp(dados, extra);
+    if (!whats || !href) return;
+    whats.hidden = false;
+    whats.href = href;
+    whats.target = "_blank";
+    whats.rel = "noopener noreferrer";
   }
 
   function homeSacola() {
@@ -153,11 +187,11 @@
     return home + (home.indexOf("?") === -1 ? "?" : "&") + "sacola=1";
   }
 
-  function desenhar(dados, calmo) {
+  function desenhar(dados) {
     if (!dados || !titulo) return;
     if (resumo) resumo.hidden = true;
     if (prazo) prazo.hidden = true;
-    definirAcao("", "");
+    esconderAcoes();
     document.title = "Pedido — Foveō Ateliê";
 
     if (PAGOS[dados.status]) {
@@ -170,12 +204,8 @@
         prazo.hidden = !frase;
         prazo.textContent = frase;
       }
-      var whats = linkWhatsapp(dados);
-      if (whats && acao) {
-        definirAcao("Falar com a Foveō", whats);
-        acao.target = "_blank";
-        acao.rel = "noopener noreferrer";
-      }
+      ligarWhatsapp(dados, "");
+      mostrarAcoes();
       esvaziarSacola();
       return;
     }
@@ -183,14 +213,24 @@
     if (dados.status === "pendente") {
       titulo.textContent = "Pagamento em análise";
       document.title = "Pagamento em análise — Foveō Ateliê";
-      mostrarNota(calmo ? "Pix e cartão podem levar alguns minutos pra confirmar." : "");
+      mostrarNota("Pix e cartão podem levar alguns minutos. A página atualiza sozinha.");
       desenharResumo(dados);
+      if (conferir) conferir.hidden = false;
+      ligarWhatsapp(dados, "Pagamento em análise.");
+      mostrarAcoes();
       return;
     }
 
-    if (dados.status === "expirado") titulo.textContent = "O tempo pra pagar acabou";
-    else if (dados.status === "cancelado") titulo.textContent = "Esse pedido foi cancelado";
-    else titulo.textContent = "Pagamento não aprovado";
+    var extraWhats = "Pagamento não aprovado.";
+    if (dados.status === "expirado") {
+      titulo.textContent = "O tempo pra pagar acabou";
+      extraWhats = "O tempo pra pagar acabou.";
+    } else if (dados.status === "cancelado") {
+      titulo.textContent = "Esse pedido foi cancelado";
+      extraWhats = "Pedido cancelado.";
+    } else {
+      titulo.textContent = "Pagamento não aprovado";
+    }
     document.title = titulo.textContent + " — Foveō Ateliê";
     mostrarNota("A sacola continua aqui.");
     if (acao) {
@@ -198,15 +238,22 @@
       acao.rel = "";
     }
     definirAcao("Voltar à sacola", homeSacola());
+    ligarWhatsapp(dados, extraWhats);
+    mostrarAcoes();
   }
 
-  function consultar() {
+  function consultar(manual) {
     var url = (raiz.getAttribute("data-supabase-url") || "").replace(/\/$/, "");
     var key = raiz.getAttribute("data-supabase-key") || "";
     if (!url || !key || typeof fetch !== "function") {
       if (titulo) titulo.textContent = "Não conseguimos consultar o pedido agora.";
       mostrarNota("Atualize a página em instantes.");
       return;
+    }
+    if (manual && conferir) {
+      conferir.disabled = true;
+      conferir.textContent = "Conferindo…";
+      conferir.setAttribute("aria-busy", "true");
     }
 
     fetch(url + "/functions/v1/consultar-pedido", {
@@ -223,21 +270,26 @@
         if (resultado.status === 404) {
           if (titulo) titulo.textContent = "Não achamos esse pedido.";
           mostrarNota("");
+          esconderAcoes();
           return;
         }
         if (!resultado.ok || !resultado.dados.status) throw new Error("consulta");
-        var calmo = resultado.dados.status === "pendente" && Date.now() - inicio >= LIMITE;
-        desenhar(resultado.dados, calmo);
-        if (resultado.dados.status === "pendente" && !calmo) {
-          window.setTimeout(consultar, INTERVALO);
+        desenhar(resultado.dados);
+        if (!manual && resultado.dados.status === "pendente" && Date.now() - inicio < LIMITE) {
+          window.setTimeout(function () { consultar(false); }, INTERVALO);
         }
       })
       .catch(function () {
+        if (manual && conferir && !conferir.hidden) {
+          conferir.disabled = false;
+          conferir.textContent = "Conferir pagamento de novo";
+          conferir.removeAttribute("aria-busy");
+        }
         if (titulo && titulo.textContent === "Conferindo o pagamento.") {
           titulo.textContent = "Não conseguimos consultar o pedido agora.";
           mostrarNota("Atualize a página em instantes.");
-        } else if (Date.now() - inicio < LIMITE) {
-          window.setTimeout(consultar, INTERVALO);
+        } else if (!manual && Date.now() - inicio < LIMITE) {
+          window.setTimeout(function () { consultar(false); }, INTERVALO);
         }
       });
   }
@@ -247,5 +299,11 @@
     if (titulo) titulo.textContent = "Não achamos esse pedido.";
     return;
   }
-  consultar();
+  if (conferir) {
+    conferir.addEventListener("click", function () {
+      if (conferir.disabled) return;
+      consultar(true);
+    });
+  }
+  consultar(false);
 })();

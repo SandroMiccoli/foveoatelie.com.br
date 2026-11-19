@@ -2109,8 +2109,36 @@ button.cta {
 .pedido-resumo[hidden],
 #pedido-nota[hidden],
 #pedido-prazo[hidden],
-#pedido-acao[hidden] {
+.pedido-acoes[hidden],
+#pedido-acao[hidden],
+#pedido-whatsapp[hidden],
+#pedido-conferir[hidden] {
   display: none;
+}
+
+.pedido-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem 1.75rem;
+}
+
+button.pedido-conferir {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+@media (min-width: 760px) {
+  button.pedido-conferir {
+    color: var(--copper);
+  }
+}
+
+button.pedido-conferir:disabled {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 .pedido-numero {

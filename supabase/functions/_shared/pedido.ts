@@ -227,16 +227,41 @@ async function hmacHex(secret: string, mensagem: string): Promise<string> {
   return [...new Uint8Array(bruto)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function assinaturaValida(opts: {
+export type DiagnosticoAssinatura = {
+  ok: boolean;
+  ts: string;
+  requestIdPresente: boolean;
+  dataId: string;
+  variantes: string[];
+  v1Recebido8: string;
+  calculados8: string[];
+  motivo: "ok" | "sem_header" | "formato" | "janela" | "hmac";
+};
+
+function prefixo8(hex: string): string {
+  return hex.toLowerCase().slice(0, 8);
+}
+
+export async function diagnosticarAssinatura(opts: {
   xSignature: string | null;
   xRequestId: string | null;
   dataId: string | null;
   secret: string;
   agoraMs?: number;
   toleranciaMs?: number;
-}): Promise<boolean> {
+}): Promise<DiagnosticoAssinatura> {
   const header = (opts.xSignature ?? "").trim();
-  if (!header || !opts.secret) return false;
+  const requestIdBruto = (opts.xRequestId ?? "").trim();
+  const dataId = (opts.dataId ?? "").trim();
+  const base = {
+    ts: "",
+    requestIdPresente: requestIdBruto.length > 0,
+    dataId,
+    variantes: [] as string[],
+    v1Recebido8: "",
+    calculados8: [] as string[],
+  };
+  if (!header || !opts.secret) return { ...base, ok: false, motivo: "sem_header" };
 
   let ts = "";
   let v1 = "";
@@ -248,18 +273,41 @@ export async function assinaturaValida(opts: {
     if (k === "ts") ts = v;
     else if (k === "v1") v1 = v;
   }
-  if (!/^\d+$/.test(ts) || !/^[0-9a-f]+$/i.test(v1)) return false;
+  base.ts = ts;
+  base.v1Recebido8 = prefixo8(v1);
+  if (!/^\d+$/.test(ts) || !/^[0-9a-f]+$/i.test(v1)) {
+    return { ...base, ok: false, motivo: "formato" };
+  }
+
+  const requestId = requestIdBruto || undefined;
+  const variantes = manifestos(dataId || undefined, requestId, ts);
+  base.variantes = variantes;
+  const calculados: string[] = [];
+  let bateu = false;
+  for (const manifesto of variantes) {
+    const calculado = await hmacHex(opts.secret, manifesto);
+    calculados.push(prefixo8(calculado));
+    if (igualTempoConstante(calculado.toLowerCase(), v1.toLowerCase())) bateu = true;
+  }
+  base.calculados8 = calculados;
 
   const tolerancia = opts.toleranciaMs ?? 10 * 60 * 1000;
   const agora = opts.agoraMs ?? Date.now();
   const tsMs = tempoDoTs(ts);
-  if (tsMs == null || Math.abs(agora - tsMs) > tolerancia) return false;
-
-  const requestId = (opts.xRequestId ?? "").trim() || undefined;
-  const dataId = (opts.dataId ?? "").trim() || undefined;
-  for (const manifesto of manifestos(dataId, requestId, ts)) {
-    const calculado = await hmacHex(opts.secret, manifesto);
-    if (igualTempoConstante(calculado.toLowerCase(), v1.toLowerCase())) return true;
+  if (tsMs == null || Math.abs(agora - tsMs) > tolerancia) {
+    return { ...base, ok: false, motivo: "janela" };
   }
-  return false;
+  return { ...base, ok: bateu, motivo: bateu ? "ok" : "hmac" };
+}
+
+export async function assinaturaValida(opts: {
+  xSignature: string | null;
+  xRequestId: string | null;
+  dataId: string | null;
+  secret: string;
+  agoraMs?: number;
+  toleranciaMs?: number;
+}): Promise<boolean> {
+  const diagnostico = await diagnosticarAssinatura(opts);
+  return diagnostico.ok;
 }

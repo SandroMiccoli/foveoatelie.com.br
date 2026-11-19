@@ -1,12 +1,15 @@
 // Leitura pública de um pedido. O UUID é a chave: quem tem o link vê o resumo,
 // sem e-mail, telefone ou endereço. Deploy: README.md.
 
+import { aplicarOrderMercadoPago } from "../_shared/aplicar-order.ts";
 import { credenciaisSupabase } from "../_shared/frete.ts";
 import { json, cabecalhosCors, origemPermitida } from "../_shared/http.ts";
 import { dataPostagem, numeroCurto, primeiroNome } from "../_shared/pedido.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATUS = new Set(["pendente", "pago", "expirado", "recusado", "cancelado", "enviado", "entregue"]);
+const INTERVALO_MP_MS = 5000;
+const ultimaConsultaMp = new Map<string, number>();
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -35,9 +38,21 @@ Deno.serve(async (req) => {
   const pedidoId = typeof idBruto === "string" ? idBruto.trim().toLowerCase() : "";
   if (!UUID.test(pedidoId)) return json(origin, 400, { erro: "pedido_invalido" });
 
-  const row = await buscarPedido(cred, pedidoId);
+  let row = await buscarPedido(cred, pedidoId);
   if (row === "ausente") return json(origin, 404, { erro: "nao_encontrado" });
   if (!row) return json(origin, 503, { erro: "consulta_indisponivel" });
+
+  if (row.status === "pendente") {
+    const mpOrderId = typeof row.mp_order_id === "string" ? row.mp_order_id.trim() : "";
+    if (mpOrderId && podeConsultarMp(pedidoId)) {
+      const aplicado = await aplicarOrderMercadoPago(mpOrderId, "consulta");
+      if (aplicado.situacao === "falha") {
+        console.error("consultar-pedido: mercado pago", aplicado.motivo);
+      }
+      const deNovo = await buscarPedido(cred, pedidoId);
+      if (deNovo && deNovo !== "ausente") row = deNovo;
+    }
+  }
 
   const statusBruto = typeof row.status === "string" ? row.status : "";
   const status = STATUS.has(statusBruto) ? statusBruto : "pendente";
@@ -93,6 +108,20 @@ function centavos(valor: unknown): number {
   return Math.round(n);
 }
 
+function podeConsultarMp(pedidoId: string): boolean {
+  const agora = Date.now();
+  const ultimo = ultimaConsultaMp.get(pedidoId) ?? 0;
+  if (agora - ultimo < INTERVALO_MP_MS) return false;
+  ultimaConsultaMp.set(pedidoId, agora);
+  if (ultimaConsultaMp.size > 400) {
+    const corte = agora - 60_000;
+    for (const [id, quando] of ultimaConsultaMp) {
+      if (quando < corte) ultimaConsultaMp.delete(id);
+    }
+  }
+  return true;
+}
+
 function texto(valor: unknown, max: number): string {
   if (typeof valor !== "string") return "";
   return valor.replace(/[\u0000-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -112,6 +141,7 @@ async function buscarPedido(
     "frete_centavos",
     "total_centavos",
     "frete",
+    "mp_order_id",
     "pago_em",
     "created_at",
   ].join(",");

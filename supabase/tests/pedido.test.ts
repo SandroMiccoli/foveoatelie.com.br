@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   acaoDaOrder,
   assinaturaValida,
+  diagnosticarAssinatura,
   centavosParaReais,
   checkoutUrlConfiavel,
   dataPostagem,
@@ -123,4 +124,17 @@ test("assinatura do webhook confere o manifesto e o id em minúsculas", async ()
     agoraMs: Number(ts),
   });
   assert.equal(trocada, false);
+
+  const diag = await diagnosticarAssinatura({
+    xSignature: `ts=${ts},v1=${"ab".repeat(32)}`,
+    xRequestId: requestId,
+    dataId,
+    secret,
+    agoraMs: Number(ts),
+  });
+  assert.equal(diag.motivo, "hmac");
+  assert.equal(diag.v1Recebido8, "abababab");
+  assert.equal(diag.variantes.length, 2);
+  assert.equal(diag.calculados8.length, 2);
+  assert.equal(JSON.stringify(diag).includes(secret), false);
 });
