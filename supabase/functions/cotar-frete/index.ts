@@ -27,7 +27,8 @@ const PESO_EMBALAGEM_KG = 0.05;
  */
 const VELAS_POR_PACOTE = 0;
 
-const USER_AGENT = "Foveō Ateliê (contato@foveoatelie.com.br)";
+// Headers HTTP são ASCII. O macron de Foveō faz o fetch do Deno rejeitar o header.
+const USER_AGENT = "Foveo Atelie (contato@foveoatelie.com.br)";
 const BASE_URL_PADRAO = "https://melhorenvio.com.br";
 const BASES_PERMITIDAS = new Set([
   "https://melhorenvio.com.br",
