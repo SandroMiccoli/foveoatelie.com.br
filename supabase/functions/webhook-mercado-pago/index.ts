@@ -103,9 +103,39 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 500 });
   }
 
+  if (resultado.ok === true && resultado.status === "pago" && resultado.ja !== true && pedidoId) {
+    await avisarDono(pedidoId);
+  }
+
   await rpc(cred, "expirar_reservas", {});
   return new Response(null, { status: 200 });
 });
+
+async function avisarDono(pedidoId: string): Promise<void> {
+  const url = (Deno.env.get("GROKBOT_PEDIDO_WEBHOOK_URL") ?? "").trim();
+  const key = (Deno.env.get("GROKBOT_PEDIDO_WEBHOOK_KEY") ?? "").trim();
+  if (!url || !key) return;
+  if (!url.startsWith("https://")) {
+    console.error("webhook-mercado-pago: aviso ao ateliê sem URL https");
+    return;
+  }
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+        "X-Automation-Key": key,
+      },
+      body: JSON.stringify({ evento: "pedido_pago", pedido_id: pedidoId }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) console.error("webhook-mercado-pago: aviso ao ateliê", res.status);
+  } catch (err) {
+    const nome = err instanceof Error ? err.name : "erro";
+    console.error("webhook-mercado-pago: aviso ao ateliê sem resposta", nome);
+  }
+}
 
 async function buscarOrder(token: string, orderId: string): Promise<Record<string, unknown> | "ausente" | null> {
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(orderId)) return "ausente";

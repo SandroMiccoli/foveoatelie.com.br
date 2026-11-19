@@ -35,6 +35,15 @@ supabase secrets set MERCADO_PAGO_WEBHOOK_SECRET=<assinatura da aplicação> --p
 
 A assinatura sai em Suas integrações → a aplicação → Webhooks → Configurar notificações → assinatura secreta. Sem esse secret a função **aceita** o POST e escreve um aviso no log. Dá para testar o fluxo, e qualquer um que conheça a URL consegue fingir um pagamento. Antes de cobrar gente de verdade, grave o secret.
 
+Quando um pedido passa a `pago` (só nessa transição), o webhook avisa o ateliê. Sem as duas variáveis abaixo, o aviso é pulado e o pagamento segue normal.
+
+```bash
+supabase secrets set GROKBOT_PEDIDO_WEBHOOK_URL=<url https do bot> --project-ref bbksditqlgdjftwowtje
+supabase secrets set GROKBOT_PEDIDO_WEBHOOK_KEY=<chave> --project-ref bbksditqlgdjftwowtje
+```
+
+O POST leva `{"evento":"pedido_pago","pedido_id":"<uuid>"}`, com `Authorization: Bearer` e `X-Automation-Key`. Uma tentativa, 8 segundos. Falha só vai pro log, sem a chave.
+
 ## Deploy
 
 Na raiz do repositório, com a CLI autenticada:
@@ -43,6 +52,8 @@ Na raiz do repositório, com a CLI autenticada:
 supabase functions deploy criar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
 
 supabase functions deploy webhook-mercado-pago --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+
+supabase functions deploy consultar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
 ```
 
 `--no-verify-jwt` está também em `supabase/config.toml`. A sacola manda a chave publishable, que não é um JWT. O Mercado Pago chama o webhook sem JWT.
@@ -51,6 +62,7 @@ URLs:
 
 - criar pedido: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/criar-pedido`
 - webhook: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/webhook-mercado-pago`
+- consultar pedido: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/consultar-pedido`
 
 ## Webhook no painel
 
@@ -71,13 +83,15 @@ A conferência segue o validador do SDK: manifesto `id:<data.id>;request-id:<x-r
 
 Na sacola: nome, e-mail, WhatsApp e, se não for retirada em BH, o endereço. O CEP continua o da cotação. "Pagar com Mercado Pago" manda para o `checkout_url`.
 
-Volta do checkout, com `auto_return: "all"`:
+Volta do checkout, com `auto_return: "all"`, em `/pedido/?pedido=<uuid>`. As rotas antigas (`/pedido/confirmado/`, `/pedido/recusado/`, `/pedido/pendente/`) mostram a mesma página. Ela chama `consultar-pedido` e lê o status no banco. A sacola do navegador só some quando o status é `pago`.
 
-- aprovado → `/pedido/confirmado/` (a página apaga a sacola do navegador)
-- recusado → `/pedido/recusado/`
-- pendente (Pix, boleto) → `/pedido/pendente/`
+- `pago`: "Pagamento aprovado", o primeiro nome, o resumo e a quarta-feira da postagem. O botão abre o WhatsApp da Foveō com o número curto do pedido (6 primeiros hex do UUID, em maiúsculas).
+- `pendente`: "Pagamento em análise". A página consulta de novo a cada 3 segundos, por até 1 minuto. Se continuar pendente, avisa que Pix e cartão podem levar alguns minutos.
+- `recusado`, `expirado` ou `cancelado`: a sacola fica, com um link de volta pra ela.
 
-Essas páginas não dão o pedido como pago. Quem baixa o estoque é o webhook, depois de `GET /v1/orders/{id}`. A reserva dura 30 minutos (`expiration_time: PT30M` na order, `reserva_expira_em` no banco). Se o Mercado Pago recusar `PT30M`, o log da função mostra o código do erro; nesse caso troque a constante em `criar-pedido/index.ts` para `P1D` e saiba que o link de pagamento passa a durar mais que a reserva.
+O fechamento é sexta à noite, no fuso de São Paulo. A postagem é a quarta da semana seguinte (sexta + 5 dias). Sábado e domingo entram na outra semana. Quinta 19/11/2026 posta em 25/11. Sábado 21/11 posta em 02/12. A data usa `pago_em`, ou `created_at` se o pagamento ainda não tiver hora. Retirada em BH usa a mesma quarta, pra combinar pelo WhatsApp.
+
+Quem baixa o estoque é o webhook, depois de `GET /v1/orders/{id}`. A reserva dura 30 minutos (`expiration_time: PT30M` na order, `reserva_expira_em` no banco). Se o Mercado Pago recusar `PT30M`, o log da função mostra o código do erro; nesse caso troque a constante em `criar-pedido/index.ts` para `P1D` e saiba que o link de pagamento passa a durar mais que a reserva.
 
 Pedido pago com a reserva já expirada e o estoque vendido de novo fica com `mp_status = processed` e `status` ainda `expirado` ou `cancelado`. Aí o estorno é manual.
 
@@ -85,7 +99,7 @@ Pedido pago com a reserva já expirada e o estoque vendido de novo fica com `mp_
 
 Use credenciais de **teste** (`MERCADO_PAGO_ACCESS_TOKEN` de teste, prefixo `APP_USR` da conta de teste). Cartão real não passa nesse token.
 
-1. Aplique a migration e publique as duas funções.
+1. Aplique a migration (se ainda não rodou) e publique `criar-pedido`, `webhook-mercado-pago` e `consultar-pedido`.
 2. No site de staging (`https://dev.foveoatelie.com.br`), ponha uma vela na sacola, calcule o frete ou escolha "Retirar em BH (combinar)", preencha os dados e pague.
 3. Entre no checkout com a conta de **teste comprador** da aplicação (Suas integrações → Contas de teste → Comprador). O login de teste pede o código de 6 dígitos que aparece nessa mesma tela. Não use a conta vendedora para pagar.
 4. Cartões de teste, CVV 123, validade 11/30. O resultado sai do nome do titular, não do número:
@@ -98,7 +112,7 @@ Use credenciais de **teste** (`MERCADO_PAGO_ACCESS_TOKEN` de teste, prefixo `APP
 
 Números: Mastercard `5480 8328 0103 3311`, Visa `4235 6477 2802 5682`. A lista inteira está em [cartões de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/test-cards) e o passo a passo da compra em [compra de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/integration-test/test-purchases).
 
-5. Com `APRO`, a volta é `/pedido/confirmado/`, a sacola esvazia e, no banco, o pedido fica `pago`, `disponivel` e `reservado` descem. Com `OTHE`, a volta é `/pedido/recusado/`, a reserva solta e o status fica `recusado`. Com `CONT`, a volta é `/pedido/pendente/` e o pedido segue `pendente` até o webhook mudar.
+5. Com `APRO`, a volta é `/pedido/`, a página mostra "Pagamento aprovado" depois que o webhook marca `pago`, e a sacola esvazia. `disponivel` e `reservado` descem. Com `OTHE`, o status fica `recusado`, a página avisa e a sacola continua. Com `CONT`, fica "Pagamento em análise" e a página pergunta de novo por até um minuto.
 6. Dá para simular o webhook no painel (Simular notificação, evento de order, o `data.id` da order). Sem o secret, a função processa mesmo assim. Com o secret, a simulação do painel precisa bater a assinatura.
 
 O preço na tela é só exibição. Um real a menos no JSON do navegador não muda o que o Mercado Pago cobra: `reservar_pedido` chama `calcular_preco_centavos` (1 = R$ 60, 2 = R$ 110, 3 = R$ 150, e o resto segue a tabela) e a cotação de frete roda de novo no servidor.

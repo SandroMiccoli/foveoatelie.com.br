@@ -1420,6 +1420,7 @@ window.FoveoCart = (function () {
     desenharOpcoes();
     salvarEstado();
     recalcularFreteSePrecisar();
+    if (/(?:^|[?&])sacola=1(?:&|$)/.test(location.search)) abrir(dom.toggle);
   }
 
   iniciar();

@@ -1,60 +1,10 @@
 ---
 layout: default
-title: "Pagamento enviado — Foveō Ateliê"
-description: "Recebemos o retorno do pagamento."
+title: "Pedido — Foveō Ateliê"
+description: "A situação do pagamento e o resumo do pedido."
 no_intro: true
 noindex: true
 sitemap: false
 ---
 
-<a class="skip" href="#conteudo">Ir para o conteúdo</a>
-
-<header class="site-header">
-  <div class="wrap header-bar">
-    <a class="brand" href="{{ '/' | relative_url }}">
-      <span class="logo-crop">
-        <img
-          src="{{ '/assets/logo-claro.svg' | relative_url }}"
-          alt="Foveō Ateliê"
-          width="1014"
-          height="586"
-          decoding="async"
-        >
-      </span>
-    </a>
-  </div>
-</header>
-
-<main id="conteudo">
-  <div class="band obrigado-band">
-    <div class="wrap obrigado-inner">
-      <img
-        class="seal obrigado-seal"
-        src="{{ '/assets/o-seal-claro.svg' | relative_url }}"
-        alt=""
-        width="1080"
-        height="1080"
-        decoding="async"
-      >
-      <p class="obrigado-msg">Recebemos o retorno<br>do pagamento.</p>
-      <p class="pedido-nota">Se ele foi aprovado, a Foveō separa as velas e chama você no WhatsApp.</p>
-      <p class="pedido-ref" id="pedido-ref" hidden></p>
-      <a class="cta" href="{{ '/' | relative_url }}">Voltar ao início</a>
-    </div>
-  </div>
-</main>
-
-{% include footer.html %}
-
-<script>
-  (function () {
-    try { localStorage.removeItem("foveo-carrinho-v1"); } catch (e) {}
-    var params = new URLSearchParams(location.search);
-    var id = params.get("pedido") || params.get("external_reference") || "";
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return;
-    var el = document.getElementById("pedido-ref");
-    if (!el) return;
-    el.hidden = false;
-    el.textContent = "Pedido " + id.toLowerCase();
-  })();
-</script>
+{% include pedido-status.html %}

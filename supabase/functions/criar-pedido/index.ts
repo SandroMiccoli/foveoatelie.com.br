@@ -182,9 +182,9 @@ Deno.serve(async (req) => {
     config: {
       statement_descriptor: "FOVEO",
       online: {
-        success_url: `${site}/pedido/confirmado/?${consulta}`,
-        failure_url: `${site}/pedido/recusado/?${consulta}`,
-        pending_url: `${site}/pedido/pendente/?${consulta}`,
+        success_url: `${site}/pedido/?${consulta}`,
+        failure_url: `${site}/pedido/?${consulta}`,
+        pending_url: `${site}/pedido/?${consulta}`,
         auto_return: "all",
         callback_url: `${cred.url}/functions/v1/webhook-mercado-pago`,
       },

@@ -10,3 +10,6 @@ verify_jwt = false
 
 [functions.webhook-mercado-pago]
 verify_jwt = false
+
+[functions.consultar-pedido]
+verify_jwt = false

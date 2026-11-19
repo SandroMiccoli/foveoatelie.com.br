@@ -113,6 +113,58 @@ export function checkoutUrlConfiavel(url: string, orderId: string): boolean {
   return parsed.searchParams.get("order_id") === orderId || parsed.href.includes(orderId);
 }
 
+export function primeiroNome(nome: string): string {
+  const parte = nome.trim().split(/\s+/).filter(Boolean)[0] ?? "";
+  return parte.slice(0, 40);
+}
+
+export function numeroCurto(id: string): string {
+  return id.replace(/[^0-9a-f]/gi, "").slice(0, 6).toUpperCase();
+}
+
+function dataCivil(instante: Date): { y: number; m: number; d: number } | null {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instante);
+  const ler = (tipo: string) => Number(partes.find((parte) => parte.type === tipo)?.value);
+  const y = ler("year");
+  const m = ler("month");
+  const d = ler("day");
+  if (!y || !m || !d) return null;
+  return { y, m, d };
+}
+
+function somarDias(y: number, m: number, d: number, dias: number): { y: number; m: number; d: number } {
+  const data = new Date(Date.UTC(y, m - 1, d + dias));
+  return { y: data.getUTCFullYear(), m: data.getUTCMonth() + 1, d: data.getUTCDate() };
+}
+
+// Fecha na sexta à noite (America/Sao_Paulo). A postagem é a quarta da semana seguinte:
+// sexta + 5 dias. Sábado e domingo entram na semana que começa na segunda.
+export function dataPostagem(instante: string | Date): string | null {
+  const data = instante instanceof Date ? instante : new Date(instante);
+  if (Number.isNaN(data.getTime())) return null;
+  const civil = dataCivil(data);
+  if (!civil) return null;
+  let { y, m, d } = civil;
+  let dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  if (dow === 6) {
+    ({ y, m, d } = somarDias(y, m, d, 2));
+    dow = 1;
+  } else if (dow === 0) {
+    ({ y, m, d } = somarDias(y, m, d, 1));
+    dow = 1;
+  }
+  const sexta = somarDias(y, m, d, 5 - dow);
+  const quarta = somarDias(sexta.y, sexta.m, sexta.d, 5);
+  const mm = String(quarta.m).padStart(2, "0");
+  const dd = String(quarta.d).padStart(2, "0");
+  return `${quarta.y}-${mm}-${dd}`;
+}
+
 export function partirNome(nome: string): { first_name: string; last_name?: string } {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
   if (partes.length < 2) return { first_name: partes[0] ?? nome };
