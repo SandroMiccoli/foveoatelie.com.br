@@ -96,6 +96,28 @@ export function acaoDaOrder(status: string, detail: string): AcaoMp {
   return "registrar";
 }
 
+const AGUARDANDO_PAGAMENTO = new Set([
+  "waiting_payment",
+  "pending_challenge",
+  "waiting_transfer",
+  "waiting_capture",
+]);
+
+// Cartão recusado com a order ainda aberta (waiting_retry, ou o último
+// pagamento rejected/failed). Não solta a reserva: o comprador pode tentar de novo.
+export function retentativaDePagamento(status: string, detail: string, pagamentoStatus = ""): boolean {
+  const st = status.trim().toLowerCase();
+  const det = detail.trim().toLowerCase();
+  const pg = pagamentoStatus.trim().toLowerCase();
+  if (st === "processed" || st === "failed" || st === "canceled" || st === "cancelled" || st === "expired" || st === "refunded") {
+    return false;
+  }
+  if (pg === "rejected" || pg === "failed" || pg === "declined") return true;
+  if (det === "waiting_retry") return true;
+  if (st === "action_required" && !AGUARDANDO_PAGAMENTO.has(det)) return true;
+  return false;
+}
+
 export function checkoutUrlConfiavel(url: string, orderId: string): boolean {
   if (!orderId || orderId.length > 64) return false;
   let parsed: URL;

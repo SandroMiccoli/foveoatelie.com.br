@@ -2112,8 +2112,35 @@ button.cta {
 .pedido-acoes[hidden],
 #pedido-acao[hidden],
 #pedido-whatsapp[hidden],
-#pedido-conferir[hidden] {
+#pedido-conferir[hidden],
+#pedido-retentar[hidden] {
   display: none;
+}
+
+a.pedido-retentar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex-basis: 100%;
+  min-height: 48px;
+  margin-top: 0.35rem;
+  padding: 0.65rem 1.4rem;
+  border: 1px solid var(--copper);
+  border-radius: 999px;
+  background: var(--copper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+a.pedido-retentar:hover {
+  background: var(--copper-ink);
+  border-color: var(--copper-ink);
 }
 
 .pedido-acoes {

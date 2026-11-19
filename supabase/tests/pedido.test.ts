@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   acaoDaOrder,
+  retentativaDePagamento,
   assinaturaValida,
   diagnosticarAssinatura,
   centavosParaReais,
@@ -68,6 +69,15 @@ test("status da order vira ação do pedido", () => {
   assert.equal(acaoDaOrder("canceled", "canceled"), "cancelado");
   assert.equal(acaoDaOrder("processing", "in_process"), "registrar");
   assert.equal(acaoDaOrder("action_required", "waiting_payment"), "registrar");
+  assert.equal(acaoDaOrder("action_required", "waiting_retry"), "registrar");
+  assert.equal(retentativaDePagamento("action_required", "waiting_retry"), true);
+  assert.equal(retentativaDePagamento("action_required", "waiting_payment"), false);
+  assert.equal(retentativaDePagamento("action_required", "waiting_capture"), false);
+  assert.equal(retentativaDePagamento("processing", "in_process", "rejected"), true);
+  assert.equal(retentativaDePagamento("processing", "in_process", "failed"), true);
+  assert.equal(retentativaDePagamento("processing", "in_process"), false);
+  assert.equal(retentativaDePagamento("failed", "rejected_by_issuer", "failed"), false);
+  assert.equal(retentativaDePagamento("processed", "accredited"), false);
 });
 
 test("postagem cai na quarta depois da sexta de fechamento", () => {

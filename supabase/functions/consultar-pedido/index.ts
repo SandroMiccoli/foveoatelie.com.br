@@ -4,7 +4,7 @@
 import { aplicarOrderMercadoPago } from "../_shared/aplicar-order.ts";
 import { credenciaisSupabase } from "../_shared/frete.ts";
 import { json, cabecalhosCors, origemPermitida } from "../_shared/http.ts";
-import { dataPostagem, numeroCurto, primeiroNome } from "../_shared/pedido.ts";
+import { checkoutUrlConfiavel, dataPostagem, numeroCurto, primeiroNome, retentativaDePagamento } from "../_shared/pedido.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATUS = new Set(["pendente", "pago", "expirado", "recusado", "cancelado", "enviado", "entregue"]);
@@ -42,12 +42,15 @@ Deno.serve(async (req) => {
   if (row === "ausente") return json(origin, 404, { erro: "nao_encontrado" });
   if (!row) return json(origin, 503, { erro: "consulta_indisponivel" });
 
+  let retentativaViva = false;
   if (row.status === "pendente") {
     const mpOrderId = typeof row.mp_order_id === "string" ? row.mp_order_id.trim() : "";
     if (mpOrderId && podeConsultarMp(pedidoId)) {
       const aplicado = await aplicarOrderMercadoPago(mpOrderId, "consulta");
       if (aplicado.situacao === "falha") {
         console.error("consultar-pedido: mercado pago", aplicado.motivo);
+      } else if (aplicado.situacao === "aplicado") {
+        retentativaViva = aplicado.retentativa;
       }
       const deNovo = await buscarPedido(cred, pedidoId);
       if (deNovo && deNovo !== "ausente") row = deNovo;
@@ -63,6 +66,9 @@ Deno.serve(async (req) => {
     : typeof row.created_at === "string"
     ? row.created_at
     : "";
+  const mpStatus = typeof row.mp_status === "string" ? row.mp_status : "";
+  const mpDetail = typeof row.mp_status_detail === "string" ? row.mp_status_detail : "";
+  const retentativa = status === "pendente" && (retentativaViva || retentativaDePagamento(mpStatus, mpDetail));
 
   return json(origin, 200, {
     numero: numeroCurto(pedidoId),
@@ -75,8 +81,24 @@ Deno.serve(async (req) => {
     frete: fretePublico(row, entrega),
     total_centavos: centavos(row.total_centavos),
     data_postagem: quando ? dataPostagem(quando) : null,
+    retentativa,
+    checkout_url: retentativa ? checkoutParaRetentar(row) : null,
   });
 });
+
+function checkoutParaRetentar(row: Record<string, unknown>): string | null {
+  if (!reservaVigente(row.reserva_expira_em)) return null;
+  const url = typeof row.mp_checkout_url === "string" ? row.mp_checkout_url.trim() : "";
+  const orderId = typeof row.mp_order_id === "string" ? row.mp_order_id.trim() : "";
+  if (!url || !orderId || !checkoutUrlConfiavel(url, orderId)) return null;
+  return url;
+}
+
+function reservaVigente(valor: unknown): boolean {
+  if (typeof valor !== "string" || !valor) return false;
+  const ms = Date.parse(valor);
+  return Number.isFinite(ms) && ms > Date.now();
+}
 
 function fretePublico(row: Record<string, unknown>, entrega: "envio" | "retirada") {
   if (entrega === "retirada") {
@@ -142,6 +164,10 @@ async function buscarPedido(
     "total_centavos",
     "frete",
     "mp_order_id",
+    "mp_status",
+    "mp_status_detail",
+    "mp_checkout_url",
+    "reserva_expira_em",
     "pago_em",
     "created_at",
   ].join(",");

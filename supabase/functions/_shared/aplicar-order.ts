@@ -4,14 +4,14 @@
 // na transição para pago.
 
 import { credenciaisSupabase } from "./frete.ts";
-import { acaoDaOrder, reaisParaCentavos } from "./pedido.ts";
+import { acaoDaOrder, reaisParaCentavos, retentativaDePagamento } from "./pedido.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ResultadoAplicar =
   | { situacao: "ausente" }
   | { situacao: "falha"; http: 500 | 502; motivo: string }
-  | { situacao: "aplicado"; pedidoId: string | null; status: string; ja: boolean; erro: string };
+  | { situacao: "aplicado"; pedidoId: string | null; status: string; ja: boolean; erro: string; retentativa: boolean };
 
 export async function aplicarOrderMercadoPago(orderId: string, origem = "webhook"): Promise<ResultadoAplicar> {
   const token = (Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") ?? "").trim();
@@ -35,12 +35,17 @@ export async function aplicarOrderMercadoPago(orderId: string, origem = "webhook
 
   const statusMp = typeof order.status === "string" ? order.status : "";
   const detail = typeof order.status_detail === "string" ? order.status_detail : "";
+  const pagamentoStatus = statusUltimoPagamento(order);
+  const retentativa = retentativaDePagamento(statusMp, detail, pagamentoStatus);
+  const detailSalvo = retentativa && detail.trim().toLowerCase() !== "waiting_retry"
+    ? "waiting_retry"
+    : detail;
   const resultado = await rpc(cred, "aplicar_retorno_mp", {
     p_pedido_id: pedidoId,
     p_mp_order_id: typeof order.id === "string" ? order.id : orderId,
     p_mp_payment_id: idPagamento(order),
     p_mp_status: statusMp.slice(0, 40),
-    p_mp_status_detail: detail.slice(0, 80),
+    p_mp_status_detail: detailSalvo.slice(0, 80),
     p_total_centavos: reaisParaCentavos(order.total_amount),
     p_acao: acaoDaOrder(statusMp, detail),
   }, origem);
@@ -66,7 +71,7 @@ export async function aplicarOrderMercadoPago(orderId: string, origem = "webhook
   }
 
   await rpc(cred, "expirar_reservas", {}, origem);
-  return { situacao: "aplicado", pedidoId, status, ja, erro };
+  return { situacao: "aplicado", pedidoId, status, ja, erro, retentativa };
 }
 
 async function avisarDono(pedidoId: string, origem: string): Promise<void> {
@@ -125,6 +130,20 @@ async function buscarOrder(
   } catch (_err) {
     return null;
   }
+}
+
+function statusUltimoPagamento(order: Record<string, unknown>): string {
+  const tx = order.transactions;
+  if (!tx || typeof tx !== "object") return "";
+  const payments = (tx as { payments?: unknown }).payments;
+  if (!Array.isArray(payments)) return "";
+  for (let i = payments.length - 1; i >= 0; i--) {
+    const item = payments[i];
+    if (!item || typeof item !== "object") continue;
+    const st = (item as { status?: unknown }).status;
+    if (typeof st === "string" && st.trim()) return st.trim().toLowerCase();
+  }
+  return "";
 }
 
 function idPagamento(order: Record<string, unknown>): string | null {

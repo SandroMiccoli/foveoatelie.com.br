@@ -20,6 +20,7 @@
   var acao = document.getElementById("pedido-acao");
   var whats = document.getElementById("pedido-whatsapp");
   var conferir = document.getElementById("pedido-conferir");
+  var retentar = document.getElementById("pedido-retentar");
   var inicio = Date.now();
   var pedidoId = "";
   var esvaziou = false;
@@ -164,13 +165,33 @@
       whats.hidden = true;
       whats.removeAttribute("href");
     }
+    if (retentar) {
+      retentar.hidden = true;
+      retentar.removeAttribute("href");
+    }
     if (acoes) acoes.hidden = true;
   }
 
   function mostrarAcoes() {
     if (!acoes) return;
-    var algum = (conferir && !conferir.hidden) || (acao && !acao.hidden) || (whats && !whats.hidden);
+    var algum = (conferir && !conferir.hidden) || (acao && !acao.hidden) || (whats && !whats.hidden) || (retentar && !retentar.hidden);
     acoes.hidden = !algum;
+  }
+
+  function checkoutConfiavel(url) {
+    try {
+      var u = new URL(url);
+      if (u.protocol !== "https:") return false;
+      return /(^|\.)mercadopago\.(com\.br|com|com\.ar|cl|com\.mx|com\.co|com\.pe|com\.uy)$/i.test(u.hostname);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function ligarRetentar(url) {
+    if (!retentar || !url || !checkoutConfiavel(url)) return;
+    retentar.hidden = false;
+    retentar.href = url;
   }
 
   function ligarWhatsapp(dados, extra) {
@@ -207,6 +228,24 @@
       ligarWhatsapp(dados, "");
       mostrarAcoes();
       esvaziarSacola();
+      return;
+    }
+
+    if (dados.status === "pendente" && dados.retentativa) {
+      titulo.textContent = "Pagamento não aprovado";
+      document.title = "Pagamento não aprovado — Foveō Ateliê";
+      mostrarNota(dados.checkout_url
+        ? "O pagamento não foi aprovado. Tente de novo com outro cartão ou com Pix. As velas seguem reservadas por enquanto."
+        : "O pagamento não foi aprovado. A reserva já acabou.");
+      desenharResumo(dados);
+      ligarRetentar(dados.checkout_url);
+      if (acao) {
+        acao.target = "";
+        acao.rel = "";
+      }
+      definirAcao("Voltar à sacola", homeSacola());
+      ligarWhatsapp(dados, "Pagamento não aprovado.");
+      mostrarAcoes();
       return;
     }
 

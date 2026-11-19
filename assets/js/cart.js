@@ -28,6 +28,9 @@ window.FoveoCart = (function () {
   var carrinho = {}; // id -> quantidade
   var cepInformado = "";
   var cepParaRecalcular = "";
+  var cepDaCidade = "";
+  var cidadeUfManual = false;
+  var viaCepSeq = 0;
   var freteEscolhido = null;
   var opcoesFrete = [];
   var freteRecalculando = false;
@@ -609,6 +612,7 @@ window.FoveoCart = (function () {
     if (alvo && alvo.setAttribute) alvo.setAttribute("aria-invalid", "false");
     mostrarErroCheckout("");
     if (alvo === dom.logradouro) enderecoAutomatico = false;
+    if (alvo === dom.cidade || alvo === dom.uf) cidadeUfManual = true;
     if (alvo === dom.telefone && dom.telefone) {
       var antes = dom.telefone.value;
       var pos = typeof dom.telefone.selectionStart === "number" ? dom.telefone.selectionStart : antes.length;
@@ -640,8 +644,29 @@ window.FoveoCart = (function () {
       dom.logradouro.value = dados.logradouro;
     }
     if (dom.bairro && (!dom.bairro.value || enderecoAutomatico) && dados.bairro) dom.bairro.value = dados.bairro;
-    if (dom.cidade && (!dom.cidade.value || enderecoAutomatico) && dados.localidade) dom.cidade.value = dados.localidade;
-    if (dom.uf && (!dom.uf.value || enderecoAutomatico) && dados.uf) dom.uf.value = dados.uf;
+    lerCompradorDoForm();
+    salvarEstado();
+  }
+
+  function limparCidadeUf() {
+    if (dom.cidade) dom.cidade.value = "";
+    if (dom.uf) dom.uf.value = "";
+    cepDaCidade = "";
+    cidadeUfManual = false;
+  }
+
+  function aplicarCidadeUf(dados, cep) {
+    if (!dom.cidade || !dom.uf) return;
+    if (digitosCep(cepInformado) !== cep) return;
+    if (!dados || dados.erro) return;
+    var cidade = typeof dados.localidade === "string" ? dados.localidade.trim() : "";
+    var uf = typeof dados.uf === "string" ? dados.uf.trim().toUpperCase() : "";
+    if (cidade.length < 2 || !/^[A-Z]{2}$/.test(uf)) return;
+    if (cidadeUfManual && cepDaCidade === cep) return;
+    dom.cidade.value = cidade;
+    dom.uf.value = uf;
+    cepDaCidade = cep;
+    cidadeUfManual = false;
     lerCompradorDoForm();
     salvarEstado();
   }
@@ -649,12 +674,18 @@ window.FoveoCart = (function () {
   function buscarViaCep() {
     if (!cepValido(cepInformado) || typeof fetch !== "function") return;
     var cep = digitosCep(cepInformado);
+    var seq = ++viaCepSeq;
     fetch("https://viacep.com.br/ws/" + cep + "/json/")
       .then(function (res) {
         if (!res.ok) throw new Error("status");
         return res.json();
       })
-      .then(preencherEnderecoViaCep)
+      .then(function (dados) {
+        if (seq !== viaCepSeq) return;
+        if (digitosCep(cepInformado) !== cep) return;
+        preencherEnderecoViaCep(dados);
+        aplicarCidadeUf(dados, cep);
+      })
       .catch(function () {});
   }
 
@@ -1275,7 +1306,13 @@ window.FoveoCart = (function () {
     cepInformado = mascarado;
     dom.cep.setAttribute("aria-invalid", "false");
     mostrarErroCheckout("");
-    if (digitosCep(cepInformado) !== cepParaRecalcular) {
+    var digitosCepAtual = digitosCep(cepInformado);
+    if (cepDaCidade && digitosCepAtual !== cepDaCidade) {
+      limparCidadeUf();
+      lerCompradorDoForm();
+    }
+    if (digitosCepAtual.length === 8) buscarViaCep();
+    if (digitosCepAtual !== cepParaRecalcular) {
       cepParaRecalcular = "";
       assinaturaCotada = "";
       assinaturaEmVoo = "";
@@ -1387,7 +1424,10 @@ window.FoveoCart = (function () {
     comprador = salvo.comprador || compradorVazio();
     if (dom.cep && cepInformado) dom.cep.value = cepInformado;
     preencherComprador();
-    if (cepValido(cepInformado)) cepParaRecalcular = digitosCep(cepInformado);
+    if (cepValido(cepInformado)) {
+      cepParaRecalcular = digitosCep(cepInformado);
+      buscarViaCep();
+    }
 
     document.addEventListener("click", tratarClique);
     document.addEventListener("keydown", tratarTeclado, true);
