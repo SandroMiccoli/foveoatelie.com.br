@@ -47,7 +47,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
 </header>
 
 <div class="cart-overlay" id="cart-overlay" hidden></div>
-<aside class="cart-drawer" id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" data-whatsapp="{{ c.whatsapp }}" hidden>
+<aside class="cart-drawer" id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" hidden>
   <div class="cart-drawer-head">
     <h2 id="cart-drawer-title">Sua sacola</h2>
     <button type="button" class="cart-drawer-close" id="cart-drawer-close" aria-label="Fechar sacola">
@@ -88,6 +88,62 @@ preload_image_wide: /assets/bg-vela-larga.webp
         <legend class="sr-only">Opções de frete</legend>
       </fieldset>
     </section>
+
+    <form class="cart-dados" id="cart-dados" hidden novalidate>
+      <h3 class="cart-frete-title" id="cart-dados-title">Seus dados</h3>
+      <div class="cart-field">
+        <label for="cart-nome">Nome</label>
+        <input id="cart-nome" name="nome" type="text" autocomplete="name" autocapitalize="words" maxlength="120" required>
+      </div>
+      <div class="cart-field">
+        <label for="cart-email">E-mail</label>
+        <input id="cart-email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="120" required>
+      </div>
+      <div class="cart-field">
+        <label for="cart-telefone">WhatsApp</label>
+        <input id="cart-telefone" name="telefone" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="16" placeholder="(31) 99999-9999" required>
+      </div>
+      <div class="cart-endereco" id="cart-endereco" hidden>
+        <h3 class="cart-frete-title" id="cart-endereco-title">Endereço</h3>
+        <div class="cart-field">
+          <label for="cart-logradouro">Rua</label>
+          <input id="cart-logradouro" name="logradouro" type="text" autocomplete="address-line1" autocapitalize="words" maxlength="120">
+        </div>
+        <div class="cart-field-row">
+          <div class="cart-field">
+            <label for="cart-numero">Número</label>
+            <input id="cart-numero" name="numero" type="text" autocomplete="off" maxlength="20">
+          </div>
+          <div class="cart-field">
+            <label for="cart-complemento">Complemento</label>
+            <input id="cart-complemento" name="complemento" type="text" autocomplete="address-line2" maxlength="80">
+          </div>
+        </div>
+        <div class="cart-field">
+          <label for="cart-bairro">Bairro</label>
+          <input id="cart-bairro" name="bairro" type="text" autocomplete="off" autocapitalize="words" maxlength="80">
+        </div>
+        <div class="cart-field-row">
+          <div class="cart-field">
+            <label for="cart-cidade">Cidade</label>
+            <input id="cart-cidade" name="cidade" type="text" autocomplete="off" autocapitalize="words" maxlength="80">
+          </div>
+          <div class="cart-field cart-field--uf">
+            <label for="cart-uf">UF</label>
+            <select id="cart-uf" name="uf" autocomplete="off">
+              <option value="">—</option>
+              <option>AC</option><option>AL</option><option>AM</option><option>AP</option>
+              <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+              <option>GO</option><option>MA</option><option>MG</option><option>MS</option>
+              <option>MT</option><option>PA</option><option>PB</option><option>PE</option>
+              <option>PI</option><option>PR</option><option>RJ</option><option>RN</option>
+              <option>RO</option><option>RR</option><option>RS</option><option>SC</option>
+              <option>SE</option><option>SP</option><option>TO</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </form>
   </div>
 
   <div class="cart-drawer-foot" id="cart-foot" hidden>
@@ -109,12 +165,9 @@ preload_image_wide: /assets/bg-vela-larga.webp
         <dd id="cart-total">R$ 0</dd>
       </div>
     </dl>
-    <button type="button" class="cart-checkout" id="cart-checkout">Finalizar compra</button>
-    <div class="cart-checkout-note" id="cart-checkout-note" role="status" hidden>
-      <p>Finalização de compra chega na próxima etapa. Para confirmar agora, fale com a Foveō.</p>
-      <a class="cart-checkout-whatsapp" id="cart-checkout-whatsapp" href="#" target="_blank" rel="noopener noreferrer">Fechar pedido pelo WhatsApp</a>
-    </div>
-    <p class="cart-note">Preço exibido no site; confirmação e pagamento são combinados com a Foveō.</p>
+    <button type="submit" class="cart-checkout" id="cart-checkout" form="cart-dados">Pagar com Mercado Pago</button>
+    <p class="cart-checkout-erro" id="cart-checkout-erro" role="alert" hidden></p>
+    <p class="cart-note">O pagamento abre no Mercado Pago. As velas ficam reservadas por 30 minutos.</p>
   </div>
 </aside>
 

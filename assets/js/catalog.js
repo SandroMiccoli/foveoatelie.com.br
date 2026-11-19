@@ -79,8 +79,8 @@ window.FoveoCatalog = (function () {
     }
   }
 
-  function buscarCatalogo() {
-    if (catalogoPromise) return catalogoPromise;
+  function buscarCatalogo(forcar) {
+    if (catalogoPromise && !forcar) return catalogoPromise;
 
     catalogoPromise = (function () {
       var config = configAtual();

@@ -2076,6 +2076,148 @@ button.cta {
   color: var(--paper-dim);
 }
 
+.pedido-nota {
+  margin: 0;
+  max-width: 22rem;
+  font-size: var(--body);
+  line-height: 1.55;
+  color: var(--paper-dim);
+}
+
+.pedido-ref {
+  margin: 0;
+  max-width: 22rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--paper-dim);
+  word-break: break-all;
+}
+
+.pedido-ref[hidden] {
+  display: none;
+}
+
+.pedido-resumo {
+  width: min(100%, 24rem);
+  margin: 0;
+  text-align: left;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.pedido-resumo[hidden],
+#pedido-nota[hidden],
+#pedido-prazo[hidden],
+.pedido-acoes[hidden],
+#pedido-acao[hidden],
+#pedido-whatsapp[hidden],
+#pedido-conferir[hidden],
+#pedido-retentar[hidden] {
+  display: none;
+}
+
+a.pedido-retentar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex-basis: 100%;
+  min-height: 48px;
+  margin-top: 0.35rem;
+  padding: 0.65rem 1.4rem;
+  border: 1px solid var(--copper);
+  border-radius: 999px;
+  background: var(--copper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+a.pedido-retentar:hover {
+  background: var(--copper-ink);
+  border-color: var(--copper-ink);
+}
+
+.pedido-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem 1.75rem;
+}
+
+button.pedido-conferir {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+@media (min-width: 760px) {
+  button.pedido-conferir {
+    color: var(--copper);
+  }
+}
+
+button.pedido-conferir:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.pedido-numero {
+  margin: 0;
+  font-size: var(--label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--copper);
+}
+
+.pedido-itens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.pedido-itens li,
+.pedido-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.pedido-totais {
+  display: grid;
+  gap: 0.35rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line-dark);
+}
+
+.pedido-linha--desconto {
+  color: var(--stock-green);
+}
+
+.pedido-linha--total {
+  margin-top: 0.2rem;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+}
+
+.pedido-linha--total span:first-child {
+  font-family: var(--sans);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .verbete {
   margin: 0 0 1.35rem;
   padding-bottom: 1.15rem;
@@ -3060,39 +3202,98 @@ body.cart-open {
   cursor: pointer;
 }
 
-.cart-checkout:hover {
+.cart-checkout:hover:not(:disabled) {
   background: var(--copper-ink);
   border-color: var(--copper-ink);
 }
 
-.cart-checkout-note {
+.cart-checkout:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cart-dados {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line-dark);
   display: grid;
-  gap: 0.6rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--line-dark);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  gap: 0.85rem;
+}
+
+.cart-dados[hidden],
+.cart-endereco[hidden],
+.cart-checkout-erro[hidden] {
+  display: none;
+}
+
+.cart-endereco {
+  display: grid;
+  gap: 0.85rem;
+  padding-top: 0.35rem;
+}
+
+.cart-field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.cart-field label {
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--paper-dim);
 }
 
-.cart-checkout-note[hidden] {
-  display: none;
+.cart-field input,
+.cart-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--line-dark);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: max(1rem, var(--body));
+  line-height: 1.3;
+  caret-color: var(--copper);
 }
 
-.cart-checkout-note p {
+.cart-field select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--paper-dim) 50%), linear-gradient(135deg, var(--paper-dim) 50%, transparent 50%);
+  background-position: calc(100% - 1.15rem) 55%, calc(100% - 0.75rem) 55%;
+  background-size: 0.4rem 0.4rem, 0.4rem 0.4rem;
+  background-repeat: no-repeat;
+  padding-right: 1.8rem;
+}
+
+.cart-field input::placeholder {
+  color: var(--paper-dim);
+  opacity: 1;
+}
+
+.cart-field input[aria-invalid="true"],
+.cart-field select[aria-invalid="true"] {
+  border-color: var(--stock-red);
+}
+
+.cart-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.cart-field--uf {
+  max-width: 6.5rem;
+}
+
+.cart-checkout-erro {
   margin: 0;
-}
-
-.cart-checkout-whatsapp {
-  justify-self: start;
-  color: var(--copper);
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.cart-checkout-whatsapp[hidden] {
-  display: none;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--stock-red);
 }
 
 .cart-note {
