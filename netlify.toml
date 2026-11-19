@@ -1,22 +1,59 @@
+# Painel em admin.foveoatelie.com.br. Este arquivo vale para o branch
+# `admin`. O site de produção continua no branch main, com o netlify.toml
+# de lá (Jekyll). Não fixe o comando de build no painel da Netlify: um
+# comando na interface vale para todos os deploys e atropela este arquivo.
+
 [build]
-  # bundle exec carrega jekyll-seo-tag e jekyll-sitemap do Gemfile.lock.
-  command = "bundle exec jekyll build"
-  publish = "_site"
+  command = "echo painel estatico"
+  publish = "admin"
 
-[build.environment]
-  JEKYLL_ENV = "production"
+[[redirects]]
+  from = "/pedidos"
+  to = "/index.html"
+  status = 200
 
-# Indexação
-# [[headers]] aqui valeria também para a produção, então o noindex não
-# fica neste arquivo. _plugins/seo_robots.rb lê CONTEXT no build:
-# production (e build local, sem CONTEXT) permanece indexável;
-# branch-deploy — dev.foveoatelie.com.br / dev--foveoatelie.netlify.app —
-# e deploy-preview gravam _site/_headers com X-Robots-Tag: noindex.
-# A Netlify não coloca esse header no deploy mais recente de cada branch.
+[[redirects]]
+  from = "/pedidos/"
+  to = "/pedidos"
+  status = 301
 
-# O HTML referencia main.css com ?v=<timestamp do build> (_layouts/default.html),
-# então cada deploy troca a URL e o arquivo pode ficar em cache por um ano.
+[[redirects]]
+  from = "/estoque"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/estoque/"
+  to = "/estoque"
+  status = 301
+
+[[redirects]]
+  from = "/clientes"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/clientes/"
+  to = "/clientes"
+  status = 301
+
+[[redirects]]
+  from = "/entrar"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/entrar/"
+  to = "/entrar"
+  status = 301
+
 [[headers]]
-  for = "/assets/css/*"
+  for = "/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    X-Robots-Tag = "noindex, nofollow"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src https://bbksditqlgdjftwowtje.supabase.co; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Cache-Control = "no-cache"

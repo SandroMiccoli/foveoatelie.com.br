@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T23:20:00.000Z",
+  "title": "Design System: Foveō Ateliê",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "Preto", "canonical": "#0d0908" },
+      "paper": { "role": "neutral", "displayName": "Papel", "canonical": "#ede6d9" },
+      "paper-dim": { "role": "neutral", "displayName": "Papel baço", "canonical": "#c9c0b1" },
+      "copper": { "role": "primary", "displayName": "Cobre", "canonical": "#c87431" },
+      "copper-press": { "role": "primary", "displayName": "Cobre pressionado", "canonical": "#b86a2c" },
+      "stock-red": { "role": "semantic", "displayName": "Vermelho de estado", "canonical": "#cc6456" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Título", "purpose": "Só o h1 da página, em itálico." },
+      "body": { "displayName": "Texto", "purpose": "Corpo, dados e nomes." },
+      "label": { "displayName": "Rótulo", "purpose": "Menu, campos e cabeçalho de tabela, em caixa alta." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "pulso", "value": "opacity 1.2s ease-in-out", "purpose": "Barras de carregamento. Some com prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "tabela", "value": "45rem" },
+      { "name": "coluna", "value": "60rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Entrar",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação única do login.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Entrar</button>",
+      "css": ".ds-btn-primary { appearance: none; min-height: 48px; padding: 0.75rem 1.4rem; border: 0; border-radius: 999px; background: #c87431; color: #0d0908; font-family: Inter, Helvetica Neue, Helvetica, Arial, sans-serif; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; } .ds-btn-primary:hover { background: #b86a2c; } .ds-btn-primary:focus-visible { outline: 2px solid #c87431; outline-offset: 3px; }"
+    },
+    {
+      "name": "Campo",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "E-mail e senha.",
+      "html": "<label class=\"ds-label\" for=\"ds-email\">E-mail</label><input class=\"ds-input\" id=\"ds-email\" type=\"email\">",
+      "css": ".ds-label { display: block; margin-bottom: 0.4rem; color: #c9c0b1; font-family: Inter, Helvetica Neue, Helvetica, Arial, sans-serif; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; } .ds-input { width: 100%; min-height: 48px; padding: 0.65rem 0.75rem; background: transparent; color: #ede6d9; border: 1px solid rgba(237, 230, 217, 0.2); border-radius: 0; font: 1rem Inter, Helvetica Neue, Helvetica, Arial, sans-serif; } .ds-input:focus-visible { border-color: #c87431; outline: none; }"
+    },
+    {
+      "name": "Selo teste",
+      "kind": "chip",
+      "refersTo": "selo-teste",
+      "description": "Marca o pedido de teste ao lado do código.",
+      "html": "<span class=\"ds-selo\">teste</span>",
+      "css": ".ds-selo { display: inline-block; padding: 0.08rem 0.4rem 0.12rem; border: 1px solid #c87431; color: #ede6d9; font-family: Inter, Helvetica Neue, Helvetica, Arial, sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em; line-height: 1.4; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Preto quente",
+    "overview": "O painel repete o preto, o papel e o cobre da loja. O cobre marca a ação, a seção atual e o pedido de teste.",
+    "keyCharacteristics": [
+      "Fundo #0d0908 e texto #ede6d9",
+      "EB Garamond só no título",
+      "Inter nos dados e nos controles",
+      "Sem sombra e sem cartão"
+    ],
+    "rules": [
+      { "name": "Cobre contado", "body": "O cobre fica no botão, na seção atual e na marca teste.", "section": "colors" },
+      { "name": "Garamond no título", "body": "EB Garamond itálico só no h1. O resto é Inter.", "section": "typography" }
+    ],
+    "dos": [
+      "Escrever Foveō com o mácron",
+      "Manter a interface em português do Brasil"
+    ],
+    "donts": [
+      "Não trocar as fontes da loja",
+      "Não abrir a tabela pedidos para a chave publishable"
+    ]
+  }
+}
