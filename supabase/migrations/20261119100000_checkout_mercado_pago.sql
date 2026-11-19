@@ -230,7 +230,7 @@ BEGIN
   telefone := COALESCE(payload->>'cliente_telefone', '');
   entrega := payload->>'entrega_tipo';
   frete := payload->'frete';
-  endereco := payload->'endereco';
+  endereco := NULLIF(payload->'endereco', 'null'::jsonb);
   bruto := payload->'itens';
 
   IF char_length(nome) < 2 OR char_length(nome) > 120 THEN
