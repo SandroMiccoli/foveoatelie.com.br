@@ -60,6 +60,7 @@ exclude:
   - Gemfile
   - Gemfile.lock
   - netlify.toml
+  - supabase
   - vendor
   - node_modules
   - .bundle
