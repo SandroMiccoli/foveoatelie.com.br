@@ -35,12 +35,141 @@ preload_image_wide: /assets/bg-vela-larga.webp
       {% include icon-whatsapp.html class="header-talk-icon" %}
       <span class="header-talk-label">{{ c.cta_geral }}</span>
     </a>
+    <button class="cart-toggle" type="button" id="cart-toggle" aria-haspopup="dialog" aria-controls="cart-drawer" aria-expanded="false" aria-label="Abrir sacola de compras">
+      {% include icon-cart.html class="cart-toggle-icon" %}
+      <span class="cart-toggle-count" id="cart-count" aria-hidden="true" hidden>0</span>
+    </button>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu-secoes" aria-label="Abrir o menu">
       <span class="nav-toggle-mark" aria-hidden="true"></span>
     </button>
   </div>
   </div>
 </header>
+
+<div class="cart-overlay" id="cart-overlay" hidden></div>
+<aside class="cart-drawer" id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" hidden>
+  <div class="cart-drawer-head">
+    <h2 id="cart-drawer-title">Sua sacola</h2>
+    <button type="button" class="cart-drawer-close" id="cart-drawer-close" aria-label="Fechar sacola">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" d="M6 6l12 12M18 6L6 18"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="cart-drawer-body">
+    <p class="cart-empty" id="cart-empty">Sua sacola está vazia.<br>Escolha uma vela na coleção.</p>
+    <ul class="cart-items" id="cart-items" aria-label="Itens na sacola"></ul>
+    <p class="cart-nudge" id="cart-nudge" role="status" hidden></p>
+
+    <section class="cart-frete" id="cart-frete" aria-labelledby="cart-frete-title" hidden>
+      <h3 class="cart-frete-title" id="cart-frete-title">Frete</h3>
+      <form class="cart-frete-form" id="cart-frete-form">
+        <label class="cart-frete-label" for="cart-cep">CEP</label>
+        <div class="cart-frete-cep">
+          <input
+            id="cart-cep"
+            name="cep"
+            type="text"
+            inputmode="numeric"
+            autocomplete="postal-code"
+            enterkeyhint="done"
+            spellcheck="false"
+            autocapitalize="off"
+            maxlength="9"
+            placeholder="00000-000"
+            aria-describedby="cart-frete-status"
+          >
+          <button type="submit" class="cart-frete-calc" id="cart-frete-calc">Calcular</button>
+        </div>
+        <p class="cart-frete-status" id="cart-frete-status" role="status" hidden></p>
+      </form>
+      <fieldset class="cart-frete-opcoes" id="cart-frete-opcoes">
+        <legend class="sr-only">Opções de frete</legend>
+      </fieldset>
+    </section>
+
+    <form class="cart-dados" id="cart-dados" hidden novalidate>
+      <h3 class="cart-frete-title" id="cart-dados-title">Seus dados</h3>
+      <div class="cart-field">
+        <label for="cart-nome">Nome</label>
+        <input id="cart-nome" name="nome" type="text" autocomplete="name" autocapitalize="words" maxlength="120" required>
+      </div>
+      <div class="cart-field">
+        <label for="cart-email">E-mail</label>
+        <input id="cart-email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="120" required>
+      </div>
+      <div class="cart-field">
+        <label for="cart-telefone">WhatsApp</label>
+        <input id="cart-telefone" name="telefone" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="16" placeholder="(31) 99999-9999" required>
+      </div>
+      <div class="cart-endereco" id="cart-endereco" hidden>
+        <h3 class="cart-frete-title" id="cart-endereco-title">Endereço</h3>
+        <div class="cart-field">
+          <label for="cart-logradouro">Rua</label>
+          <input id="cart-logradouro" name="logradouro" type="text" autocomplete="address-line1" autocapitalize="words" maxlength="120">
+        </div>
+        <div class="cart-field-row">
+          <div class="cart-field">
+            <label for="cart-numero">Número</label>
+            <input id="cart-numero" name="numero" type="text" autocomplete="off" maxlength="20">
+          </div>
+          <div class="cart-field">
+            <label for="cart-complemento">Complemento</label>
+            <input id="cart-complemento" name="complemento" type="text" autocomplete="address-line2" maxlength="80">
+          </div>
+        </div>
+        <div class="cart-field">
+          <label for="cart-bairro">Bairro</label>
+          <input id="cart-bairro" name="bairro" type="text" autocomplete="off" autocapitalize="words" maxlength="80">
+        </div>
+        <div class="cart-field-row">
+          <div class="cart-field">
+            <label for="cart-cidade">Cidade</label>
+            <input id="cart-cidade" name="cidade" type="text" autocomplete="off" autocapitalize="words" maxlength="80">
+          </div>
+          <div class="cart-field cart-field--uf">
+            <label for="cart-uf">UF</label>
+            <select id="cart-uf" name="uf" autocomplete="off">
+              <option value="">—</option>
+              <option>AC</option><option>AL</option><option>AM</option><option>AP</option>
+              <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+              <option>GO</option><option>MA</option><option>MG</option><option>MS</option>
+              <option>MT</option><option>PA</option><option>PB</option><option>PE</option>
+              <option>PI</option><option>PR</option><option>RJ</option><option>RN</option>
+              <option>RO</option><option>RR</option><option>RS</option><option>SC</option>
+              <option>SE</option><option>SP</option><option>TO</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="cart-drawer-foot" id="cart-foot" hidden>
+    <dl class="cart-totals">
+      <div class="cart-totals-row">
+        <dt>Subtotal</dt>
+        <dd id="cart-subtotal">R$ 0</dd>
+      </div>
+      <div class="cart-totals-row cart-totals-row--discount" id="cart-discount-row" hidden>
+        <dt>Desconto combo</dt>
+        <dd id="cart-discount">– R$ 0</dd>
+      </div>
+      <div class="cart-totals-row" id="cart-freight-row">
+        <dt>Frete</dt>
+        <dd id="cart-freight">A escolher</dd>
+      </div>
+      <div class="cart-totals-row cart-totals-row--total">
+        <dt>Total</dt>
+        <dd id="cart-total">R$ 0</dd>
+      </div>
+    </dl>
+    <button type="submit" class="cart-checkout" id="cart-checkout" form="cart-dados">Pagar com Mercado Pago</button>
+    <p class="cart-checkout-erro" id="cart-checkout-erro" role="alert" hidden></p>
+    <p class="cart-note">O pagamento abre no Mercado Pago. As velas ficam reservadas por 30 minutos.</p>
+  </div>
+</aside>
 
 <main id="conteudo">
   <section class="hero" id="topo" aria-labelledby="tagline">
@@ -138,7 +267,6 @@ preload_image_wide: /assets/bg-vela-larga.webp
 
       <div class="products" data-supabase-url="{{ site.supabase.url }}" data-supabase-key="{{ site.supabase.anon_key }}">
         {% for produto in c.produtos %}
-        {%- capture wa_produto -%}https://wa.me/{{ c.whatsapp }}?text={{ produto.mensagem | uri_escape | replace: '+', '%20' }}{%- endcapture -%}
         <article class="product reveal{% if produto.image != nil and produto.image != empty %} has-image{% endif %}" id="{{ produto.slug }}" aria-labelledby="produto-{{ produto.slug }}">
           <p class="product-num">{{ produto.numero }}</p>
           <div class="product-main">
@@ -148,6 +276,7 @@ preload_image_wide: /assets/bg-vela-larga.webp
               <div class="product-commerce">
                 <p class="price"><span class="price-value" data-price>{{ c.colecao.preco.unitario }}</span><span class="price-unit"> cada</span></p>
                 <p class="stock" data-stock hidden><span class="stock-dot" aria-hidden="true"></span><span data-stock-label></span></p>
+                <button type="button" class="add-to-cart" data-add-to-cart data-id="{{ produto.slug }}" aria-label="Adicionar {{ produto.nome }} à sacola">Adicionar à sacola</button>
               </div>
             </header>
             {% if produto.image != nil and produto.image != empty %}
@@ -176,7 +305,6 @@ preload_image_wide: /assets/bg-vela-larga.webp
             </dl>
             <div class="product-body">
               <p>{{ produto.descricao }}</p>
-              <a class="cta" href="{{ wa_produto }}" data-wa-product="{{ produto.nome }}" target="_blank" rel="noopener noreferrer" aria-label="{{ c.cta_produto }} — {{ produto.nome }}">{{ c.cta_produto }}</a>
             </div>
           </div>
         </article>
