@@ -10,9 +10,14 @@ O deploy fica com o Sandro. Daqui não se publica função, não se aplica migra
 
 ## Migration
 
-Arquivo: `supabase/migrations/20261119100000_checkout_mercado_pago.sql`
+Arquivos, nesta ordem, no SQL editor:
 
-As três migrations de 18/11/2026 já estão no projeto `foveo-loja` (`bbksditqlgdjftwowtje`) e não estão neste repositório. Por isso **não** use `supabase db push`: a CLI vê versões no remoto que não existem localmente e recusa. Abra o SQL editor do projeto e rode este arquivo uma vez.
+- `supabase/migrations/20261119100000_checkout_mercado_pago.sql`
+- `supabase/migrations/20261119180000_pedido_codigo.sql`
+
+O segundo acrescenta `pedidos.codigo` (`YYMMDDNNN`), preenche os pedidos que já existem e gera o próximo num gatilho. A sequência recomeça todo dia.
+
+As três migrations de 18/11/2026 já estão no projeto `foveo-loja` (`bbksditqlgdjftwowtje`) e não estão neste repositório. Por isso **não** use `supabase db push`: a CLI vê versões no remoto que não existem localmente e recusa. Abra o SQL editor do projeto e rode cada arquivo uma vez.
 
 O que entra:
 
@@ -42,7 +47,7 @@ supabase secrets set GROKBOT_PEDIDO_WEBHOOK_URL=<url https do bot> --project-ref
 supabase secrets set GROKBOT_PEDIDO_WEBHOOK_KEY=<chave> --project-ref bbksditqlgdjftwowtje
 ```
 
-O POST leva `{"evento":"pedido_pago","pedido_id":"<uuid>"}`, com `Authorization: Bearer` e `X-Automation-Key`. Uma tentativa, 8 segundos. Falha só vai pro log, sem a chave.
+O POST leva `{"evento":"pedido_pago","pedido_id":"<uuid>","codigo":"261119005"}`, com `Authorization: Bearer` e `X-Automation-Key`. O `codigo` é `YYMMDDNNN`: dia do pedido em São Paulo e a ordem dele naquele dia. Uma tentativa, 8 segundos. Falha só vai pro log, sem a chave.
 
 ## Deploy
 
@@ -85,7 +90,7 @@ Na sacola: nome, e-mail, WhatsApp e, se não for retirada em BH, o endereço. O 
 
 Volta do checkout, com `auto_return: "all"`, em `/pedido/?pedido=<uuid>`. As rotas antigas (`/pedido/confirmado/`, `/pedido/recusado/`, `/pedido/pendente/`) mostram a mesma página. Ela chama `consultar-pedido`. Se o pedido ainda está `pendente` e já tem `mp_order_id`, a função busca a order no Mercado Pago com o token nosso e aplica o mesmo caminho do webhook, no máximo uma vez a cada 5 segundos por pedido. A sacola do navegador só some quando o status é `pago`.
 
-- `pago`: "Pagamento aprovado", o primeiro nome, o resumo e a quarta-feira da postagem. O botão abre o WhatsApp da Foveō com o número curto do pedido (6 primeiros hex do UUID, em maiúsculas).
+- `pago`: "Pagamento aprovado", o primeiro nome, o resumo e a quarta-feira da postagem. O botão abre o WhatsApp da Foveō com o código do pedido (`YYMMDDNNN`, por exemplo #261119005). O link da página continua com o UUID.
 - `pendente`: "Pagamento em análise", o resumo, o aviso de que Pix e cartão podem levar alguns minutos e que a página atualiza sozinha. A consulta automática dura cerca de 1 minuto. "Conferir pagamento de novo" e o WhatsApp (com o número do pedido e "pagamento em análise") continuam na tela. Cartão recusado com a order ainda aberta (`action_required` / `waiting_retry`, ou o último pagamento `rejected`/`failed`) continua `pendente` no banco, para a reserva valer, e a página mostra "Pagamento não aprovado" com "Tentar pagar de novo" enquanto `reserva_expira_em` não venceu. Pix em `waiting_payment` segue em análise. `failed`, `expired` e `canceled` soltam a reserva como antes.
 - `recusado`, `expirado` ou `cancelado`: a sacola fica. Tem o link de volta pra ela e o WhatsApp.
 

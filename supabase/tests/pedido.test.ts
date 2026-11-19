@@ -12,6 +12,7 @@ import {
   dataPostagem,
   itensPagamento,
   manifestos,
+  codigoPedido,
   numeroCurto,
   primeiroNome,
   reaisParaCentavos,
@@ -91,6 +92,18 @@ test("postagem cai na quarta depois da sexta de fechamento", () => {
   assert.equal(primeiroNome("SANDRO"), "Sandro");
   assert.equal(primeiroNome("ÂNGELA"), "Ângela");
   assert.equal(primeiroNome("íris"), "Íris");
+});
+
+test("código do pedido é YYMMDDNNN no fuso de São Paulo", () => {
+  assert.equal(codigoPedido("2026-11-19T15:00:00-03:00", 5), "261119005");
+  assert.equal(codigoPedido("2026-11-19T15:00:00-03:00", 1), "261119001");
+  assert.equal(codigoPedido("2026-11-19T23:30:00-03:00", 12), "261119012");
+  assert.equal(codigoPedido("2026-11-19T02:30:00Z", 1), "261118001");
+  assert.equal(codigoPedido("2026-11-19T03:00:00Z", 1), "261119001");
+  assert.equal(codigoPedido("2026-11-19T15:00:00-03:00", 5).includes("-"), false);
+  assert.match(codigoPedido("2026-11-19T15:00:00-03:00", 999), /^[0-9]{9}$/);
+  assert.equal(codigoPedido("2026-11-19T15:00:00-03:00", 1000), "");
+  assert.equal(codigoPedido("2026-11-19T15:00:00-03:00", 0), "");
 });
 
 test("telefone brasileiro vira DDD e número", () => {

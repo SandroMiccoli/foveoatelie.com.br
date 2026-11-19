@@ -162,6 +162,19 @@ function dataCivil(instante: Date): { y: number; m: number; d: number } | null {
   return { y, m, d };
 }
 
+// YYMMDDNNN no fuso de São Paulo. A sequência é do dia, não da loja inteira.
+export function codigoPedido(instante: Date | string, sequencia: number): string {
+  const data = instante instanceof Date ? instante : new Date(instante);
+  if (Number.isNaN(data.getTime())) return "";
+  if (!Number.isInteger(sequencia) || sequencia < 1 || sequencia > 999) return "";
+  const civil = dataCivil(data);
+  if (!civil) return "";
+  const yy = String(civil.y % 100).padStart(2, "0");
+  const mm = String(civil.m).padStart(2, "0");
+  const dd = String(civil.d).padStart(2, "0");
+  return `${yy}${mm}${dd}${String(sequencia).padStart(3, "0")}`;
+}
+
 function somarDias(y: number, m: number, d: number, dias: number): { y: number; m: number; d: number } {
   const data = new Date(Date.UTC(y, m - 1, d + dias));
   return { y: data.getUTCFullYear(), m: data.getUTCMonth() + 1, d: data.getUTCDate() };

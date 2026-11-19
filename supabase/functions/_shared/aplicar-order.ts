@@ -67,14 +67,18 @@ export async function aplicarOrderMercadoPago(orderId: string, origem = "webhook
   const status = typeof resultado.status === "string" ? resultado.status : "";
   const ja = resultado.ja === true;
   if (resultado.ok === true && status === "pago" && !ja && pedidoId) {
-    await avisarDono(pedidoId, origem);
+    await avisarDono(cred, pedidoId, origem);
   }
 
   await rpc(cred, "expirar_reservas", {}, origem);
   return { situacao: "aplicado", pedidoId, status, ja, erro, retentativa };
 }
 
-async function avisarDono(pedidoId: string, origem: string): Promise<void> {
+async function avisarDono(
+  cred: { url: string; key: string },
+  pedidoId: string,
+  origem: string,
+): Promise<void> {
   const url = (Deno.env.get("GROKBOT_PEDIDO_WEBHOOK_URL") ?? "").trim();
   const key = (Deno.env.get("GROKBOT_PEDIDO_WEBHOOK_KEY") ?? "").trim();
   if (!url || !key) return;
@@ -82,6 +86,9 @@ async function avisarDono(pedidoId: string, origem: string): Promise<void> {
     console.error(origem + ": aviso ao ateliê sem URL https");
     return;
   }
+  const codigo = await lerCodigo(cred, pedidoId, origem);
+  const corpo: Record<string, string> = { evento: "pedido_pago", pedido_id: pedidoId };
+  if (codigo) corpo.codigo = codigo;
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -90,13 +97,38 @@ async function avisarDono(pedidoId: string, origem: string): Promise<void> {
         Authorization: `Bearer ${key}`,
         "X-Automation-Key": key,
       },
-      body: JSON.stringify({ evento: "pedido_pago", pedido_id: pedidoId }),
+      body: JSON.stringify(corpo),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) console.error(origem + ": aviso ao ateliê", res.status);
   } catch (err) {
     const nome = err instanceof Error ? err.name : "erro";
     console.error(origem + ": aviso ao ateliê sem resposta", nome);
+  }
+}
+
+async function lerCodigo(
+  cred: { url: string; key: string },
+  pedidoId: string,
+  origem: string,
+): Promise<string> {
+  try {
+    const res = await fetch(`${cred.url}/rest/v1/pedidos?id=eq.${pedidoId}&select=codigo`, {
+      headers: {
+        apikey: cred.key,
+        Authorization: `Bearer ${cred.key}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    const row = Array.isArray(data) ? data[0] : null;
+    const codigo = row && typeof row.codigo === "string" ? row.codigo : "";
+    return /^[0-9]{9}$/.test(codigo) ? codigo : "";
+  } catch (err) {
+    console.error(origem + ": codigo do pedido", err instanceof Error ? err.name : "erro");
+    return "";
   }
 }
 

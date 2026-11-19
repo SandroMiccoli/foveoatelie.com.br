@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   const retentativa = status === "pendente" && (retentativaViva || retentativaDePagamento(mpStatus, mpDetail));
 
   return json(origin, 200, {
-    numero: numeroCurto(pedidoId),
+    numero: numeroDoPedido(row.codigo, pedidoId),
     status,
     primeiro_nome: primeiroNome(nome),
     entrega_tipo: entrega,
@@ -144,6 +144,11 @@ function podeConsultarMp(pedidoId: string): boolean {
   return true;
 }
 
+function numeroDoPedido(codigo: unknown, pedidoId: string): string {
+  if (typeof codigo === "string" && /^[0-9]{9}$/.test(codigo)) return codigo;
+  return numeroCurto(pedidoId);
+}
+
 function texto(valor: unknown, max: number): string {
   if (typeof valor !== "string") return "";
   return valor.replace(/[\u0000-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -170,6 +175,7 @@ async function buscarPedido(
     "reserva_expira_em",
     "pago_em",
     "created_at",
+    "codigo",
   ].join(",");
   let res: Response;
   try {
