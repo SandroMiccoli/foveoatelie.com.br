@@ -77,6 +77,9 @@ test("postagem cai na quarta depois da sexta de fechamento", () => {
   assert.equal(dataPostagem("2026-11-23T09:00:00-03:00"), "2026-12-02");
   assert.equal(numeroCurto("75b7d5ab-1111-4111-8111-111111111111"), "75B7D5");
   assert.equal(primeiroNome("Ana Lima"), "Ana");
+  assert.equal(primeiroNome("SANDRO"), "Sandro");
+  assert.equal(primeiroNome("ÂNGELA"), "Ângela");
+  assert.equal(primeiroNome("íris"), "Íris");
 });
 
 test("telefone brasileiro vira DDD e número", () => {

@@ -115,7 +115,10 @@ export function checkoutUrlConfiavel(url: string, orderId: string): boolean {
 
 export function primeiroNome(nome: string): string {
   const parte = nome.trim().split(/\s+/).filter(Boolean)[0] ?? "";
-  return parte.slice(0, 40);
+  const chars = Array.from(parte.slice(0, 40).toLocaleLowerCase("pt-BR"));
+  if (!chars.length) return "";
+  chars[0] = chars[0].toLocaleUpperCase("pt-BR");
+  return chars.join("");
 }
 
 export function numeroCurto(id: string): string {
