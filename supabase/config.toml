@@ -1,5 +1,12 @@
 project_id = "bbksditqlgdjftwowtje"
 
-# A sacola chama esta função com a chave publishable do site, que não é um JWT.
+# A sacola chama estas funções com a chave publishable do site, que não é um JWT.
+# O webhook do Mercado Pago também chega sem JWT.
 [functions.cotar-frete]
+verify_jwt = false
+
+[functions.criar-pedido]
+verify_jwt = false
+
+[functions.webhook-mercado-pago]
 verify_jwt = false

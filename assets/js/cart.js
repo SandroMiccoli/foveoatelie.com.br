@@ -1,14 +1,11 @@
-// ── Sacola de compras (estágio 2 da store + frete) ─────────────────────
-// Carrinho front-end: soma e persiste quantidades em localStorage, aplica
-// a regra de combo a cada 3 velas via window.FoveoCatalog.calcularPrecoCentavos
-// e revalida as quantidades contra o estoque ao vivo sempre que o
-// catálogo (assets/js/catalog.js) responde. O frete é cotado na Edge
-// Function cotar-frete (Melhor Envio). O preço aqui é só exibição; a
-// confirmação e o pagamento continuam com a Foveō.
+// ── Sacola de compras ──────────────────────────────────────────────────
+// Quantidades no localStorage, combo via window.FoveoCatalog, estoque
+// ao vivo quando o catálogo responde. O frete é cotado em cotar-frete.
+// "Pagar com Mercado Pago" chama criar-pedido, que recota e reserva no
+// servidor e devolve o checkout_url da Orders API. O preço nesta tela
+// é só o que a pessoa vê.
 //
-// CEP e a opção de frete ficam no mesmo localStorage da sacola.
-// Se a função ainda não estiver publicada, a cotação falha com uma
-// mensagem e a retirada em BH continua disponível.
+// CEP, frete e os dados de quem compra ficam no mesmo localStorage.
 //
 // Só entra em ação quando os elementos do carrinho existem na página
 // (hoje, só a home) — nas demais páginas este arquivo não faz nada,
@@ -40,6 +37,10 @@ window.FoveoCart = (function () {
   var estadoAtual = { itens: [], totalCentavos: 0, totalComFrete: 0, frete: null };
   var ultimoFoco = null;
   var dom = null;
+  var comprador = compradorVazio();
+  var checkoutEmVoo = false;
+  var idempotencyKey = "";
+  var enderecoAutomatico = false;
 
   // ---- armazenamento ----------------------------------------------------
 
@@ -80,8 +81,33 @@ window.FoveoCart = (function () {
     };
   }
 
+  function compradorVazio() {
+    return {
+      nome: "",
+      email: "",
+      telefone: "",
+      logradouro: "",
+      numero: "",
+      complemento: "",
+      bairro: "",
+      cidade: "",
+      uf: ""
+    };
+  }
+
+  function lerComprador(valor) {
+    var base = compradorVazio();
+    if (!valor || typeof valor !== "object") return base;
+    Object.keys(base).forEach(function (chave) {
+      if (typeof valor[chave] === "string") base[chave] = valor[chave];
+    });
+    base.telefone = mascararTelefone(base.telefone);
+    base.uf = base.uf.toUpperCase().slice(0, 2);
+    return base;
+  }
+
   function lerEstadoSalvo() {
-    var vazio = { carrinho: {}, cep: "", frete: null };
+    var vazio = { carrinho: {}, cep: "", frete: null, comprador: compradorVazio() };
     var bruto = null;
     try {
       bruto = localStorage.getItem(STORAGE_KEY);
@@ -92,12 +118,13 @@ window.FoveoCart = (function () {
       if (!obj || typeof obj !== "object") return vazio;
       // Formato antigo: mapa id -> quantidade, sem envelope.
       if (!Object.prototype.hasOwnProperty.call(obj, "itens")) {
-        return { carrinho: limparMapaQtd(obj), cep: "", frete: null };
+        return { carrinho: limparMapaQtd(obj), cep: "", frete: null, comprador: compradorVazio() };
       }
       return {
         carrinho: limparMapaQtd(obj.itens),
         cep: typeof obj.cep === "string" ? mascararCep(obj.cep) : "",
-        frete: normalizarFrete(obj.frete)
+        frete: normalizarFrete(obj.frete),
+        comprador: lerComprador(obj.comprador)
       };
     } catch (e) {
       return vazio;
@@ -111,7 +138,8 @@ window.FoveoCart = (function () {
         JSON.stringify({
           itens: carrinho,
           cep: cepInformado,
-          frete: freteEscolhido
+          frete: freteEscolhido,
+          comprador: comprador
         })
       );
     } catch (e) {}
@@ -211,6 +239,7 @@ window.FoveoCart = (function () {
     var atual = carrinho[id] || 0;
     if (atual >= limite) return false;
     carrinho[id] = atual + 1;
+    invalidarChave();
     salvarEstado();
     render();
     recalcularFreteSePrecisar();
@@ -225,6 +254,7 @@ window.FoveoCart = (function () {
     if (novo < 0) novo = 0;
     if (novo === 0) delete carrinho[id];
     else carrinho[id] = novo;
+    invalidarChave();
     salvarEstado();
     render();
     recalcularFreteSePrecisar();
@@ -232,6 +262,7 @@ window.FoveoCart = (function () {
 
   function remover(id) {
     delete carrinho[id];
+    invalidarChave();
     salvarEstado();
     render();
     recalcularFreteSePrecisar();
@@ -304,8 +335,8 @@ window.FoveoCart = (function () {
     atualizarContador(totalAtivo);
     sincronizarBotoesAdicionar();
     if (dom.frete) dom.frete.hidden = !(totalAtivo > 0);
-
-    if (dom.checkoutNote) dom.checkoutNote.hidden = true;
+    if (dom.dados) dom.dados.hidden = !(totalAtivo > 0);
+    sincronizarEndereco();
   }
 
   function desenharItens(itens) {
@@ -491,57 +522,326 @@ window.FoveoCart = (function () {
     });
   }
 
-  // ---- "Finalizar compra" (sem pagamento ainda) --------------------------
+  // ---- pagamento (Mercado Pago Checkout Pro) ----------------------------
 
-  function textoFreteWhatsapp(frete) {
-    if (!frete) return "";
-    if (frete.id === ID_RETIRADA) return " Frete: Retirar em BH (combinar), grátis.";
-    var partes = [];
-    if (frete.transportadora) partes.push(frete.transportadora);
-    if (frete.servico) partes.push(frete.servico);
-    var linha = " Frete: " + partes.join(" ") + ", " + formatarBRL(frete.preco_centavos);
-    if (typeof frete.prazo_dias === "number") linha += ", " + textoPrazo(frete.prazo_dias);
-    if (cepInformado) linha += ", CEP " + cepInformado;
-    return linha + ".";
+  function invalidarChave(forcar) {
+    if (checkoutEmVoo && !forcar) return;
+    idempotencyKey = "";
   }
 
-  function montarMensagemWhatsapp(itens, totalCentavos, frete) {
-    var linhas = itens
-      .filter(function (i) {
-        return !i.esgotado;
+  function chaveCheckout() {
+    if (!idempotencyKey && window.crypto && typeof crypto.randomUUID === "function") {
+      idempotencyKey = crypto.randomUUID();
+    }
+    return idempotencyKey;
+  }
+
+  function mostrarErroCheckout(texto) {
+    if (!dom.erro) return;
+    dom.erro.hidden = !texto;
+    dom.erro.textContent = texto || "";
+  }
+
+  function marcarInvalido(el, invalido) {
+    if (!el) return;
+    el.setAttribute("aria-invalid", invalido ? "true" : "false");
+  }
+
+  function lerCompradorDoForm() {
+    if (!dom.nome) return;
+    comprador = {
+      nome: dom.nome.value,
+      email: dom.email ? dom.email.value : "",
+      telefone: dom.telefone ? dom.telefone.value : "",
+      logradouro: dom.logradouro ? dom.logradouro.value : "",
+      numero: dom.numero ? dom.numero.value : "",
+      complemento: dom.complemento ? dom.complemento.value : "",
+      bairro: dom.bairro ? dom.bairro.value : "",
+      cidade: dom.cidade ? dom.cidade.value : "",
+      uf: dom.uf ? dom.uf.value : ""
+    };
+  }
+
+  function preencherComprador() {
+    if (!dom.nome) return;
+    dom.nome.value = comprador.nome || "";
+    if (dom.email) dom.email.value = comprador.email || "";
+    if (dom.telefone) dom.telefone.value = mascararTelefone(comprador.telefone || "");
+    if (dom.logradouro) dom.logradouro.value = comprador.logradouro || "";
+    if (dom.numero) dom.numero.value = comprador.numero || "";
+    if (dom.complemento) dom.complemento.value = comprador.complemento || "";
+    if (dom.bairro) dom.bairro.value = comprador.bairro || "";
+    if (dom.cidade) dom.cidade.value = comprador.cidade || "";
+    if (dom.uf) dom.uf.value = (comprador.uf || "").toUpperCase();
+  }
+
+  function entregaEhRetirada() {
+    return !!(freteEscolhido && freteEscolhido.id === ID_RETIRADA);
+  }
+
+  function sincronizarEndereco() {
+    if (!dom.endereco) return;
+    var mostra = !!(dom.dados && !dom.dados.hidden && freteEscolhido && !entregaEhRetirada());
+    dom.endereco.hidden = !mostra;
+  }
+
+  function digitosTelefone(valor) {
+    var d = String(valor || "").replace(/\D/g, "");
+    if (d.indexOf("55") === 0 && d.length > 11) d = d.slice(2);
+    return d.slice(0, 11);
+  }
+
+  function mascararTelefone(valor) {
+    var d = digitosTelefone(valor);
+    if (d.length < 1) return "";
+    if (d.length < 3) return "(" + d;
+    if (d.length < 7) return "(" + d.slice(0, 2) + ") " + d.slice(2);
+    if (d.length <= 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
+    return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+  }
+
+  function emailValido(valor) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(valor || "").trim());
+  }
+
+  function aoEditarComprador(evento) {
+    var alvo = evento && evento.target;
+    if (alvo && alvo.setAttribute) alvo.setAttribute("aria-invalid", "false");
+    mostrarErroCheckout("");
+    if (alvo === dom.logradouro) enderecoAutomatico = false;
+    if (alvo === dom.telefone && dom.telefone) {
+      var antes = dom.telefone.value;
+      var pos = typeof dom.telefone.selectionStart === "number" ? dom.telefone.selectionStart : antes.length;
+      var digitosAntes = digitosTelefone(antes.slice(0, pos)).length;
+      var mascarado = mascararTelefone(antes);
+      if (antes !== mascarado) {
+        dom.telefone.value = mascarado;
+        var novaPos = 0;
+        var vistos = 0;
+        while (novaPos < mascarado.length && vistos < digitosAntes) {
+          if (/\d/.test(mascarado.charAt(novaPos))) vistos += 1;
+          novaPos += 1;
+        }
+        if (dom.telefone.setSelectionRange) dom.telefone.setSelectionRange(novaPos, novaPos);
+      }
+    }
+    if (alvo === dom.uf && dom.uf) dom.uf.value = dom.uf.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+    lerCompradorDoForm();
+    invalidarChave();
+    salvarEstado();
+  }
+
+  function preencherEnderecoViaCep(dados) {
+    if (!dados || dados.erro) return;
+    if (dom.logradouro && !dom.logradouro.value && dados.logradouro) {
+      dom.logradouro.value = dados.logradouro;
+      enderecoAutomatico = true;
+    } else if (enderecoAutomatico && dom.logradouro && dados.logradouro) {
+      dom.logradouro.value = dados.logradouro;
+    }
+    if (dom.bairro && (!dom.bairro.value || enderecoAutomatico) && dados.bairro) dom.bairro.value = dados.bairro;
+    if (dom.cidade && (!dom.cidade.value || enderecoAutomatico) && dados.localidade) dom.cidade.value = dados.localidade;
+    if (dom.uf && (!dom.uf.value || enderecoAutomatico) && dados.uf) dom.uf.value = dados.uf;
+    lerCompradorDoForm();
+    salvarEstado();
+  }
+
+  function buscarViaCep() {
+    if (!cepValido(cepInformado) || typeof fetch !== "function") return;
+    var cep = digitosCep(cepInformado);
+    fetch("https://viacep.com.br/ws/" + cep + "/json/")
+      .then(function (res) {
+        if (!res.ok) throw new Error("status");
+        return res.json();
       })
-      .map(function (i) {
-        return i.qtd + "x " + i.nome;
-      });
-    if (!linhas.length) return null;
-    var total = frete ? totalCentavos + (frete.preco_centavos || 0) : totalCentavos;
-    return (
-      "Olá! Quero fechar este pedido da coleção Foveō: " +
-      linhas.join(", ") +
-      "." +
-      textoFreteWhatsapp(frete) +
-      " Total " +
-      formatarBRL(total) +
-      " (a confirmar). Podemos combinar os detalhes?"
-    );
+      .then(preencherEnderecoViaCep)
+      .catch(function () {});
   }
 
-  function preencherWhatsapp() {
-    if (!dom.checkoutWhatsapp) return;
-    var numero = dom.drawer.getAttribute("data-whatsapp");
-    var mensagem = montarMensagemWhatsapp(estadoAtual.itens, estadoAtual.totalCentavos, estadoAtual.frete);
-    if (numero && mensagem) {
-      dom.checkoutWhatsapp.href = "https://wa.me/" + numero + "?text=" + encodeURIComponent(mensagem);
-      dom.checkoutWhatsapp.hidden = false;
-    } else {
-      dom.checkoutWhatsapp.hidden = true;
+  function configPedido() {
+    var root = document.querySelector("[data-supabase-url]");
+    if (!root || typeof fetch !== "function") return null;
+    var url = root.getAttribute("data-supabase-url");
+    var key = root.getAttribute("data-supabase-key");
+    if (!url || !key) return null;
+    return { url: url.replace(/\/$/, "") + "/functions/v1/criar-pedido", key: key };
+  }
+
+  function urlCheckoutSegura(url) {
+    try {
+      var u = new URL(url);
+      if (u.protocol !== "https:") return false;
+      return /(^|\.)mercadopago\.(com\.br|com|com\.ar|cl|com\.mx|com\.co|com\.pe|com\.uy)$/i.test(u.hostname);
+    } catch (e) {
+      return false;
     }
   }
 
-  function tratarFinalizar() {
-    if (!dom.checkoutNote) return;
-    dom.checkoutNote.hidden = false;
-    preencherWhatsapp();
+  function mensagemErroPedido(codigo) {
+    if (codigo === "estoque") return "A quantidade de alguma vela mudou. Atualize a página para ver o estoque.";
+    if (codigo === "frete_opcao") return "Essa opção de frete não está mais disponível. Calcule de novo.";
+    if (codigo === "cotacao_indisponivel") return "Não conseguimos calcular o frete agora. Tente de novo em instantes.";
+    if (codigo === "idempotencia") return "Não conseguimos retomar esse pagamento. Tente de novo.";
+    if (codigo === "pedido_invalido" || codigo === "origem" || codigo === "metodo") return "Confira os dados e tente de novo.";
+    return "Não conseguimos abrir o Mercado Pago agora. Tente de novo.";
+  }
+
+  function validarCheckout() {
+    lerCompradorDoForm();
+    var foco = null;
+    var mensagem = "";
+
+    function falhar(el, texto) {
+      if (!mensagem) {
+        mensagem = texto;
+        foco = el;
+      }
+      marcarInvalido(el, true);
+    }
+
+    marcarInvalido(dom.nome, false);
+    marcarInvalido(dom.email, false);
+    marcarInvalido(dom.telefone, false);
+    marcarInvalido(dom.cep, false);
+    marcarInvalido(dom.logradouro, false);
+    marcarInvalido(dom.numero, false);
+    marcarInvalido(dom.bairro, false);
+    marcarInvalido(dom.cidade, false);
+    marcarInvalido(dom.uf, false);
+
+    var ativos = estadoAtual.itens.filter(function (item) {
+      return !item.esgotado && item.qtd > 0;
+    });
+    if (!ativos.length) {
+      mostrarErroCheckout("A sacola não tem vela disponível para pagar.");
+      return null;
+    }
+    if (!freteEscolhido || (freteRecalculando && !entregaEhRetirada())) {
+      falhar(dom.cep, "Escolha o frete ou a retirada em BH.");
+    } else if (!entregaEhRetirada()) {
+      if (!cepValido(cepInformado) || assinaturaCotada !== assinaturaPedido()) {
+        falhar(dom.cep, "Calcule o frete de novo. A sacola ou o CEP mudou.");
+      }
+    }
+
+    if (comprador.nome.trim().length < 2 || !/[A-Za-zÀ-ÿ]/.test(comprador.nome)) falhar(dom.nome, "Escreva seu nome.");
+    if (!emailValido(comprador.email)) falhar(dom.email, "Confira o e-mail.");
+    if (digitosTelefone(comprador.telefone).length < 10) falhar(dom.telefone, "Confira o WhatsApp, com DDD.");
+
+    if (freteEscolhido && !entregaEhRetirada()) {
+      if (comprador.logradouro.trim().length < 2) falhar(dom.logradouro, "Preencha o endereço de entrega.");
+      if (!comprador.numero.trim()) falhar(dom.numero, "Preencha o endereço de entrega.");
+      if (comprador.bairro.trim().length < 1) falhar(dom.bairro, "Preencha o endereço de entrega.");
+      if (comprador.cidade.trim().length < 2) falhar(dom.cidade, "Preencha o endereço de entrega.");
+      if (!/^[A-Z]{2}$/.test((comprador.uf || "").toUpperCase())) falhar(dom.uf, "Preencha o endereço de entrega.");
+    }
+
+    if (mensagem) {
+      mostrarErroCheckout(mensagem);
+      if (foco && typeof foco.focus === "function") foco.focus();
+      return null;
+    }
+    mostrarErroCheckout("");
+    return ativos;
+  }
+
+  function corpoDoPedido(ativos) {
+    var entrega;
+    if (entregaEhRetirada()) {
+      entrega = { tipo: "retirada" };
+    } else {
+      entrega = {
+        tipo: "envio",
+        frete_id: freteEscolhido.id,
+        cep: digitosCep(cepInformado),
+        endereco: {
+          logradouro: comprador.logradouro.trim(),
+          numero: comprador.numero.trim(),
+          complemento: comprador.complemento.trim(),
+          bairro: comprador.bairro.trim(),
+          cidade: comprador.cidade.trim(),
+          uf: comprador.uf.toUpperCase()
+        }
+      };
+    }
+    return {
+      idempotency_key: chaveCheckout(),
+      comprador: {
+        nome: comprador.nome.trim(),
+        email: comprador.email.trim(),
+        telefone: digitosTelefone(comprador.telefone)
+      },
+      entrega: entrega,
+      itens: ativos.map(function (item) {
+        return { produto_id: item.id, qtd: item.qtd };
+      })
+    };
+  }
+
+  function travarCheckout(travado) {
+    checkoutEmVoo = travado;
+    if (dom.checkout) {
+      dom.checkout.disabled = travado;
+      dom.checkout.textContent = travado ? "Abrindo o pagamento…" : "Pagar com Mercado Pago";
+    }
+    if (dom.drawer) {
+      if (travado) dom.drawer.setAttribute("aria-busy", "true");
+      else dom.drawer.removeAttribute("aria-busy");
+    }
+    if (dom.corpo) {
+      if (travado) dom.corpo.setAttribute("inert", "");
+      else dom.corpo.removeAttribute("inert");
+    }
+  }
+
+  function tratarFinalizar(evento) {
+    if (evento) evento.preventDefault();
+    if (checkoutEmVoo) return;
+    var ativos = validarCheckout();
+    if (!ativos) return;
+
+    var cfg = configPedido();
+    var chave = chaveCheckout();
+    if (!cfg || !chave) {
+      mostrarErroCheckout("Não conseguimos abrir o Mercado Pago agora. Tente de novo.");
+      return;
+    }
+
+    travarCheckout(true);
+    mostrarErroCheckout("");
+    if (typeof window.gtag === "function") window.gtag("event", "begin_checkout");
+
+    fetch(cfg.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: cfg.key
+      },
+      body: JSON.stringify(corpoDoPedido(ativos))
+    })
+      .then(function (res) {
+        return res.json().then(function (dados) {
+          return { ok: res.ok, dados: dados || {} };
+        });
+      })
+      .then(function (resultado) {
+        if (!resultado.ok || !resultado.dados.checkout_url || !urlCheckoutSegura(resultado.dados.checkout_url)) {
+          if (!resultado.dados || resultado.dados.repetir !== true) invalidarChave(true);
+          if (resultado.dados && resultado.dados.erro === "estoque" && window.FoveoCatalog && typeof window.FoveoCatalog.obterCatalogo === "function") {
+            window.FoveoCatalog.obterCatalogo(true).then(function (produtos) {
+              mesclarCatalogoAoVivo(produtos);
+              render();
+            });
+          }
+          throw new Error((resultado.dados && resultado.dados.erro) || "pagamento_indisponivel");
+        }
+        window.location.assign(resultado.dados.checkout_url);
+      })
+      .catch(function (err) {
+        travarCheckout(false);
+        var codigo = err && err.message ? err.message : "";
+        mostrarErroCheckout(mensagemErroPedido(codigo));
+      });
   }
 
   // ---- abrir/fechar + foco --------------------------------------------
@@ -649,11 +949,6 @@ window.FoveoCart = (function () {
       return;
     }
 
-    if (dom.checkout && dom.checkout.contains(alvo)) {
-      tratarFinalizar();
-      if (typeof window.gtag === "function") window.gtag("event", "begin_checkout");
-      return;
-    }
   }
 
   function tratarTeclado(evento) {
@@ -859,7 +1154,9 @@ window.FoveoCart = (function () {
     if (dom.frete) dom.frete.removeAttribute("aria-busy");
     desenharTotaisVisiveis();
     desenharOpcoes();
-    if (dom.checkoutNote && !dom.checkoutNote.hidden) preencherWhatsapp();
+    sincronizarEndereco();
+    invalidarChave();
+    if (cepValido(cepInformado)) buscarViaCep();
     salvarEstado();
   }
 
@@ -977,6 +1274,7 @@ window.FoveoCart = (function () {
     }
     cepInformado = mascarado;
     dom.cep.setAttribute("aria-invalid", "false");
+    mostrarErroCheckout("");
     if (digitosCep(cepInformado) !== cepParaRecalcular) {
       cepParaRecalcular = "";
       assinaturaCotada = "";
@@ -985,6 +1283,7 @@ window.FoveoCart = (function () {
       freteRecalculando = false;
       opcoesFrete = [];
       if (freteEscolhido && freteEscolhido.id !== ID_RETIRADA) freteEscolhido = null;
+      invalidarChave();
       if (dom.calc) {
         dom.calc.disabled = false;
         dom.calc.textContent = "Calcular";
@@ -1029,7 +1328,10 @@ window.FoveoCart = (function () {
       freteEscolhido = achou;
     }
     desenharTotaisVisiveis();
-    if (dom.checkoutNote && !dom.checkoutNote.hidden) preencherWhatsapp();
+    sincronizarEndereco();
+    invalidarChave();
+    mostrarErroCheckout("");
+    if (!entregaEhRetirada() && cepValido(cepInformado)) buscarViaCep();
     salvarEstado();
   }
 
@@ -1043,6 +1345,7 @@ window.FoveoCart = (function () {
     dom = {
       toggle: toggle,
       drawer: drawer,
+      corpo: drawer.querySelector(".cart-drawer-body"),
       overlay: document.getElementById("cart-overlay"),
       close: document.getElementById("cart-drawer-close"),
       count: document.getElementById("cart-count"),
@@ -1055,8 +1358,18 @@ window.FoveoCart = (function () {
       discount: document.getElementById("cart-discount"),
       total: document.getElementById("cart-total"),
       checkout: document.getElementById("cart-checkout"),
-      checkoutNote: document.getElementById("cart-checkout-note"),
-      checkoutWhatsapp: document.getElementById("cart-checkout-whatsapp"),
+      erro: document.getElementById("cart-checkout-erro"),
+      dados: document.getElementById("cart-dados"),
+      endereco: document.getElementById("cart-endereco"),
+      nome: document.getElementById("cart-nome"),
+      email: document.getElementById("cart-email"),
+      telefone: document.getElementById("cart-telefone"),
+      logradouro: document.getElementById("cart-logradouro"),
+      numero: document.getElementById("cart-numero"),
+      complemento: document.getElementById("cart-complemento"),
+      bairro: document.getElementById("cart-bairro"),
+      cidade: document.getElementById("cart-cidade"),
+      uf: document.getElementById("cart-uf"),
       frete: document.getElementById("cart-frete"),
       freteForm: document.getElementById("cart-frete-form"),
       cep: document.getElementById("cart-cep"),
@@ -1071,7 +1384,9 @@ window.FoveoCart = (function () {
     carrinho = salvo.carrinho;
     cepInformado = salvo.cep;
     freteEscolhido = salvo.frete;
+    comprador = salvo.comprador || compradorVazio();
     if (dom.cep && cepInformado) dom.cep.value = cepInformado;
+    preencherComprador();
     if (cepValido(cepInformado)) cepParaRecalcular = digitosCep(cepInformado);
 
     document.addEventListener("click", tratarClique);
@@ -1079,6 +1394,11 @@ window.FoveoCart = (function () {
     if (dom.freteForm) dom.freteForm.addEventListener("submit", aoCalcularFrete);
     if (dom.cep) dom.cep.addEventListener("input", aoDigitarCep);
     if (dom.opcoes) dom.opcoes.addEventListener("change", aoEscolherFrete);
+    if (dom.dados) {
+      dom.dados.addEventListener("submit", tratarFinalizar);
+      dom.dados.addEventListener("input", aoEditarComprador);
+      dom.dados.addEventListener("change", aoEditarComprador);
+    }
 
     document.addEventListener("foveo:catalogo", function (evento) {
       mesclarCatalogoAoVivo(evento.detail);

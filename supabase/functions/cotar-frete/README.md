@@ -2,7 +2,7 @@
 
 Cota o frete da sacola no Melhor Envio. A função ainda não está publicada e os secrets ainda não existem: o deploy fica com o Sandro.
 
-O navegador manda `{ cep_destino, itens: [{ produto_id, qtd }] }`. A função confere os ids na tabela `produtos` (a RLS fecha essa tabela para `anon`), chama `calcular_preco_centavos` para o valor declarado e pede `POST /api/v2/me/shipment/calculate`.
+O navegador manda `{ cep_destino, itens: [{ produto_id, qtd }] }`. A função confere os ids na tabela `produtos` (a RLS fecha essa tabela para `anon`), chama `calcular_preco_centavos` para o valor declarado e pede `POST /api/v2/me/shipment/calculate`. A cotação em si está em `supabase/functions/_shared/frete.ts`, porque `criar-pedido` recota com as mesmas regras.
 
 `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` já entram no ambiente da função. Não é preciso gravá-los de novo.
 
