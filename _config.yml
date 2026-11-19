@@ -1,7 +1,7 @@
 # Foveō Ateliê — site estático em Jekyll.
 # Catálogo, estoque e pedidos entram depois como páginas, coleções
 # e dados, em cima deste layout.
-title: "Foveō Ateliê"
+title: "Foveō Ateliê - Admin"
 description: "Velas de massagem artesanais feitas em Belo Horizonte. A coleção 2026 reúne três rituais de cuidado através do toque: Acolher, Despertar e Permanecer."
 # Canônico sempre no domínio de produção, inclusive em branch deploy e preview.
 url: "https://foveoatelie.com.br"
