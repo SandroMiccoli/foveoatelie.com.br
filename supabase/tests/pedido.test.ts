@@ -10,6 +10,7 @@ import {
   centavosParaReais,
   checkoutUrlConfiavel,
   dataPostagem,
+  proximaQuartaPostagem,
   itensPagamento,
   manifestos,
   codigoPedido,
@@ -92,6 +93,25 @@ test("postagem cai na quarta depois da sexta de fechamento", () => {
   assert.equal(primeiroNome("SANDRO"), "Sandro");
   assert.equal(primeiroNome("ÂNGELA"), "Ângela");
   assert.equal(primeiroNome("íris"), "Íris");
+});
+
+test("proximaQuartaPostagem: corte na segunda 23:59 em São Paulo", () => {
+  // Segunda 23:59 → quarta da mesma semana
+  assert.equal(proximaQuartaPostagem("2026-11-23T23:59:00-03:00"), "25/11");
+  // Terça 00:00 → quarta da semana seguinte
+  assert.equal(proximaQuartaPostagem("2026-11-24T00:00:00-03:00"), "02/12");
+  // Quarta em si → próxima quarta
+  assert.equal(proximaQuartaPostagem("2026-11-25T12:00:00-03:00"), "02/12");
+  // Domingo → quarta seguinte
+  assert.equal(proximaQuartaPostagem("2026-11-29T18:00:00-03:00"), "02/12");
+  // Fronteira de mês (terça 24/11 já cobre 02/12); ano novo
+  assert.equal(proximaQuartaPostagem("2026-12-29T10:00:00-03:00"), "06/01");
+  assert.equal(proximaQuartaPostagem("2026-12-28T23:59:00-03:00"), "30/12");
+  // Instante em UTC que ainda é segunda em SP
+  assert.equal(proximaQuartaPostagem("2026-11-24T02:59:00Z"), "25/11");
+  // Instante em UTC que já é terça em SP
+  assert.equal(proximaQuartaPostagem("2026-11-24T03:00:00Z"), "02/12");
+  assert.equal(proximaQuartaPostagem("data-invalida"), null);
 });
 
 test("código do pedido é YYMMDDNNN no fuso de São Paulo", () => {

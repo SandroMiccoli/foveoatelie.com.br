@@ -182,6 +182,7 @@ function somarDias(y: number, m: number, d: number, dias: number): { y: number; 
 
 // Fecha na sexta à noite (America/Sao_Paulo). A postagem é a quarta da semana seguinte:
 // sexta + 5 dias. Sábado e domingo entram na semana que começa na segunda.
+// Usado na página do pedido (consultar-pedido). O e-mail de pagamento usa proximaQuartaPostagem.
 export function dataPostagem(instante: string | Date): string | null {
   const data = instante instanceof Date ? instante : new Date(instante);
   if (Number.isNaN(data.getTime())) return null;
@@ -201,6 +202,22 @@ export function dataPostagem(instante: string | Date): string | null {
   const mm = String(quarta.m).padStart(2, "0");
   const dd = String(quarta.d).padStart(2, "0");
   return `${quarta.y}-${mm}-${dd}`;
+}
+
+// Corte na segunda 23:59 (America/Sao_Paulo). Pago até segunda → quarta da mesma
+// semana; de terça 00:00 a domingo 23:59 → quarta da semana seguinte.
+// Retorna dd/mm para o e-mail de pagamento confirmado.
+export function proximaQuartaPostagem(instante: string | Date): string | null {
+  const data = instante instanceof Date ? instante : new Date(instante);
+  if (Number.isNaN(data.getTime())) return null;
+  const civil = dataCivil(data);
+  if (!civil) return null;
+  const { y, m, d } = civil;
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=dom … 1=seg … 6=sáb
+  // Segunda → +2; terça → +8; quarta → +7; …; domingo → +3.
+  const dias = dow === 1 ? 2 : dow === 0 ? 3 : 10 - dow;
+  const quarta = somarDias(y, m, d, dias);
+  return String(quarta.d).padStart(2, "0") + "/" + String(quarta.m).padStart(2, "0");
 }
 
 export function partirNome(nome: string): { first_name: string; last_name?: string } {
