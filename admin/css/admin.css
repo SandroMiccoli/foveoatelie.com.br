@@ -208,7 +208,8 @@ h2 {
 .marca-entrada {
   align-self: center;
   justify-content: center;
-  width: 150%;
+  width: min(150%, calc(100vw - 3rem));
+  max-width: calc(100vw - 3rem);
   margin-bottom: 4rem;
 }
 
@@ -1687,5 +1688,80 @@ td[data-campo="obs"] {
   td[data-campo="qtd"],
   td[data-campo="total"] {
     text-align: right;
+  }
+
+  .lista-clientes th.th-num,
+  .lista-clientes td[data-campo="qtd"],
+  .lista-clientes td[data-campo="total"],
+  .lista-clientes th:last-child,
+  .lista-clientes td[data-campo="data"] {
+    width: 1%;
+    padding-left: 1.5rem;
+    white-space: nowrap;
+  }
+
+  .lista-clientes th.th-num,
+  .lista-clientes td[data-campo="qtd"],
+  .lista-clientes td[data-campo="total"] {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lista-clientes th.th-contato,
+  .lista-clientes td[data-campo="contato"] {
+    width: 1%;
+    text-align: center;
+  }
+}
+
+/* No celular a navegação fica fora da área que rola, então nenhum
+   cartão, gráfico ou botão entra por baixo dela. */
+@media (max-width: 59.99rem) {
+  body:has(.casca) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .casca {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .rail {
+    display: contents;
+  }
+
+  .topo {
+    order: 1;
+    position: static;
+    flex: none;
+  }
+
+  #conteudo {
+    order: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    scroll-padding-bottom: 1rem;
+  }
+
+  body.detalhe-aberto #conteudo {
+    overflow: hidden;
+  }
+
+  .nav {
+    order: 3;
+    position: static;
+    flex: none;
+  }
+
+  .pagina {
+    padding-bottom: 1.5rem;
+  }
+
+  .lista-clientes .pedido dl {
+    grid-template-columns: 8.5rem minmax(0, 1fr);
   }
 }

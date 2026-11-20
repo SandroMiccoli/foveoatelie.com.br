@@ -850,8 +850,8 @@ function tabelaClientes(clientes, aberta) {
           el("tr", {}, [
             el("th", { scope: "col", text: "Cliente" }),
             el("th", { scope: "col", class: "th-contato", text: "WhatsApp" }),
-            el("th", { scope: "col", text: "Pedidos" }),
-            el("th", { scope: "col", text: "Total" }),
+            el("th", { scope: "col", class: "th-num", text: "Pedidos" }),
+            el("th", { scope: "col", class: "th-num", text: "Total" }),
             el("th", { scope: "col", text: "Última compra" }),
           ]),
         ]),

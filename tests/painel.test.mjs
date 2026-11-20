@@ -754,6 +754,10 @@ test("as telas novas cabem no computador sem cortar coluna", async () => {
   assert.match(css, /word-break:\s*normal/);
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
+  assert.match(telas, /class:\s*"th-num"/);
+  assert.match(css, /\.lista-clientes th\.th-num[\s\S]*text-align:\s*right/);
+  assert.match(css, /\.marca-entrada\s*\{[\s\S]*max-width:\s*calc\(100vw - 3rem\)/);
+  assert.match(css, /max-width:\s*59\.99rem\)[\s\S]*\.nav\s*\{[\s\S]*position:\s*static/);
 });
 
 function pedidoFixture(extra) {
