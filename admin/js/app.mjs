@@ -211,20 +211,9 @@ function iconeWhatsApp() {
     focusable: "false",
   }, [
     svgEl("path", {
-      d: "M12 3.5a8 8 0 0 0-6.9 12.1L4.5 20l4.5-.9A8 8 0 1 0 12 3.5z",
-      fill: "none",
-      stroke: "currentColor",
-      "stroke-width": "1.5",
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-    }),
-    svgEl("path", {
-      d: "M9.4 9.6c.3-.3.7-.3.9 0l.8 1.1c.2.3.1.7-.1.9l-.4.4a6.5 6.5 0 0 0 2.5 2.5l.4-.4c.2-.2.6-.3.9-.1l1.1.8c.3.2.3.6 0 .9l-.6.6c-.3.3-.7.4-1.1.3A8.4 8.4 0 0 1 8.5 11c-.1-.4 0-.8.3-1.1z",
-      fill: "none",
-      stroke: "currentColor",
-      "stroke-width": "1.5",
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
+      // Glyph monocromático do WhatsApp (preenchido, herda a cor do tema).
+      d: "M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.99.59 3.84 1.6 5.4L2 22l4.95-1.63a9.9 9.9 0 0 0 5.09 1.4h.01c5.46 0 9.89-4.4 9.89-9.84C21.94 6.4 17.5 2 12.04 2zm5.76 14.04c-.24.68-1.4 1.25-1.94 1.33-.5.07-1.13.1-1.82-.11-.42-.13-.96-.31-1.65-.61-2.9-1.25-4.78-4.17-4.93-4.36-.14-.2-1.18-1.57-1.18-3 0-1.42.74-2.12 1-2.41.26-.29.57-.36.76-.36h.55c.17 0 .4-.06.62.48.24.56.8 1.94.87 2.08.07.14.12.3.02.48-.1.2-.15.32-.29.49-.14.17-.3.38-.43.51-.14.14-.29.29-.12.56.16.28.73 1.2 1.56 1.94 1.07.96 1.97 1.26 2.25 1.4.28.14.44.12.6-.07.17-.2.7-.81.89-1.09.19-.28.37-.23.63-.14.26.1 1.64.77 1.92.91.28.14.47.21.54.32.07.12.07.68-.17 1.36z",
+      fill: "currentColor",
     }),
   ]);
 }
@@ -240,29 +229,27 @@ function marca(corte) {
 }
 
 function marcaSelo() {
+  // Selo Ō do favicon, versão clara para o fundo escuro do rail.
   return svgEl("svg", {
     class: "marca-selo-svg",
-    viewBox: "0 0 28 32",
+    viewBox: "142 85 796 910",
     width: "28",
     height: "32",
     "aria-hidden": "true",
     focusable: "false",
   }, [
-    svgEl("text", {
-      x: "14",
-      y: "24",
-      "text-anchor": "middle",
+    svgEl("path", {
+      class: "selo-o",
+      d: "M158.4,611c0-217.13,162.85-383.23,386.48-383.23,250.78,0,376.72,181.3,376.72,372.37C921.6,819.42,754.41,979,544.88,979,303.88,979,158.4,806.39,158.4,611ZM813,633.77c0-179.13-79.26-372.36-286.61-372.36C413.52,261.41,267,338.49,267,576.24c0,160.67,78.17,369.11,292,369.11C689.27,945.35,813,847.64,813,633.77Z",
       fill: "currentColor",
-      "font-family": "EB Garamond, Georgia, serif",
-      "font-size": "22",
-      "font-style": "italic",
-    }, [document.createTextNode("F")]),
+    }),
     svgEl("rect", {
-      x: "8",
-      y: "4",
-      width: "12",
-      height: "2",
-      rx: "1",
+      class: "selo-barra",
+      x: "349.12",
+      y: "101",
+      width: "377.53",
+      height: "59.81",
+      rx: "0.99",
       fill: "#c87431",
     }),
   ]);
@@ -430,15 +417,19 @@ function vista(linha) {
   };
 }
 
-function botaoWa(wa) {
+function botaoWa(wa, nome) {
   if (!wa) return null;
+  const pessoa = typeof nome === "string" ? nome.trim() : "";
+  const rotulo = pessoa && pessoa !== "—"
+    ? `Abrir WhatsApp de ${pessoa}`
+    : "Abrir WhatsApp";
   const a = el("a", {
     class: "wa",
     href: wa,
     target: "_blank",
     rel: "noopener noreferrer",
-    "aria-label": "Abrir WhatsApp da cliente",
-    title: "WhatsApp",
+    "aria-label": rotulo,
+    title: rotulo,
   });
   a.append(iconeWhatsApp());
   return a;
@@ -516,9 +507,7 @@ function tabela(linhas) {
     el("th", { scope: "col", text: "Entrega" }),
     el("th", { scope: "col", text: "Total" }),
     el("th", { scope: "col", text: "Status" }),
-    el("th", { scope: "col", class: "th-contato", "aria-label": "Contato" }, [
-      el("span", { class: "sr-only", text: "Contato" }),
-    ]),
+    el("th", { scope: "col", class: "th-contato", text: "WhatsApp" }),
   ]);
   const corpo = linhas.map((linha) => {
     const item = vista(linha);
@@ -543,7 +532,7 @@ function tabela(linhas) {
       el("td", { "data-campo": "entrega", text: item.entrega }),
       el("td", { "data-campo": "total", text: item.total }),
       el("td", { "data-campo": "status" }, [status]),
-      el("td", { "data-campo": "contato" }, [botaoWa(item.wa)]),
+      el("td", { "data-campo": "contato" }, [botaoWa(item.wa, item.cliente)]),
     ]);
   });
 
@@ -595,7 +584,7 @@ function pilha(linhas) {
           ]),
         ]),
         item.wa
-          ? el("p", { class: "pedido-wa" }, [botaoWa(item.wa)])
+          ? el("p", { class: "pedido-wa" }, [botaoWa(item.wa, item.cliente)])
           : null,
       ]),
     ]);

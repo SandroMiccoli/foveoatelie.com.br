@@ -410,6 +410,10 @@ test("o menu lateral no computador recolhe e fixa o estado", async () => {
   assert.match(app, /RAIL_HOVER_MS\s*=\s*300/);
   assert.match(app, /iconeWhatsApp|wa-icone/);
   assert.match(app, /nav-icone/);
+  assert.match(app, /text:\s*"WhatsApp"/);
+  assert.match(app, /Abrir WhatsApp de/);
+  assert.match(app, /viewBox:\s*"142 85 796 910"/);
+  assert.match(app, /fill:\s*"currentColor"/);
 });
 
 function pedidoFixture(extra) {

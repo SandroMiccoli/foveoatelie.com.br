@@ -999,9 +999,9 @@ td[data-campo="total"] {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 0.75rem;
+    gap: 0.25rem;
     border-bottom: 0;
-    padding: 1rem 0.65rem 0.5rem;
+    padding: 0.85rem 0.4rem 0.25rem;
     min-height: 0;
   }
 
@@ -1013,7 +1013,7 @@ td[data-campo="total"] {
   .casca.rail-hover .marca-larga {
     display: inline-flex;
     width: 100%;
-    padding: 0 0.6rem;
+    padding: 0.15rem 0.55rem 0.35rem;
   }
 
   .casca.rail-aberta .marca-larga .marca-corte,
@@ -1026,7 +1026,7 @@ td[data-campo="total"] {
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 44px;
+    min-height: 2.5rem;
     color: var(--paper);
   }
 
@@ -1037,6 +1037,8 @@ td[data-campo="total"] {
 
   .marca-selo-svg {
     display: block;
+    width: 1.55rem;
+    height: 1.75rem;
   }
 
   .sair-topo {
@@ -1046,10 +1048,10 @@ td[data-campo="total"] {
   .rail-rodape {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0;
     margin-top: auto;
-    margin-bottom: 0.75rem;
-    padding: 0 0.35rem;
+    margin-bottom: 0.55rem;
+    padding: 0 0.4rem;
   }
 
   .sair-rail,
@@ -1057,11 +1059,12 @@ td[data-campo="total"] {
     appearance: none;
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: center;
+    gap: 0.7rem;
     width: 100%;
-    min-height: 44px;
+    min-height: 2.35rem;
     margin: 0;
-    padding: 0.55rem 0.55rem;
+    padding: 0.4rem 0.45rem;
     border: 0;
     background: transparent;
     color: var(--paper);
@@ -1087,20 +1090,30 @@ td[data-campo="total"] {
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    gap: 0;
     min-height: 0;
-    padding: 0.75rem 0.35rem 0;
+    padding: 0.2rem 0.4rem 0;
     border-top: 0;
     background: transparent;
   }
 
   .nav a {
-    justify-content: flex-start;
-    gap: 0.75rem;
-    min-height: 44px;
-    padding: 0.55rem 0.55rem;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 2.35rem;
+    padding: 0.4rem 0.45rem;
     font-size: 0.8125rem;
     letter-spacing: 0.08em;
     text-align: left;
+  }
+
+  .casca.rail-aberta .nav a,
+  .casca.rail-hover .nav a,
+  .casca.rail-aberta .sair-rail,
+  .casca.rail-hover .sair-rail,
+  .casca.rail-aberta .rail-fixar,
+  .casca.rail-hover .rail-fixar {
+    justify-content: flex-start;
   }
 
   .nav a[aria-current="page"] {
@@ -1151,19 +1164,18 @@ td[data-campo="total"] {
 
   th.th-contato,
   td[data-campo="contato"] {
-    width: 2.75rem;
     padding-right: 0;
     text-align: center;
   }
 
   .wa {
-    min-width: 2.5rem;
-    min-height: 2.5rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
   }
 
   td[data-campo="velas"],
   td[data-campo="entrega"] {
-    max-width: 7.25rem;
+    max-width: 6.5rem;
   }
 
   td[data-campo="status"] .status {
