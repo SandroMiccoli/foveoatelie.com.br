@@ -19,7 +19,7 @@ const tipos = {
   ".webmanifest": "application/manifest+json",
   ".txt": "text/plain; charset=utf-8",
 };
-const rotas = new Set(["/", "/entrar", "/pedidos", "/estoque", "/clientes"]);
+const rotas = new Set(["/", "/entrar", "/pedidos", "/estoque", "/clientes", "/avisos"]);
 
 function arquivoDe(pathname) {
   let caminho = decodeURIComponent(pathname);

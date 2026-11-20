@@ -2,6 +2,8 @@
 // A assinatura é HMAC-SHA256 do corpo cru, no header X-ME-Signature,
 // com o secret do aplicativo. Postagem vira Enviado, entrega vira Entregue.
 
+import { problemaEntrega, registrarProblemaEntrega } from "../_shared/avisos.ts";
+import type { EventoMe } from "../_shared/etiquetas.ts";
 import { assinaturaMelhorEnvio, emailDoEvento, lerEventoMe } from "../_shared/etiquetas.ts";
 import { enviarEmailCliente } from "../_shared/enviar-cliente.ts";
 import { emSegundoPlano } from "../_shared/segundo-plano.ts";
@@ -89,5 +91,48 @@ Deno.serve(async (req) => {
       if (aviso === "falha") console.error("webhook-melhor-envio: e-mail", eventoEmail);
     }));
   }
+  emSegundoPlano(avisarProblemaEntrega(credUrl, key, evento, pedidoId));
   return new Response(null, { status: 200 });
 });
+
+async function avisarProblemaEntrega(
+  url: string,
+  key: string,
+  evento: EventoMe,
+  pedidoId: string,
+): Promise<void> {
+  if (!problemaEntrega(evento.evento, evento.status)) return;
+  let codigo = "";
+  if (/^[0-9a-f-]{36}$/i.test(pedidoId)) {
+    codigo = await lerCodigoPedido(url, key, pedidoId);
+  }
+  await registrarProblemaEntrega({
+    meId: evento.id,
+    evento: evento.evento,
+    status: evento.status,
+    codigo,
+    protocolo: evento.protocolo,
+    rastreio: evento.rastreio,
+  });
+}
+
+async function lerCodigoPedido(url: string, key: string, pedidoId: string): Promise<string> {
+  try {
+    const res = await fetch(`${url}/rest/v1/pedidos?id=eq.${pedidoId}&select=codigo`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    const row = Array.isArray(data) ? data[0] : null;
+    const codigo = row && typeof row.codigo === "string" ? row.codigo : "";
+    return /^\d{9}$/.test(codigo) ? codigo : "";
+  } catch (err) {
+    console.error("webhook-melhor-envio: codigo", err instanceof Error ? err.name : "erro");
+    return "";
+  }
+}

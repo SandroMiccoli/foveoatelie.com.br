@@ -32,3 +32,11 @@ verify_jwt = false
 # A cliente consulta com a chave publishable, que não é um JWT.
 [functions.rastrear-pedido]
 verify_jwt = false
+
+# O painel manda o JWT do admin. O cron manda a service role.
+[functions.despachar-avisos]
+verify_jwt = true
+
+# pg_cron chama com a service role do vault.
+[functions.manutencao-diaria]
+verify_jwt = true

@@ -4,7 +4,6 @@
 
 import { jsonPainel, origemPainel, conferirAdminPainel } from "../_shared/painel.ts";
 import {
-  USER_AGENT,
   classificarPedido,
   fecharResumo,
   lerCarrinho,
@@ -23,7 +22,10 @@ import {
   saldoCentavos,
   type PedidoEtiqueta,
 } from "../_shared/etiquetas.ts";
+import { registrarSaldoBaixo } from "../_shared/avisos.ts";
 import { baseUrlMelhorEnvio, cotarMelhorEnvio, montarPacotes } from "../_shared/frete.ts";
+import { chamarMelhorEnvio, tokenMelhorEnvio } from "../_shared/token-me.ts";
+import { emSegundoPlano } from "../_shared/segundo-plano.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LIMITE = 40;
@@ -51,7 +53,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/+$/, "");
   const anonKey = (Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "").trim();
-  const tokenMe = (Deno.env.get("MELHOR_ENVIO_TOKEN") ?? "").trim();
+  const tokenMe = await tokenMelhorEnvio();
   const base = baseUrlMelhorEnvio();
   if (!supabaseUrl || !anonKey || !tokenMe || !base) {
     console.error("etiquetas: credencial ausente");
@@ -256,20 +258,19 @@ async function listarPedidos(
   }
 }
 
-async function meFetch(base: string, token: string, caminho: string, init: RequestInit): Promise<Response> {
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  headers.set("Authorization", "Bearer " + token);
-  headers.set("User-Agent", USER_AGENT);
-  if (init.body) headers.set("Content-Type", "application/json");
-  return await fetch(base + caminho, { ...init, headers, signal: AbortSignal.timeout(20000) });
+async function meFetch(base: string, _token: string, caminho: string, init: RequestInit): Promise<Response> {
+  const res = await chamarMelhorEnvio(base + caminho, { ...init, signal: AbortSignal.timeout(20000) });
+  if (!res) return new Response(null, { status: 503 });
+  return res;
 }
 
 async function lerSaldo(base: string, token: string): Promise<number | null> {
   try {
     const res = await meFetch(base, token, "/api/v2/me/balance", { method: "GET" });
     if (!res.ok) return null;
-    return saldoCentavos(await res.json());
+    const centavos = saldoCentavos(await res.json());
+    if (centavos != null) emSegundoPlano(registrarSaldoBaixo(centavos));
+    return centavos;
   } catch (_err) {
     return null;
   }

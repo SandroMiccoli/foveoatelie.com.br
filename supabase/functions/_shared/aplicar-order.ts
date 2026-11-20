@@ -3,6 +3,7 @@
 // depois a RPC que baixa estoque ou solta a reserva. O aviso ao ateliê só sai
 // na transição para pago.
 
+import { despacharAvisosPendentes } from "./avisos.ts";
 import { enviarEmailCliente } from "./enviar-cliente.ts";
 import { emSegundoPlano } from "./segundo-plano.ts";
 import { credenciaisSupabase } from "./frete.ts";
@@ -68,11 +69,14 @@ export async function aplicarOrderMercadoPago(orderId: string, origem = "webhook
 
   const status = typeof resultado.status === "string" ? resultado.status : "";
   const ja = resultado.ja === true;
-  if (resultado.ok === true && status === "pago" && !ja && pedidoId) {
-    emSegundoPlano(avisarDono(cred, pedidoId, origem));
-    emSegundoPlano(enviarEmailCliente(pedidoId, "pagamento_confirmado").then((correio) => {
-      if (correio === "falha") console.error(origem + ": e-mail de pagamento");
-    }));
+  if (resultado.ok === true && status === "pago" && pedidoId) {
+    if (!ja) {
+      emSegundoPlano(avisarDono(cred, pedidoId, origem));
+      emSegundoPlano(enviarEmailCliente(pedidoId, "pagamento_confirmado").then((correio) => {
+        if (correio === "falha") console.error(origem + ": e-mail de pagamento");
+      }));
+    }
+    emSegundoPlano(despacharAvisosPendentes());
   }
 
   await rpc(cred, "expirar_reservas", {}, origem);

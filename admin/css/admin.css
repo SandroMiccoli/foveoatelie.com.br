@@ -273,7 +273,7 @@ h2 {
   bottom: 0;
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   min-height: var(--nav-h);
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--ink);
@@ -285,11 +285,11 @@ h2 {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0.35rem 0.2rem;
+  padding: 0.35rem 0.1rem;
   color: var(--paper-dim);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   line-height: 1.2;
   text-align: center;
   text-decoration: none;
@@ -1817,10 +1817,60 @@ td[data-campo="obs"] {
   }
 }
 
+@media (max-width: 23rem) {
+  .nav a {
+    font-size: 0.625rem;
+    letter-spacing: 0.02em;
+  }
+}
+
+.aviso-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: var(--paper-dim);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.aviso-tipo {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aviso-mensagem {
+  margin-top: 0.35rem;
+}
+
+.aviso-card.resolvido,
+.aviso-linha.resolvido td {
+  color: var(--paper-dim);
+}
+
+.aviso-acao {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.lista-avisos td[data-campo="mensagem"] {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.lista-avisos td[data-campo="acao"] {
+  width: 1%;
+  text-align: right;
+}
+
 @media (min-width: 60rem) {
   .pagina-inicio,
   .pagina-estoque,
-  .pagina-clientes {
+  .pagina-clientes,
+  .pagina-avisos {
     padding-right: 1.5rem;
     padding-left: 1.5rem;
   }

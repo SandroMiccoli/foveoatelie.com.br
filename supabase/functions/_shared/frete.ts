@@ -1,7 +1,10 @@
 // Cotação Melhor Envio. As constantes são as mesmas que a sacola já usa.
 // Headers HTTP são ASCII: o macron de Foveō faz o fetch do Deno rejeitar o header.
+// O access token sai de token-me.ts (tabela ou secret, com renovação).
 
-export const USER_AGENT = "Foveo Atelie (contato@foveoatelie.com.br)";
+import { chamarMelhorEnvio, USER_AGENT_OAUTH } from "./token-me.ts";
+
+export const USER_AGENT = USER_AGENT_OAUTH;
 
 const CEP_ORIGEM = "31030285";
 const EMBALAGEM_LARGURA_CM = 10;
@@ -185,20 +188,13 @@ function lerOpcao(item: unknown): OpcaoFrete | null {
 }
 
 export async function cotarMelhorEnvio(cepDestino: string, pacotes: Pacote[]): Promise<OpcaoFrete[] | null> {
-  const token = (Deno.env.get("MELHOR_ENVIO_TOKEN") ?? "").trim();
   const base = baseUrlMelhorEnvio();
-  if (!token || !base) return null;
+  if (!base) return null;
 
-  let res: Response;
+  let res: Response | null;
   try {
-    res = await fetch(`${base}/api/v2/me/shipment/calculate`, {
+    res = await chamarMelhorEnvio(`${base}/api/v2/me/shipment/calculate`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        "User-Agent": USER_AGENT,
-      },
       body: JSON.stringify({
         from: { postal_code: CEP_ORIGEM },
         to: { postal_code: cepDestino },
@@ -211,6 +207,8 @@ export async function cotarMelhorEnvio(cepDestino: string, pacotes: Pacote[]): P
     console.error("frete: falha ao chamar o Melhor Envio", err instanceof Error ? err.message : err);
     return null;
   }
+
+  if (!res) return null;
 
   if (!res.ok) {
     console.error("frete: Melhor Envio respondeu", res.status);

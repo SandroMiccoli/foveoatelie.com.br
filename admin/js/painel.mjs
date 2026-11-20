@@ -13,6 +13,14 @@ export const ROTAS = {
   "/pedidos": "pedidos",
   "/estoque": "estoque",
   "/clientes": "clientes",
+  "/avisos": "avisos",
+};
+
+export const ROTULOS_AVISO = {
+  estoque_baixo: "Estoque baixo",
+  saldo_baixo: "Saldo do frete",
+  problema_entrega: "Problema na entrega",
+  token_melhor_envio: "Token do Melhor Envio",
 };
 
 /** Status gravados no banco. `pendente` aparece como Aguardando pagamento. */
@@ -129,6 +137,7 @@ export function tituloDaRota(caminho) {
     "/pedidos": "Pedidos",
     "/estoque": "Estoque",
     "/clientes": "Clientes",
+    "/avisos": "Avisos",
   };
   const nome = nomes[normalizarCaminho(caminho)];
   return nome ? nome + " — Foveō Ateliê" : "Foveō Ateliê";
@@ -1362,6 +1371,59 @@ export async function notificarCliente(config, accessToken, pedidoId, evento, fe
     return { ok: false, status: res.status, body: data };
   }
   return { ok: true, body: data };
+}
+
+export function rotuloTipoAviso(tipo) {
+  return ROTULOS_AVISO[tipo] || "Aviso";
+}
+
+export function normalizarAviso(row) {
+  if (!row || typeof row !== "object") return null;
+  const id = typeof row.id === "string" ? row.id.trim().toLowerCase() : "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) return null;
+  if (!ROTULOS_AVISO[row.tipo]) return null;
+  const mensagem = typeof row.mensagem === "string" ? row.mensagem.trim() : "";
+  if (!mensagem || mensagem.length > 500) return null;
+  const created = typeof row.created_at === "string" ? row.created_at : "";
+  if (!created || Number.isNaN(new Date(created).getTime())) return null;
+  return {
+    id,
+    tipo: row.tipo,
+    mensagem,
+    resolvido: row.resolvido === true,
+    created_at: created,
+  };
+}
+
+export async function listarAvisos(config, accessToken, fetchImpl, signal) {
+  const resposta = await lerTabela(
+    config,
+    accessToken,
+    "/rest/v1/avisos?select=id,tipo,mensagem,resolvido,created_at&order=resolvido.asc,created_at.desc&limit=80",
+    fetchImpl,
+    signal,
+  );
+  if (!resposta.ok) return resposta;
+  return { ok: true, linhas: resposta.linhas.map(normalizarAviso).filter(Boolean) };
+}
+
+export async function resolverAviso(config, accessToken, avisoId, resolvido, fetchImpl) {
+  return chamarRpc(config, accessToken, "admin_resolver_aviso", {
+    p_id: avisoId,
+    p_resolvido: resolvido,
+  }, fetchImpl);
+}
+
+export async function dispararAvisos(config, accessToken, fetchImpl) {
+  try {
+    await fetchImpl(config.url + "/functions/v1/despachar-avisos", {
+      method: "POST",
+      headers: cabecalhos(config, accessToken),
+      body: "{}",
+    });
+  } catch (_err) {
+    // A linha continua pendente. A manutenção diária tenta de novo.
+  }
 }
 
 export async function reembolsarPedido(config, accessToken, pedidoId, fetchImpl) {

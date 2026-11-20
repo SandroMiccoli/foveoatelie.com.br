@@ -119,7 +119,7 @@ O título da página é 1.75rem no telefone e 2rem a partir de 45rem. O corpo é
 
 ## Layout
 
-No telefone a barra com a marca e Sair fica no topo. O miolo rola. As quatro seções ficam fixas embaixo, com área segura.
+No telefone a barra com a marca e Sair fica no topo. O miolo rola. As cinco seções ficam fixas embaixo, com área segura.
 
 A partir de 60rem, a coluna da esquerda tem 16rem e a altura da janela. Sair desce para o fim dessa coluna. A lista de pedidos vira tabela a partir de 45rem. Abaixo disso, cada pedido é um bloco com rótulo e valor.
 
@@ -147,7 +147,7 @@ Campos e a marca `teste` são retos. O botão Entrar é uma pílula, no mesmo ra
 
 ### Navigation
 
-- Quatro seções: Início, Pedidos, Estoque, Clientes.
+- Cinco seções: Início, Pedidos, Estoque, Clientes, Avisos.
 - Inativa em papel baço. Atual em cobre no computador, e em papel com fio de cobre em cima no telefone.
 - Alvos de toque com pelo menos 44px.
 

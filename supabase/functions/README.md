@@ -186,3 +186,69 @@ A função confere `X-ME-Signature` (HMAC-SHA256 do corpo cru, com `MELHOR_ENVIO
 A consulta pública conta falha no banco (`rastreio_falhas`): 5 por código e 20 por IP, numa hora. A resposta é a mesma de pedido inexistente. `anon` e `authenticated` não leem essa tabela. O SMTP corta conexão, leitura e escrita em 8 segundos. O e-mail de pagamento sai em segundo plano (`EdgeRuntime.waitUntil`), para o webhook do Mercado Pago responder logo. Se o webhook do Melhor Envio repetir, o e-mail pendente ou falho tenta de novo; o que já saiu não sai outra vez. A reserva do e-mail só é considerada abandonada depois de 15 minutos, e uma falha grava `falhou_em`.
 
 A página pública está em `rastreio/` (HTML, CSS e JS). O script da página pós-pagamento está em `vitrine/assets/js/pedido.js`, para substituir `assets/js/pedido.js` no branch `main`. Não faça merge de `admin` em `main`: este branch não tem a vitrine. `anon` continua sem leitura de `pedidos`. A consulta passa pela função `rastrear-pedido`, com código `YYMMDDNNN` e e-mail ou CPF.
+
+## Etapa 5 — avisos e renovação do token
+
+Uma migration, o arquivo inteiro, uma vez, no SQL editor. Não usar `supabase db push`.
+
+`supabase/migrations/20261120220000_admin_etapa5_avisos.sql`
+
+Ela cria `private.melhor_envio_oauth` (RLS ligada, sem policy, sem grant para `anon`, `authenticated` nem `service_role`) e `public.avisos` (leitura só de admin autenticado). A renovação e o envio passam por funções `SECURITY DEFINER` concedidas só à `service_role`.
+
+Secrets novos. `MELHOR_ENVIO_APP_SECRET` já existe e é o mesmo segredo do aplicativo: vale como `client_secret` do OAuth e como chave do HMAC do webhook. Não troque por outro valor.
+
+```bash
+supabase secrets set MELHOR_ENVIO_CLIENT_ID=<client id do aplicativo> --project-ref bbksditqlgdjftwowtje
+supabase secrets set GROKBOT_AVISOS_WEBHOOK_URL=<url https do bot> --project-ref bbksditqlgdjftwowtje
+supabase secrets set GROKBOT_AVISOS_WEBHOOK_KEY=<chave> --project-ref bbksditqlgdjftwowtje
+```
+
+`MELHOR_ENVIO_TOKEN` continua. Enquanto a tabela estiver vazia, ou com `expires_at` nulo, as funções usam esse secret. Um 401 é que dispara a troca.
+
+Seed do `refresh_token`, uma vez, no SQL editor. Não grave o valor no repositório. Com `expires_at` nulo, a loja segue no secret até um 401 (ou até a manutenção diária, que só renova se faltar menos de 7 dias). Para trocar na hora, use `expires_at = pg_catalog.now()` no lugar do nulo implícito: o próximo pedido de token, ou o cron, faz a troca.
+
+```sql
+INSERT INTO private.melhor_envio_oauth (refresh_token)
+VALUES ('<refresh_token do aplicativo>')
+ON CONFLICT (id) DO UPDATE
+SET refresh_token = EXCLUDED.refresh_token,
+    renovando_ate = NULL,
+    atualizado_em = pg_catalog.now();
+```
+
+O cron chama `manutencao-diaria` por `pg_net`. Sem estes dois secrets no vault, o agendamento não faz HTTP e a função só roda se alguém a chamar. A URL tem de ser `https`.
+
+```sql
+SELECT vault.create_secret('https://bbksditqlgdjftwowtje.supabase.co', 'foveo_supabase_url');
+SELECT vault.create_secret('<service_role>', 'foveo_service_role_key');
+```
+
+O horário é `30 11 * * *` UTC, 08:30 em São Paulo. A função renova o token se faltar menos de 7 dias, lê `GET /api/v2/me/balance` e, se o saldo estiver abaixo de R$ 50, grava o aviso do dia. Em seguida manda o que ainda não saiu.
+
+Avisos: estoque abaixo de 3 (uma vez por cruzamento, em venda, produção ou ajuste; voltar a 3 libera a próxima), saldo abaixo de R$ 50 (uma vez por dia), problema de entrega no webhook (cancelada, não entregue, pausada, suspensa, devolução) e falha ao renovar o token (uma vez por dia). O POST ao bot usa `Authorization: Bearer` e `X-Automation-Key`, com timeout de 8 segundos, e não segura pagamento, etiqueta nem webhook. O painel lista em `/avisos`.
+
+Deploy, na raiz, com a CLI autenticada. Não rode daqui. O bundle de cada função inclui os arquivos compartilhados que ela importa.
+
+```bash
+supabase functions deploy cotar-frete --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy criar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy etiquetas-melhor-envio --project-ref bbksditqlgdjftwowtje
+supabase functions deploy webhook-melhor-envio --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy webhook-mercado-pago --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy consultar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy despachar-avisos --project-ref bbksditqlgdjftwowtje
+supabase functions deploy manutencao-diaria --project-ref bbksditqlgdjftwowtje
+```
+
+`verify_jwt` está em `supabase/config.toml`. `despachar-avisos` e `manutencao-diaria` ficam com JWT. A diária só aceita papel `service_role`. A de avisos aceita esse papel ou o admin do painel.
+
+Arquivos de cada deploy:
+
+- `cotar-frete` (`verify_jwt` false): `index.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, e o que `index.ts` já importava.
+- `criar-pedido` (`verify_jwt` false): `index.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, e o que `index.ts` já importava.
+- `etiquetas-melhor-envio` (`verify_jwt` true): `index.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/painel.ts`.
+- `webhook-melhor-envio` (`verify_jwt` false): `index.ts`, `_shared/avisos.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/segundo-plano.ts`, `_shared/enviar-cliente.ts`, `_shared/correio.ts`.
+- `webhook-mercado-pago` (`verify_jwt` false): `index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`.
+- `consultar-pedido` (`verify_jwt` false): `index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/etiquetas.ts`, `_shared/segundo-plano.ts`.
+- `despachar-avisos` (`verify_jwt` true): `index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/painel.ts`.
+- `manutencao-diaria` (`verify_jwt` true): `index.ts`, `_shared/avisos.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/segundo-plano.ts`.
