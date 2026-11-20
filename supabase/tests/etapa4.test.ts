@@ -21,11 +21,15 @@ import {
   linhaDoTempo,
   linkRastreio,
   montarCarrinho,
+  planoDepoisDoCheckout,
   planoImpressao,
+  precoCotado,
+  situacaoCompraMe,
+  urlMelhorEnvioConfiavel,
   type PedidoEtiqueta,
   type Remetente,
 } from "../functions/_shared/etiquetas.ts";
-import { lerSmtp, REMETENTE_EMAIL, REMETENTE_NOME } from "../functions/_shared/smtp.ts";
+import { abrirComPrazo, ioComPrazo, lerSmtp, REMETENTE_EMAIL, REMETENTE_NOME } from "../functions/_shared/smtp.ts";
 
 const remetente: Remetente = {
   name: "Foveō Ateliê",
@@ -69,6 +73,7 @@ function pedido(extra: Partial<PedidoEtiqueta> = {}): PedidoEtiqueta {
     frete_centavos: 1890,
     frete: { id: "3", transportadora: "Correios", servico: "PAC" },
     me_order_id: "",
+    me_status: "",
     rastreio: "",
     ...extra,
   };
@@ -102,6 +107,62 @@ test("só envio pago e completo entra no carrinho", () => {
     rastreio: "AA123456789BR",
   }));
   assert.equal(impresso.tipo, "imprimir");
+  assert.equal(classificarPedido(pedido({
+    me_order_id: "abc12345-6789-aaaa",
+    me_status: "precisa_conferir",
+  })).tipo, "conferir");
+  assert.equal(classificarPedido(pedido({
+    me_order_id: "abc12345-6789-aaaa",
+    me_status: "pendente",
+  })).tipo, "conferir");
+  assert.equal(classificarPedido(pedido({ me_status: "comprando" })).tipo, "fora");
+});
+
+test("preço da compra é o do Melhor Envio, e o status decide se tira do carrinho", () => {
+  assert.equal(precoCotado([
+    { id: 1, price: "20.00", error: "sem rota" },
+    { id: 3, custom_price: "18.90" },
+  ], "3"), 1890);
+  assert.equal(precoCotado([{ id: 3, price: "0.00" }], "3"), null);
+  assert.equal(situacaoCompraMe("released"), "pago");
+  assert.equal(situacaoCompraMe("pending"), "nao_pago");
+  assert.equal(situacaoCompraMe("canceled"), "nao_pago");
+  assert.equal(situacaoCompraMe("mystery"), "incerto");
+  assert.equal(planoDepoisDoCheckout("pago"), "seguir");
+  assert.equal(planoDepoisDoCheckout("nao_pago"), "remover");
+  assert.equal(planoDepoisDoCheckout("incerto"), "conferir");
+  assert.equal(
+    urlMelhorEnvioConfiavel("https://melhorenvio.s3.sa-east-1.amazonaws.com/etiqueta.pdf"),
+    "https://melhorenvio.s3.sa-east-1.amazonaws.com/etiqueta.pdf",
+  );
+  assert.equal(urlMelhorEnvioConfiavel("https://evil.s3.amazonaws.com/etiqueta.pdf"), null);
+  assert.equal(urlMelhorEnvioConfiavel("https://melhorenvio.com.br/imprimir/1"), "https://melhorenvio.com.br/imprimir/1");
+});
+
+test("leitura e escrita SMTP estouram o prazo e fecham o socket", async () => {
+  let fechou = false;
+  await assert.rejects(
+    () => ioComPrazo(new Promise(() => {}), 20, () => {
+      fechou = true;
+    }),
+    /smtp_timeout/,
+  );
+  assert.equal(fechou, true);
+
+  let tarde = false;
+  let soltar: (socket: { close: () => void }) => void = () => {};
+  const abertura = new Promise<{ close: () => void }>((resolve) => {
+    soltar = resolve;
+  });
+  const corrida = abrirComPrazo(abertura, 20);
+  await assert.rejects(corrida, /smtp_timeout/);
+  soltar({
+    close() {
+      tarde = true;
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  assert.equal(tarde, true);
 });
 
 test("o carrinho usa o remetente do secret, não um endereço fixo", async () => {
@@ -273,4 +334,47 @@ test("webhook e rastreio público não exigem JWT, e o e-mail não repete", asyn
   assert.match(sql, /order\.posted/);
   assert.match(sql, /order\.delivered/);
   assert.match(sql, /'melhor_envio'/);
+
+  const extra = await readFile(
+    new URL("../migrations/20261120200000_admin_etapa4_conferencia.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = extra.replace(/--.*$/gm, "");
+  assert.match(extra, /admin_reservar_compra_etiqueta/);
+  assert.match(extra, /FOR UPDATE/);
+  assert.match(extra, /'comprando'/);
+  assert.match(extra, /'precisa_conferir'/);
+  assert.match(extra, /'pendente'/);
+  assert.match(extra, /interval '15 minutes'/);
+  assert.match(extra, /falhou_em/);
+  assert.match(extra, /rastreio_falhas/);
+  assert.match(extra, /falhas_codigo >= 5/);
+  assert.match(extra, /falhas_ip >= 20/);
+  assert.match(extra, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(extra, /GRANT EXECUTE ON FUNCTION public\.bloqueio_rastreio\(text, text\) TO service_role/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*bloqueio_rastreio[^;]*TO authenticated/i);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*rastreio_falhas[^;]*TO authenticated/i);
+
+  const compra = await readFile(new URL("../functions/etiquetas-melhor-envio/index.ts", import.meta.url), "utf8");
+  const reserva = compra.indexOf("admin_reservar_compra_etiqueta");
+  const carrinho = compra.indexOf('"/api/v2/me/cart"');
+  const checkout = compra.indexOf('"/api/v2/me/shipment/checkout"');
+  assert.ok(reserva > 0 && reserva < carrinho && carrinho < checkout);
+  assert.match(compra, /admin_gravar_carrinho_etiqueta/);
+  assert.match(compra, /planoDepoisDoCheckout/);
+  assert.doesNotMatch(compra, /Não compre de novo/);
+
+  const webhook = await readFile(new URL("../functions/webhook-melhor-envio/index.ts", import.meta.url), "utf8");
+  assert.match(webhook, /emSegundoPlano\(enviarEmailCliente/);
+  assert.doesNotMatch(webhook, /mudou === true/);
+
+  const aplicar = await readFile(new URL("../functions/_shared/aplicar-order.ts", import.meta.url), "utf8");
+  assert.match(aplicar, /emSegundoPlano\(enviarEmailCliente/);
+  assert.doesNotMatch(aplicar, /await enviarEmailCliente/);
+
+  const rastreio = await readFile(new URL("../functions/rastrear-pedido/index.ts", import.meta.url), "utf8");
+  assert.match(rastreio, /bloqueio_rastreio/);
+  assert.match(rastreio, /anotar_falha_rastreio/);
+  assert.doesNotMatch(rastreio, /erro: "limite"/);
 });

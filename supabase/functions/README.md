@@ -130,9 +130,12 @@ O preço na tela é só exibição. Um real a menos no JSON do navegador não mu
 
 ## Etapa 4 — etiqueta, status e e-mail
 
-A migration `supabase/migrations/20261120180000_admin_etapa4_envio.sql` vem depois das anteriores. No SQL editor, o arquivo inteiro, uma vez. Não usar `supabase db push`.
+Duas migrations, nesta ordem, no SQL editor, cada arquivo inteiro, uma vez. Não usar `supabase db push`.
 
-O painel compra a etiqueta só depois da confirmação na tela. O resumo lê o saldo e o frete já gravado no pedido. Não há chamada de carrinho antes do "Comprar etiquetas". Se o saldo não cobre, a função não compra.
+1. `supabase/migrations/20261120180000_admin_etapa4_envio.sql`
+2. `supabase/migrations/20261120200000_admin_etapa4_conferencia.sql`
+
+O painel compra a etiqueta só depois da confirmação na tela. O resumo pede a cotação atual no Melhor Envio (não gasta saldo) e compara com o saldo. A compra trava os pedidos (`admin_reservar_compra_etiqueta`), põe no carrinho, grava o id como `pendente` e só então faz o checkout se o preço do carrinho couber no saldo. Se o checkout não responder, a função pergunta o status ao Melhor Envio: pago segue para gerar; não pago sai do carrinho; incerto fica `precisa_conferir` e o botão "Conferir etiqueta" tenta de novo. Não compre outra etiqueta nesse estado.
 
 Remetente (origem 31030-285, Foveō Ateliê) sai de secret. Nada de endereço pessoal no código. Informe CPF **ou** CNPJ.
 
@@ -179,5 +182,7 @@ Webhook do Melhor Envio, em Integrações → Área Dev → o aplicativo → Nov
 `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/webhook-melhor-envio`
 
 A função confere `X-ME-Signature` (HMAC-SHA256 do corpo cru, com `MELHOR_ENVIO_APP_SECRET`). Sem o secret, ou com assinatura errada, responde 401. Postagem vira "Enviado". Entrega vira "Entregue". O histórico fica com origem "Melhor Envio". Retirada ("Pronto pra retirada" e "Retirado") continua manual. A térmica em lote pede um PDF só em `/api/v2/me/imprimir/pdf/{ids}`. Se o Melhor Envio recusar vários ids nesse caminho, o painel abre o PDF de folha, que a documentação garante como um arquivo.
+
+A consulta pública conta falha no banco (`rastreio_falhas`): 5 por código e 20 por IP, numa hora. A resposta é a mesma de pedido inexistente. `anon` e `authenticated` não leem essa tabela. O SMTP corta conexão, leitura e escrita em 8 segundos. O e-mail de pagamento sai em segundo plano (`EdgeRuntime.waitUntil`), para o webhook do Mercado Pago responder logo. Se o webhook do Melhor Envio repetir, o e-mail pendente ou falho tenta de novo; o que já saiu não sai outra vez. A reserva do e-mail só é considerada abandonada depois de 15 minutos, e uma falha grava `falhou_em`.
 
 A página pública está em `rastreio/` (HTML, CSS e JS). O script da página pós-pagamento está em `vitrine/assets/js/pedido.js`, para substituir `assets/js/pedido.js` no branch `main`. Não faça merge de `admin` em `main`: este branch não tem a vitrine. `anon` continua sem leitura de `pedidos`. A consulta passa pela função `rastrear-pedido`, com código `YYMMDDNNN` e e-mail ou CPF.

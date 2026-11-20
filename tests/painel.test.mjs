@@ -17,6 +17,7 @@ import {
   linkRastreio,
   podeGerarEtiqueta,
   podeImprimirEtiqueta,
+  precisaConferirEtiqueta,
   resumoEtiquetas,
   rotuloMeStatus,
   listarPedidos,
@@ -860,6 +861,15 @@ test("etiqueta só para envio pago, e o rastreio aponta a transportadora", () =>
   assert.equal(podeImprimirEtiqueta(gerada), true);
   assert.equal(podeGerarEtiqueta(pedidoFixture({ teste: true })), false);
   assert.equal(podeGerarEtiqueta(pedidoFixture({ entrega_tipo: "retirada" })), false);
+  const conferir = pedidoFixture({
+    status: "pago",
+    me_order_id: "9b1c2d3e-4f50-6789-abcd-ef0123456789",
+    me_status: "precisa_conferir",
+    rastreio: "",
+  });
+  assert.equal(precisaConferirEtiqueta(conferir), true);
+  assert.equal(podeGerarEtiqueta(conferir), false);
+  assert.equal(rotuloMeStatus("precisa_conferir"), "Precisa conferir");
   assert.match(linkRastreio("Correios", "AA123456789BR"), /correios\.com\.br/);
   assert.match(linkRastreio("Jadlog", "JAD1234"), /jadlog\.com\.br/);
   assert.equal(rotuloMeStatus("posted"), "Postada");
@@ -890,6 +900,13 @@ test("a etapa 4 não abre pedidos nem e-mails para anon", async () => {
   assert.match(app, /Imprimir em A4/);
   assert.match(app, /Imprimir na térmica/);
   assert.match(app, /notificarCliente/);
+  assert.match(app, /Conferir etiqueta/);
+  assert.match(app, /Não compre outra/);
+  assert.match(app, /data-conferir-etiqueta/);
+
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.match(css, /\.detalhe-topo[\s\S]*position:\s*sticky/);
+  assert.match(css, /scroll-margin-top:\s*5\.5rem/);
 });
 
 function pedidoFixture(extra) {

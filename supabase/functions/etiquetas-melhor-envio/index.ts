@@ -8,16 +8,20 @@ import {
   classificarPedido,
   fecharResumo,
   lerCarrinho,
+  lerPedidoMe,
   lerRastreioGerado,
   lerRemetente,
   lerUrlImpressao,
   montarCarrinho,
+  planoDepoisDoCheckout,
+  situacaoCompraMe,
   planoFolha,
   planoImpressao,
+  precoCotado,
   saldoCentavos,
   type PedidoEtiqueta,
 } from "../_shared/etiquetas.ts";
-import { baseUrlMelhorEnvio } from "../_shared/frete.ts";
+import { baseUrlMelhorEnvio, cotarMelhorEnvio, montarPacotes } from "../_shared/frete.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LIMITE = 40;
@@ -32,6 +36,8 @@ const MOTIVO: Record<string, string> = {
   sem_destino: "Falta o nome ou o e-mail.",
   sem_endereco: "O endereço está incompleto.",
   sem_itens: "O pedido não tem velas.",
+  em_compra: "Outra compra desta etiqueta já está em andamento.",
+  sem_cotacao: "Não consegui o preço atual no Melhor Envio.",
 };
 
 Deno.serve(async (req) => {
@@ -104,6 +110,12 @@ Deno.serve(async (req) => {
     const formato = corpo.formato === "termica" ? "termica" : corpo.formato === "a4" ? "a4" : "";
     if (!formato) return jsonPainel(origin, 400, { ok: false, erro: "formato", mensagem: "Escolha A4 ou térmica." });
     return imprimir(origin, supabaseUrl, anonKey, jwt, tokenMe, base, ids, formato);
+  }
+  if (acao === "reconciliar") {
+    if (!ids || !ids.length) {
+      return jsonPainel(origin, 400, { ok: false, erro: "pedido_invalido", mensagem: "Escolha o pedido para conferir." });
+    }
+    return reconciliar(origin, supabaseUrl, anonKey, jwt, tokenMe, base, ids);
   }
   return jsonPainel(origin, 400, { ok: false, erro: "acao" });
 });
@@ -183,6 +195,7 @@ function pedidoDe(row: Record<string, unknown>): PedidoEtiqueta | null {
       ? { id: texto(freteBruto.id), transportadora: texto(freteBruto.transportadora), servico: texto(freteBruto.servico) }
       : null,
     me_order_id: texto(row.me_order_id),
+    me_status: texto(row.me_status).toLowerCase(),
     rastreio: texto(row.rastreio),
   };
 }
@@ -210,6 +223,7 @@ async function listarPedidos(
     "frete_centavos",
     "frete",
     "me_order_id",
+    "me_status",
     "rastreio",
   ].join(",");
   const filtro = ids && ids.length
@@ -275,19 +289,31 @@ async function resumo(
   }
   const comprar: { id: string; codigo: string; custo_centavos: number }[] = [];
   const gerar: { id: string; codigo: string }[] = [];
+  const conferir: { id: string; codigo: string }[] = [];
+  const candidatos: PedidoEtiqueta[] = [];
   const fora: { codigo: string; motivo: string }[] = [];
   for (const pedido of pedidos) {
     const classe = classificarPedido(pedido);
-    if (classe.tipo === "comprar") {
-      comprar.push({ id: pedido.id, codigo: pedido.codigo, custo_centavos: classe.custo_centavos });
-    } else if (classe.tipo === "gerar") {
-      gerar.push({ id: pedido.id, codigo: pedido.codigo });
-    } else if (
+    if (classe.tipo === "comprar") candidatos.push(pedido);
+    else if (classe.tipo === "gerar") gerar.push({ id: pedido.id, codigo: pedido.codigo });
+    else if (classe.tipo === "conferir") conferir.push({ id: pedido.id, codigo: pedido.codigo });
+    else if (
       classe.tipo === "fora" &&
       ((ids && ids.includes(pedido.id)) || (!ids && pedido.status === "pago"))
     ) {
       fora.push({ codigo: pedido.codigo || pedido.id.slice(0, 8), motivo: MOTIVO[classe.motivo] || classe.motivo });
     }
+  }
+  for (const pedido of candidatos) {
+    const preco = await cotarPedido(pedido);
+    if (preco == null) {
+      fora.push({
+        codigo: pedido.codigo || pedido.id.slice(0, 8),
+        motivo: MOTIVO.sem_cotacao,
+      });
+      continue;
+    }
+    comprar.push({ id: pedido.id, codigo: pedido.codigo, custo_centavos: preco });
   }
   const saldo = await lerSaldo(base, token);
   if (saldo == null) {
@@ -308,6 +334,7 @@ async function resumo(
     saldo_centavos: contas.saldo_centavos,
     falta_centavos: contas.falta_centavos,
     pode_comprar: pode && remetenteOk && contas.falta_centavos === 0,
+    conferir,
     pedidos: comprar,
     ja_pagas: gerar,
     fora,
@@ -352,13 +379,65 @@ async function rpcEtiqueta(
   }
 }
 
-async function apagarCarrinho(base: string, token: string, ids: string[]): Promise<void> {
-  for (const id of ids) {
-    try {
-      await meFetch(base, token, "/api/v2/me/cart/" + encodeURIComponent(id), { method: "DELETE" });
-    } catch (_err) {
-      console.error("etiquetas: não saiu do carrinho");
-    }
+async function rpcAdmin(
+  url: string,
+  anonKey: string,
+  jwt: string,
+  nome: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  let res: Response;
+  try {
+    res = await fetch(`${url}/rest/v1/rpc/${nome}`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${jwt}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch (_err) {
+    return null;
+  }
+  try {
+    const data = await res.json();
+    return data && typeof data === "object" ? data as Record<string, unknown> : null;
+  } catch (_err) {
+    return null;
+  }
+}
+
+async function cotarPedido(pedido: PedidoEtiqueta): Promise<number | null> {
+  const cep = (pedido.endereco?.cep || "").replace(/\D/g, "");
+  const qtd = pedido.itens.reduce((soma, item) => soma + item.qtd, 0);
+  const servico = (pedido.frete?.id || "").trim();
+  if (cep.length !== 8 || qtd < 1 || !servico) return null;
+  const opcoes = await cotarMelhorEnvio(cep, montarPacotes(qtd, pedido.subtotal_centavos ?? 0));
+  const achou = opcoes?.find((opcao) => opcao.id === servico);
+  return achou && achou.preco_centavos > 0 ? achou.preco_centavos : null;
+}
+
+async function lerPedidoNaMe(
+  base: string,
+  token: string,
+  meId: string,
+): Promise<{ situacao: "pago" | "nao_pago" | "incerto"; preco_centavos: number | null; rastreio: string; protocolo: string }> {
+  try {
+    const res = await meFetch(base, token, "/api/v2/me/orders/" + encodeURIComponent(meId), { method: "GET" });
+    if (!res.ok) return { situacao: "incerto", preco_centavos: null, rastreio: "", protocolo: "" };
+    const lido = lerPedidoMe(await res.json());
+    if (!lido) return { situacao: "incerto", preco_centavos: null, rastreio: "", protocolo: "" };
+    return {
+      situacao: situacaoCompraMe(lido.status),
+      preco_centavos: lido.preco_centavos,
+      rastreio: lido.rastreio,
+      protocolo: lido.protocolo,
+    };
+  } catch (_err) {
+    return { situacao: "incerto", preco_centavos: null, rastreio: "", protocolo: "" };
   }
 }
 
@@ -372,20 +451,47 @@ async function comprar(
   ids: string[] | null,
   remetente: NonNullable<ReturnType<typeof lerRemetente>>,
 ): Promise<Response> {
+  if (!ids?.length) {
+    return jsonPainel(origin, 400, { ok: false, erro: "pedido_invalido", mensagem: "Escolha os pedidos da compra." });
+  }
+  const tentativa = crypto.randomUUID();
+  const reserva = await rpcAdmin(url, anonKey, jwt, "admin_reservar_compra_etiqueta", {
+    p_pedido_ids: ids,
+    p_tentativa: tentativa,
+  });
+  if (!reserva || reserva.ok !== true) {
+    return jsonPainel(origin, 503, {
+      ok: false,
+      erro: "reserva",
+      mensagem: "Não reservei a compra. Nada foi para o carrinho.",
+    });
+  }
+  const reservados = new Set(
+    Array.isArray(reserva.reservados) ? reserva.reservados.filter((id): id is string => typeof id === "string") : [],
+  );
+
   const pedidos = await listarPedidos(url, anonKey, jwt, ids, "pagos");
   if (pedidos === "rede") {
-    return jsonPainel(origin, 503, { ok: false, erro: "indisponivel", mensagem: "Não consegui ler os pedidos." });
+    for (const id of reservados) await soltarCompra(url, anonKey, jwt, id, tentativa, true);
+    return jsonPainel(origin, 503, { ok: false, erro: "indisponivel", mensagem: "Não consegui ler os pedidos. Soltei a reserva." });
   }
-  const novos: { pedido: PedidoEtiqueta; custo: number }[] = [];
+  const novos: PedidoEtiqueta[] = [];
   const gerar: PedidoEtiqueta[] = [];
   const fora: { codigo: string; motivo: string }[] = [];
   for (const pedido of pedidos) {
-    const classe = classificarPedido(pedido);
-    if (classe.tipo === "comprar") novos.push({ pedido, custo: classe.custo_centavos });
+    const classe = classificarPedido(reservados.has(pedido.id) ? { ...pedido, me_status: "" } : pedido);
+    if (reservados.has(pedido.id) && classe.tipo === "comprar") novos.push(pedido);
     else if (classe.tipo === "gerar") gerar.push(pedido);
-    else if (classe.tipo === "fora" && (ids == null || ids.includes(pedido.id))) {
-      fora.push({ codigo: pedido.codigo || pedido.id.slice(0, 8), motivo: MOTIVO[classe.motivo] || classe.motivo });
+    else if (classe.tipo === "fora" || classe.tipo === "conferir") {
+      fora.push({ codigo: pedido.codigo || pedido.id.slice(0, 8), motivo: classe.tipo === "conferir" ? "Essa etiqueta precisa de conferência. Não compre outra." : (MOTIVO[classe.motivo] || classe.motivo) });
     }
+    if (reservados.has(pedido.id) && classe.tipo !== "comprar") {
+      await soltarCompra(url, anonKey, jwt, pedido.id, tentativa, true);
+      reservados.delete(pedido.id);
+    }
+  }
+  for (const id of reservados) {
+    if (!novos.some((pedido) => pedido.id === id)) await soltarCompra(url, anonKey, jwt, id, tentativa, true);
   }
   if (!novos.length && !gerar.length) {
     return jsonPainel(origin, 409, {
@@ -396,75 +502,110 @@ async function comprar(
     });
   }
 
-  const saldo = await lerSaldo(base, token);
-  if (saldo == null) {
-    return jsonPainel(origin, 503, { ok: false, erro: "saldo", mensagem: "Não consegui ler o saldo do Melhor Envio." });
-  }
-  const contas = fecharResumo(novos.map((item) => item.custo), saldo);
-  if (novos.length && !contas.pode_comprar) {
-    return jsonPainel(origin, 409, {
-      ok: false,
-      erro: "saldo_insuficiente",
-      mensagem: "Falta saldo no Melhor Envio. Não comprei nada.",
-      falta_centavos: contas.falta_centavos,
-      saldo_centavos: contas.saldo_centavos,
-      total_centavos: contas.total_centavos,
-    });
-  }
-
   const carrinho: { pedido: PedidoEtiqueta; meId: string; protocolo: string; preco: number | null }[] = [];
-  for (const item of novos) {
-    const corpo = montarCarrinho(item.pedido, remetente);
+  const falhas: { codigo: string; motivo: string; conferir?: boolean }[] = [];
+  for (const pedido of novos) {
+    const corpo = montarCarrinho(pedido, remetente);
     if (!corpo) {
-      await apagarCarrinho(base, token, carrinho.map((c) => c.meId));
-      return jsonPainel(origin, 409, { ok: false, erro: "carrinho", mensagem: "Não montei a etiqueta de " + (item.pedido.codigo || "um pedido") + "." });
+      await soltarCompra(url, anonKey, jwt, pedido.id, tentativa, true);
+      falhas.push({ codigo: pedido.codigo, motivo: "Não montei a etiqueta. Nada foi comprado." });
+      continue;
     }
     let res: Response;
     try {
       res = await meFetch(base, token, "/api/v2/me/cart", { method: "POST", body: JSON.stringify(corpo) });
     } catch (_err) {
-      await apagarCarrinho(base, token, carrinho.map((c) => c.meId));
-      return jsonPainel(origin, 502, { ok: false, erro: "me_rede", mensagem: "O Melhor Envio não respondeu. Nada foi comprado." });
+      await soltarCompra(url, anonKey, jwt, pedido.id, tentativa, true);
+      falhas.push({ codigo: pedido.codigo, motivo: "O Melhor Envio não respondeu. Nada foi comprado." });
+      continue;
     }
     if (!res.ok) {
-      await apagarCarrinho(base, token, carrinho.map((c) => c.meId));
-      console.error("etiquetas: carrinho", res.status);
-      return jsonPainel(origin, 502, { ok: false, erro: "carrinho", mensagem: "O Melhor Envio recusou o carrinho. Nada foi comprado." });
+      await soltarCompra(url, anonKey, jwt, pedido.id, tentativa, true);
+      falhas.push({ codigo: pedido.codigo, motivo: "O Melhor Envio recusou o carrinho. Nada foi comprado." });
+      continue;
     }
     const lido = lerCarrinho(await res.json().catch(() => null));
-    if (!lido) {
-      await apagarCarrinho(base, token, carrinho.map((c) => c.meId));
-      return jsonPainel(origin, 502, { ok: false, erro: "carrinho", mensagem: "A resposta do carrinho veio sem id. Nada foi comprado." });
+    if (!lido || lido.preco_centavos == null) {
+      if (lido) await decidirCarrinho(url, anonKey, jwt, base, token, pedido.id, tentativa, lido.id);
+      else await soltarCompra(url, anonKey, jwt, pedido.id, tentativa, true);
+      falhas.push({ codigo: pedido.codigo, motivo: "A resposta do carrinho veio sem preço. Conferi antes de seguir.", conferir: Boolean(lido) });
+      continue;
     }
-    carrinho.push({ pedido: item.pedido, meId: lido.id, protocolo: lido.protocolo, preco: lido.preco_centavos });
+    const gravado = await gravarPendente(url, anonKey, jwt, pedido.id, tentativa, lido);
+    if (!gravado) {
+      const destino = await decidirCarrinho(url, anonKey, jwt, base, token, pedido.id, tentativa, lido.id);
+      falhas.push({
+        codigo: pedido.codigo,
+        motivo: destino === "conferir"
+          ? "Entrou no carrinho, mas o painel não gravou. Não compre outra. Use Conferir etiqueta."
+          : "Não gravei o carrinho. Tirei o item porque o Melhor Envio ainda não cobrou.",
+        conferir: destino === "conferir",
+      });
+      continue;
+    }
+    carrinho.push({ pedido, meId: lido.id, protocolo: lido.protocolo, preco: lido.preco_centavos });
   }
 
   if (carrinho.length) {
-    let checkout: Response;
-    try {
-      checkout = await meFetch(base, token, "/api/v2/me/shipment/checkout", {
-        method: "POST",
-        body: JSON.stringify({ orders: carrinho.map((c) => c.meId) }),
-      });
-    } catch (_err) {
-      await apagarCarrinho(base, token, carrinho.map((c) => c.meId));
-      return jsonPainel(origin, 502, { ok: false, erro: "me_rede", mensagem: "O checkout não respondeu. Tirei as etiquetas do carrinho." });
-    }
-    if (!checkout.ok) {
-      await apagarCarrinho(base, token, carrinho.map((c) => c.meId));
-      console.error("etiquetas: checkout", checkout.status);
-      return jsonPainel(origin, 502, { ok: false, erro: "checkout", mensagem: "O Melhor Envio não comprou. Nada foi gravado." });
-    }
-    for (const item of carrinho) {
-      const gravado = await rpcEtiqueta(url, anonKey, jwt, item.pedido.id, {
-        me_order_id: item.meId,
-        protocolo: item.protocolo,
-        me_status: "released",
-        preco_centavos: item.preco ?? item.pedido.frete_centavos,
-      });
-      if (!gravado || gravado.ok !== true) {
-        console.error("etiquetas: pago e não gravou", item.pedido.id);
+    const saldo = await lerSaldo(base, token);
+    const total = carrinho.reduce((soma, item) => soma + (item.preco ?? 0), 0);
+    const contas = saldo == null ? null : fecharResumo([total], saldo);
+    if (saldo == null || !contas?.pode_comprar) {
+      for (const item of carrinho) {
+        const destino = await decidirCarrinho(url, anonKey, jwt, base, token, item.pedido.id, tentativa, item.meId);
+        if (destino === "conferir") {
+          falhas.push({ codigo: item.pedido.codigo, motivo: "O saldo não cobre o preço do carrinho e não deu para tirar. Use Conferir etiqueta.", conferir: true });
+        }
       }
+      return jsonPainel(origin, 409, {
+        ok: false,
+        erro: saldo == null ? "saldo" : "saldo_insuficiente",
+        mensagem: saldo == null
+          ? "Não li o saldo. Não fiz o checkout."
+          : "O preço do carrinho passa do saldo. Não fiz o checkout.",
+        falta_centavos: contas?.falta_centavos ?? null,
+        saldo_centavos: saldo,
+        total_centavos: total,
+        falhas,
+        fora,
+      });
+    }
+
+    let checkoutOk = false;
+    try {
+      const checkout = await meFetch(base, token, "/api/v2/me/shipment/checkout", {
+        method: "POST",
+        body: JSON.stringify({ orders: carrinho.map((item) => item.meId) }),
+      });
+      checkoutOk = checkout.ok;
+      if (!checkout.ok) console.error("etiquetas: checkout", checkout.status);
+    } catch (_err) {
+      checkoutOk = false;
+    }
+    if (!checkoutOk) {
+      const pagos: typeof carrinho = [];
+      for (const item of carrinho) {
+        const visto = await lerPedidoNaMe(base, token, item.meId);
+        const plano = planoDepoisDoCheckout(visto.situacao);
+        if (plano === "seguir") pagos.push(item);
+        else if (plano === "remover") {
+          await apagarSeLivre(base, token, item.meId);
+          await soltarCompra(url, anonKey, jwt, item.pedido.id, tentativa, true);
+          falhas.push({ codigo: item.pedido.codigo, motivo: "O checkout não pagou. Tirei do carrinho." });
+        } else {
+          await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+            p_pedido_id: item.pedido.id,
+            p_me_order_id: item.meId,
+          });
+          falhas.push({
+            codigo: item.pedido.codigo,
+            motivo: "O checkout não respondeu e não deu para saber se pagou. Não compre outra. Use Conferir etiqueta.",
+            conferir: true,
+          });
+        }
+      }
+      carrinho.length = 0;
+      carrinho.push(...pagos);
     }
   }
 
@@ -472,37 +613,8 @@ async function comprar(
     ...carrinho.map((item) => ({ pedido: item.pedido, meId: item.meId })),
     ...gerar.map((pedido) => ({ pedido, meId: pedido.me_order_id })),
   ];
-  let geracao: unknown = null;
-  try {
-    const res = await meFetch(base, token, "/api/v2/me/shipment/generate", {
-      method: "POST",
-      body: JSON.stringify({ orders: paraGerar.map((item) => item.meId) }),
-    });
-    if (res.ok) geracao = await res.json();
-    else console.error("etiquetas: gerar", res.status);
-  } catch (err) {
-    console.error("etiquetas: gerar", err instanceof Error ? err.name : "erro");
-  }
-
-  const rastros = lerRastreioGerado(geracao, paraGerar.map((item) => item.meId));
-  const faltam = paraGerar.map((item) => item.meId).filter((id) => !rastros.has(id));
-  if (faltam.length) {
-    try {
-      const res = await meFetch(base, token, "/api/v2/me/shipment/tracking", {
-        method: "POST",
-        body: JSON.stringify({ orders: faltam }),
-      });
-      if (res.ok) {
-        const extra = lerRastreioGerado(await res.json(), faltam);
-        for (const [id, code] of extra) rastros.set(id, code);
-      }
-    } catch (_err) {
-      // O rastreio pode chegar no webhook.
-    }
-  }
-
+  const rastros = await gerarRastreios(base, token, paraGerar.map((item) => item.meId));
   const geradas: { id: string; codigo: string; me_order_id: string; rastreio: string; status: string }[] = [];
-  const falhas: { codigo: string; motivo: string }[] = [];
   for (const item of paraGerar) {
     const rastreio = rastros.get(item.meId) ?? "";
     const gravado = await rpcEtiqueta(url, anonKey, jwt, item.pedido.id, {
@@ -511,7 +623,15 @@ async function comprar(
       me_status: rastreio ? "generated" : "released",
     });
     if (!gravado || gravado.ok !== true) {
-      falhas.push({ codigo: item.pedido.codigo, motivo: "Comprei, mas o painel não gravou a etiqueta." });
+      await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+        p_pedido_id: item.pedido.id,
+        p_me_order_id: item.meId,
+      });
+      falhas.push({
+        codigo: item.pedido.codigo,
+        motivo: "A etiqueta pode já estar paga. Não compre outra. Use Conferir etiqueta.",
+        conferir: true,
+      });
       continue;
     }
     geradas.push({
@@ -523,17 +643,190 @@ async function comprar(
     });
   }
 
+  const precisa = falhas.some((item) => item.conferir);
   return jsonPainel(origin, 200, {
     ok: falhas.length === 0,
     geradas,
     falhas,
     fora,
     imprimir_ids: geradas.map((item) => item.me_order_id),
-    mensagem: falhas.length
-      ? "Parte das etiquetas ficou sem gravar. Não compre de novo: tente gerar outra vez."
+    mensagem: precisa
+      ? "Alguma etiqueta pode já estar paga. Não compre outra. Abra o pedido e use Conferir etiqueta."
+      : falhas.length
+      ? "Alguma etiqueta não foi comprada. As outras seguiram."
       : geradas.every((item) => item.rastreio)
       ? "Etiquetas geradas."
       : "Etiquetas compradas. O rastreio ainda não voltou.",
+  });
+}
+
+async function soltarCompra(
+  url: string,
+  anonKey: string,
+  jwt: string,
+  pedidoId: string,
+  tentativa: string | null,
+  nadaComprado: boolean,
+): Promise<void> {
+  await rpcAdmin(url, anonKey, jwt, "admin_liberar_compra_etiqueta", {
+    p_pedido_id: pedidoId,
+    p_tentativa: tentativa,
+    p_nada_comprado: nadaComprado,
+  });
+}
+
+async function gravarPendente(
+  url: string,
+  anonKey: string,
+  jwt: string,
+  pedidoId: string,
+  tentativa: string,
+  lido: { id: string; protocolo: string; preco_centavos: number | null },
+): Promise<boolean> {
+  for (let i = 0; i < 2; i++) {
+    const gravado = await rpcAdmin(url, anonKey, jwt, "admin_gravar_carrinho_etiqueta", {
+      p_pedido_id: pedidoId,
+      p_tentativa: tentativa,
+      p_me_order_id: lido.id,
+      p_protocolo: lido.protocolo,
+      p_preco_centavos: lido.preco_centavos,
+    });
+    if (gravado?.ok === true) return true;
+  }
+  return false;
+}
+
+async function apagarSeLivre(base: string, token: string, meId: string): Promise<void> {
+  try {
+    await meFetch(base, token, "/api/v2/me/cart/" + encodeURIComponent(meId), { method: "DELETE" });
+  } catch (_err) {
+    console.error("etiquetas: não saiu do carrinho");
+  }
+}
+
+async function decidirCarrinho(
+  url: string,
+  anonKey: string,
+  jwt: string,
+  base: string,
+  token: string,
+  pedidoId: string,
+  tentativa: string,
+  meId: string,
+): Promise<"removido" | "conferir"> {
+  const visto = await lerPedidoNaMe(base, token, meId);
+  if (planoDepoisDoCheckout(visto.situacao) === "remover") {
+    await apagarSeLivre(base, token, meId);
+    await soltarCompra(url, anonKey, jwt, pedidoId, tentativa, true);
+    return "removido";
+  }
+  await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+    p_pedido_id: pedidoId,
+    p_me_order_id: meId,
+  });
+  return "conferir";
+}
+
+async function gerarRastreios(base: string, token: string, meIds: string[]): Promise<Map<string, string>> {
+  const rastros = new Map<string, string>();
+  if (!meIds.length) return rastros;
+  let geracao: unknown = null;
+  try {
+    const res = await meFetch(base, token, "/api/v2/me/shipment/generate", {
+      method: "POST",
+      body: JSON.stringify({ orders: meIds }),
+    });
+    if (res.ok) geracao = await res.json();
+    else console.error("etiquetas: gerar", res.status);
+  } catch (err) {
+    console.error("etiquetas: gerar", err instanceof Error ? err.name : "erro");
+  }
+  for (const [id, code] of lerRastreioGerado(geracao, meIds)) rastros.set(id, code);
+  const faltam = meIds.filter((id) => !rastros.has(id));
+  if (faltam.length) {
+    try {
+      const res = await meFetch(base, token, "/api/v2/me/shipment/tracking", {
+        method: "POST",
+        body: JSON.stringify({ orders: faltam }),
+      });
+      if (res.ok) {
+        for (const [id, code] of lerRastreioGerado(await res.json(), faltam)) rastros.set(id, code);
+      }
+    } catch (_err) {
+      // O rastreio pode chegar no webhook.
+    }
+  }
+  return rastros;
+}
+
+async function reconciliar(
+  origin: string | null,
+  url: string,
+  anonKey: string,
+  jwt: string,
+  token: string,
+  base: string,
+  ids: string[],
+): Promise<Response> {
+  const pedidos = await listarPedidos(url, anonKey, jwt, ids, "impressao");
+  if (pedidos === "rede") {
+    return jsonPainel(origin, 503, { ok: false, erro: "indisponivel", mensagem: "Não consegui ler o pedido." });
+  }
+  const geradas: { id: string; codigo: string; me_order_id: string; rastreio: string; status: string }[] = [];
+  const falhas: { codigo: string; motivo: string }[] = [];
+  for (const pedido of pedidos) {
+    if (!pedido.me_order_id) {
+      falhas.push({ codigo: pedido.codigo, motivo: "Esse pedido não tem etiqueta no Melhor Envio." });
+      continue;
+    }
+    const visto = await lerPedidoNaMe(base, token, pedido.me_order_id);
+    const plano = planoDepoisDoCheckout(visto.situacao);
+    if (plano === "remover") {
+      await apagarSeLivre(base, token, pedido.me_order_id);
+      await soltarCompra(url, anonKey, jwt, pedido.id, null, true);
+      falhas.push({ codigo: pedido.codigo, motivo: "O Melhor Envio não cobrou. Soltei o pedido para uma compra nova." });
+      continue;
+    }
+    if (plano === "conferir") {
+      await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+        p_pedido_id: pedido.id,
+        p_me_order_id: pedido.me_order_id,
+      });
+      falhas.push({ codigo: pedido.codigo, motivo: "Ainda não deu para saber se a etiqueta foi paga. Não compre outra." });
+      continue;
+    }
+    const rastros = await gerarRastreios(base, token, [pedido.me_order_id]);
+    const rastreio = rastros.get(pedido.me_order_id) || visto.rastreio || pedido.rastreio;
+    const gravado = await rpcEtiqueta(url, anonKey, jwt, pedido.id, {
+      me_order_id: pedido.me_order_id,
+      protocolo: visto.protocolo || null,
+      rastreio: rastreio || null,
+      me_status: rastreio ? "generated" : "released",
+      preco_centavos: visto.preco_centavos,
+    });
+    if (!gravado || gravado.ok !== true) {
+      await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+        p_pedido_id: pedido.id,
+        p_me_order_id: pedido.me_order_id,
+      });
+      falhas.push({ codigo: pedido.codigo, motivo: "A etiqueta está paga, mas o painel não gravou. Não compre outra." });
+      continue;
+    }
+    geradas.push({
+      id: pedido.id,
+      codigo: pedido.codigo,
+      me_order_id: pedido.me_order_id,
+      rastreio,
+      status: typeof gravado.status === "string" ? gravado.status : pedido.status,
+    });
+  }
+  return jsonPainel(origin, 200, {
+    ok: falhas.length === 0,
+    geradas,
+    falhas,
+    mensagem: falhas.length
+      ? falhas[0].motivo
+      : "Etiqueta conferida.",
   });
 }
 

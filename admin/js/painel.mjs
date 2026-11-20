@@ -419,6 +419,9 @@ export function linkRastreio(transportadora, codigo) {
 
 const ROTULO_ME = {
   pending: "No carrinho",
+  pendente: "No carrinho",
+  comprando: "Compra em andamento",
+  precisa_conferir: "Precisa conferir",
   released: "Paga",
   generated: "Gerada",
   posted: "Postada",
@@ -434,15 +437,26 @@ export function rotuloMeStatus(status) {
   return ROTULO_ME[chave] || chave;
 }
 
+export function precisaConferirEtiqueta(pedido) {
+  if (!pedido || pedido.teste || pedido.entrega_tipo !== "envio") return false;
+  const fase = typeof pedido.me_status === "string" ? pedido.me_status.trim().toLowerCase() : "";
+  if (fase === "precisa_conferir") return true;
+  return fase === "pendente" && Boolean(pedido.me_order_id) && pedido.status === "pago" && !pedido.rastreio;
+}
+
 export function podeGerarEtiqueta(pedido) {
   if (!pedido || pedido.teste || pedido.entrega_tipo !== "envio") return false;
   if (pedido.status !== "pago") return false;
   if (pedido.me_order_id && pedido.rastreio) return false;
+  if (precisaConferirEtiqueta(pedido)) return false;
+  const fase = typeof pedido.me_status === "string" ? pedido.me_status.trim().toLowerCase() : "";
+  if (fase === "comprando") return false;
   return true;
 }
 
 export function podeImprimirEtiqueta(pedido) {
   if (!pedido || pedido.teste || !pedido.me_order_id) return false;
+  if (precisaConferirEtiqueta(pedido)) return false;
   return ["pago", "etiqueta_gerada", "enviado", "entregue"].includes(pedido.status);
 }
 

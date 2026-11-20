@@ -25,6 +25,7 @@ import {
   notificarCliente,
   podeGerarEtiqueta,
   podeImprimirEtiqueta,
+  precisaConferirEtiqueta,
   resumoEtiquetas,
   rotuloMeStatus,
   gravarMostrarTestes,
@@ -795,6 +796,21 @@ function painelDetalhe(pedido) {
     pedido.entrega_tipo === "envio" && !pedido.teste
       ? el("div", { class: "detalhe-bloco" }, [
         el("h3", { text: "Etiqueta" }),
+        precisaConferirEtiqueta(pedido)
+          ? el("p", {
+            class: "alerta",
+            role: "alert",
+            text: "Essa etiqueta pode já estar paga. Não compre outra. Confira no Melhor Envio.",
+          })
+          : null,
+        precisaConferirEtiqueta(pedido)
+          ? el("button", {
+            type: "button",
+            class: "botao",
+            "data-conferir-etiqueta": pedido.id,
+            text: "Conferir etiqueta",
+          })
+          : null,
         podeGerarEtiqueta(pedido)
           ? el("button", {
             type: "button",
@@ -958,6 +974,23 @@ function dialogoEtiquetas() {
       fora.length
         ? el("ul", { class: "fora-lista" }, fora.map((item) =>
           el("li", { text: (item.codigo ? "#" + item.codigo + ": " : "") + (item.motivo || "Ficou de fora.") })
+        ))
+        : null,
+      Array.isArray(ui.resumo && ui.resumo.conferir) && ui.resumo.conferir.length
+        ? el("p", {
+          class: "alerta",
+          role: "alert",
+          text: "Algum pedido precisa de conferência. Não compre outra etiqueta para ele.",
+        })
+        : null,
+      Array.isArray(ui.resumo && ui.resumo.conferir)
+        ? el("div", { class: "confirmacao-acoes" }, ui.resumo.conferir.map((item) =>
+          el("button", {
+            type: "button",
+            class: "botao botao-secundario",
+            "data-conferir-etiqueta": item.id,
+            text: "Conferir etiqueta" + (item.codigo ? " #" + item.codigo : ""),
+          })
         ))
         : null,
       el("div", { class: "confirmacao-acoes" }, [
@@ -1824,10 +1857,15 @@ async function comprarEtiquetas() {
   if (!etiquetasUi || etiquetasUi.fase !== "resumo") return;
   const pedidoId = etiquetasUi.pedidoId;
   const titulo = etiquetasUi.titulo;
+  const resumo = etiquetasUi.resumo || {};
+  const ids = [
+    ...(Array.isArray(resumo.pedidos) ? resumo.pedidos : []),
+    ...(Array.isArray(resumo.ja_pagas) ? resumo.ja_pagas : []),
+  ].map((item) => item && item.id).filter(Boolean);
+  if (!ids.length) return;
   etiquetasUi = { fase: "comprando", pedidoId, titulo };
   pintarRegiao();
-  const corpo = { acao: "comprar" };
-  if (pedidoId) corpo.pedido_ids = [pedidoId];
+  const corpo = { acao: "comprar", pedido_ids: ids };
   const resposta = await chamarEtiquetas(config, sessao.access_token, corpo, fetch);
   if (!resposta.ok) {
     etiquetasUi = {
@@ -1835,7 +1873,7 @@ async function comprarEtiquetas() {
       pedidoId,
       titulo,
       mensagem: resposta.rede
-        ? "Não consegui falar com o servidor. Se o saldo não mudou, nada foi comprado."
+        ? "Não consegui falar com o servidor. Abra o pedido e confira antes de comprar de novo."
         : mensagemDeAcao(resposta.body, "Não comprei as etiquetas."),
     };
     pintarRegiao();
@@ -1854,6 +1892,23 @@ async function comprarEtiquetas() {
     if (hist.ok) historicoAberto = hist.linhas;
     pintarRegiao();
   }
+}
+
+async function conferirEtiqueta(pedidoId) {
+  if (!pedidoId) return;
+  avisoPedido = "Conferindo a etiqueta no Melhor Envio.";
+  pintarRegiao();
+  const resposta = await chamarEtiquetas(config, sessao.access_token, {
+    acao: "reconciliar",
+    pedido_ids: [pedidoId],
+  }, fetch);
+  avisoPedido = resposta.rede
+    ? "Não consegui falar com o servidor. A etiqueta continua como está."
+    : mensagemDeAcao(resposta.body, "Não conferi a etiqueta.");
+  await carregarPedidos();
+  const hist = await listarHistorico(config, sessao.access_token, pedidoId, fetch);
+  if (hist.ok) historicoAberto = hist.linhas;
+  pintarRegiao();
 }
 
 async function imprimirEtiquetas(formato, pedidoId) {
@@ -2127,6 +2182,11 @@ app.addEventListener("click", (event) => {
   const comprarBtn = event.target.closest("[data-etiquetas-comprar]");
   if (comprarBtn) {
     comprarEtiquetas();
+    return;
+  }
+  const conferirBtn = event.target.closest("[data-conferir-etiqueta]");
+  if (conferirBtn) {
+    conferirEtiqueta(conferirBtn.getAttribute("data-conferir-etiqueta"));
     return;
   }
   const lote = event.target.closest("[data-imprimir-lote]");

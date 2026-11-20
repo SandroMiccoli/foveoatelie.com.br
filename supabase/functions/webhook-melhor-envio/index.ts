@@ -4,6 +4,7 @@
 
 import { assinaturaMelhorEnvio, emailDoEvento, lerEventoMe } from "../_shared/etiquetas.ts";
 import { enviarEmailCliente } from "../_shared/enviar-cliente.ts";
+import { emSegundoPlano } from "../_shared/segundo-plano.ts";
 import type { EventoEmail } from "../_shared/correio.ts";
 
 Deno.serve(async (req) => {
@@ -82,9 +83,11 @@ Deno.serve(async (req) => {
   }
   const pedidoId = data && typeof data.pedido_id === "string" ? data.pedido_id : "";
   const email = data && typeof data.email === "string" ? data.email : emailDoEvento(evento.evento);
-  if (pedidoId && (email === "enviado" || email === "entregue") && data?.mudou === true) {
-    const aviso = await enviarEmailCliente(pedidoId, email as EventoEmail);
-    if (aviso === "falha") console.error("webhook-melhor-envio: e-mail", email);
+  if (pedidoId && (email === "enviado" || email === "entregue")) {
+    const eventoEmail = email as EventoEmail;
+    emSegundoPlano(enviarEmailCliente(pedidoId, eventoEmail).then((aviso) => {
+      if (aviso === "falha") console.error("webhook-melhor-envio: e-mail", eventoEmail);
+    }));
   }
   return new Response(null, { status: 200 });
 });

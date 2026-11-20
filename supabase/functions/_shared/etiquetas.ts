@@ -48,6 +48,7 @@ export type PedidoEtiqueta = {
   frete_centavos: number | null;
   frete: { id: string; transportadora: string; servico: string } | null;
   me_order_id: string;
+  me_status: string;
   rastreio: string;
 };
 
@@ -72,13 +73,33 @@ export type ClasseEtiqueta =
   | { tipo: "comprar"; custo_centavos: number; servico: number }
   | { tipo: "gerar"; me_order_id: string }
   | { tipo: "imprimir"; me_order_id: string }
+  | { tipo: "conferir"; me_order_id: string }
   | { tipo: "fora"; motivo: string };
+
+export type SituacaoCompra = "pago" | "nao_pago" | "incerto";
+export type PlanoCompra = "seguir" | "remover" | "conferir";
 
 const HOSTS_ME = new Set([
   "melhorenvio.com.br",
   "www.melhorenvio.com.br",
   "sandbox.melhorenvio.com.br",
 ]);
+
+// Bucket da própria Melhor Envio (sa-east-1). Não vale qualquer host da AWS.
+const HOSTS_S3 = new Set([
+  "melhorenvio.s3.sa-east-1.amazonaws.com",
+  "melhorenvio.s3-sa-east-1.amazonaws.com",
+]);
+
+const STATUS_PAGO_ME = new Set([
+  "released",
+  "generated",
+  "posted",
+  "delivered",
+  "received",
+  "undelivered",
+]);
+const STATUS_LIVRE_ME = new Set(["pending", "canceled", "cancelled"]);
 
 export function soDigitos(valor: string): string {
   return valor.replace(/\D/g, "");
@@ -146,6 +167,11 @@ function cepOk(cep: string): string | null {
 export function classificarPedido(pedido: PedidoEtiqueta): ClasseEtiqueta {
   if (pedido.teste) return { tipo: "fora", motivo: "teste" };
   if (pedido.entrega_tipo !== "envio") return { tipo: "fora", motivo: "retirada" };
+  const fase = (pedido.me_status || "").trim().toLowerCase();
+  if (fase === "precisa_conferir" || (pedido.me_order_id && fase === "pendente")) {
+    return { tipo: "conferir", me_order_id: pedido.me_order_id };
+  }
+  if (!pedido.me_order_id && fase === "comprando") return { tipo: "fora", motivo: "em_compra" };
   const comEtiqueta = ["etiqueta_gerada", "enviado", "entregue"];
   if (pedido.me_order_id && comEtiqueta.includes(pedido.status)) {
     return { tipo: "imprimir", me_order_id: pedido.me_order_id };
@@ -186,6 +212,54 @@ export function fecharResumo(custos: number[], saldoCentavos: number): {
     falta_centavos: falta,
     pode_comprar: custos.length > 0 && falta === 0 && custos.every((n) => n > 0),
   };
+}
+
+export function situacaoCompraMe(status: string | null | undefined): SituacaoCompra {
+  const chave = (status ?? "").trim().toLowerCase();
+  if (STATUS_PAGO_ME.has(chave)) return "pago";
+  if (STATUS_LIVRE_ME.has(chave)) return "nao_pago";
+  return "incerto";
+}
+
+export function planoDepoisDoCheckout(situacao: SituacaoCompra): PlanoCompra {
+  if (situacao === "pago") return "seguir";
+  if (situacao === "nao_pago") return "remover";
+  return "conferir";
+}
+
+export function lerPedidoMe(body: unknown): {
+  status: string;
+  preco_centavos: number | null;
+  rastreio: string;
+  protocolo: string;
+} | null {
+  if (!body || typeof body !== "object") return null;
+  const row = body as Record<string, unknown>;
+  const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : "";
+  if (!status || status.length > 40) return null;
+  const tracking = typeof row.tracking === "string" ? row.tracking : "";
+  const protocolo = typeof row.protocol === "string" ? row.protocol.trim().slice(0, 40) : "";
+  return {
+    status,
+    preco_centavos: reaisParaCentavos(row.price ?? row.custom_price),
+    rastreio: tracking.replace(/[^A-Za-z0-9]/g, "").slice(0, 40),
+    protocolo,
+  };
+}
+
+export function precoCotado(body: unknown, servicoId: string): number | null {
+  if (!Array.isArray(body)) return null;
+  const id = servicoId.trim();
+  if (!id) return null;
+  for (const item of body) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (row.error) continue;
+    if (String(row.id ?? "") !== id) continue;
+    const preco = reaisParaCentavos(row.custom_price ?? row.price);
+    if (preco != null && preco > 0) return preco;
+  }
+  return null;
 }
 
 export function saldoCentavos(body: unknown): number | null {
@@ -366,7 +440,7 @@ export function urlMelhorEnvioConfiavel(url: string): string | null {
   if (parsed.username || parsed.password) return null;
   const host = parsed.hostname.toLowerCase();
   if (HOSTS_ME.has(host) || host.endsWith(".melhorenvio.com.br")) return parsed.toString();
-  if (host.endsWith(".amazonaws.com")) return parsed.toString();
+  if (HOSTS_S3.has(host)) return parsed.toString();
   return null;
 }
 

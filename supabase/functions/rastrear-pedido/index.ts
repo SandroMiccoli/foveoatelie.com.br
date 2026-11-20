@@ -11,10 +11,6 @@ import {
   statusPublico,
 } from "../_shared/etiquetas.ts";
 
-const JANELA_MS = 60_000;
-const LIMITE = 20;
-const visitas = new Map<string, number[]>();
-
 Deno.serve(async (req) => {
   const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(origin) });
@@ -22,7 +18,6 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(origin, 405, { erro: "metodo" });
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "sem-ip";
-  if (limitar(ip)) return json(origin, 429, { erro: "limite" });
 
   const url = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/+$/, "");
   const key = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
@@ -52,9 +47,20 @@ Deno.serve(async (req) => {
   );
   if (!credencial) return json(origin, 400, { erro: "pedido_invalido" });
 
+  const limite = await rpcRastreio(url, key, "bloqueio_rastreio", {
+    p_codigo: credencial.codigo,
+    p_ip: ip,
+  });
+  if (!limite || limite.ok !== true) return json(origin, 503, { erro: "consulta_indisponivel" });
+  if (limite.bloqueado === true) return json(origin, 404, { erro: "nao_encontrado" });
+
   const pedido = await buscar(url, key, credencial.codigo);
   if (pedido === "rede") return json(origin, 503, { erro: "consulta_indisponivel" });
   if (!pedido || !combinaRastreio(credencial, pedido.email, pedido.cpf)) {
+    await rpcRastreio(url, key, "anotar_falha_rastreio", {
+      p_codigo: credencial.codigo,
+      p_ip: ip,
+    });
     return json(origin, 404, { erro: "nao_encontrado" });
   }
 
@@ -73,17 +79,30 @@ Deno.serve(async (req) => {
   });
 });
 
-function limitar(ip: string): boolean {
-  const agora = Date.now();
-  const lista = (visitas.get(ip) ?? []).filter((t) => agora - t < JANELA_MS);
-  lista.push(agora);
-  visitas.set(ip, lista);
-  if (visitas.size > 500) {
-    for (const [chave, tempos] of visitas) {
-      if (tempos.every((t) => agora - t >= JANELA_MS)) visitas.delete(chave);
-    }
+async function rpcRastreio(
+  url: string,
+  key: string,
+  nome: string,
+  args: Record<string, string>,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/${nome}`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data && typeof data === "object" ? data as Record<string, unknown> : null;
+  } catch (_err) {
+    return null;
   }
-  return lista.length > LIMITE;
 }
 
 type PedidoSeguro = {

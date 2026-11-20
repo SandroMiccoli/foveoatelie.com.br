@@ -27,19 +27,83 @@ type Socket = {
   close: () => void;
 };
 
+export const SMTP_IO_MS = 8000;
+
+export function ioComPrazo<T>(trabalho: Promise<T>, ms: number, fechar: () => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let terminou = false;
+    const timer = setTimeout(() => {
+      if (terminou) return;
+      terminou = true;
+      try {
+        fechar();
+      } catch (_err) {
+        // O socket já pode ter caído.
+      }
+      reject(new Error("smtp_timeout"));
+    }, ms);
+    trabalho.then((valor) => {
+      if (terminou) return;
+      terminou = true;
+      clearTimeout(timer);
+      resolve(valor);
+    }, (err) => {
+      if (terminou) return;
+      terminou = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
+export function abrirComPrazo(abrir: Promise<Socket>, ms: number): Promise<Socket> {
+  return new Promise((resolve, reject) => {
+    let socket: Socket | undefined;
+    let terminou = false;
+    const timer = setTimeout(() => {
+      if (terminou) return;
+      terminou = true;
+      try {
+        socket?.close();
+      } catch (_err) {
+        // Ainda não abriu.
+      }
+      reject(new Error("smtp_timeout"));
+    }, ms);
+    abrir.then((aberto) => {
+      socket = aberto;
+      if (terminou) {
+        try {
+          aberto.close();
+        } catch (_err) {
+          // Já fechou no prazo.
+        }
+        return;
+      }
+      terminou = true;
+      clearTimeout(timer);
+      resolve(aberto);
+    }, (err) => {
+      if (terminou) return;
+      terminou = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 async function conectar(cfg: SmtpConfig): Promise<Socket> {
-  if (cfg.port === 465) {
-    return await Deno.connectTls({ hostname: cfg.host, port: cfg.port });
-  }
-  return await Deno.connect({ hostname: cfg.host, port: cfg.port });
+  const abrir = cfg.port === 465
+    ? Deno.connectTls({ hostname: cfg.host, port: cfg.port })
+    : Deno.connect({ hostname: cfg.host, port: cfg.port });
+  return await abrirComPrazo(abrir, SMTP_IO_MS);
 }
 
 function criarLeitor(socket: Socket) {
   const decoder = new TextDecoder();
   let resto = "";
   return async function ler(): Promise<string> {
-    const prazo = Date.now() + 12000;
-    while (Date.now() < prazo) {
+    for (let i = 0; i < 8; i++) {
       const corte = resto.indexOf("\r\n");
       if (corte >= 0) {
         const linha = resto.slice(0, corte);
@@ -47,7 +111,7 @@ function criarLeitor(socket: Socket) {
         return linha;
       }
       const buf = new Uint8Array(1024);
-      const n = await socket.read(buf);
+      const n = await ioComPrazo(socket.read(buf), SMTP_IO_MS, () => socket.close());
       if (n == null) break;
       resto += decoder.decode(buf.subarray(0, n));
     }
@@ -57,7 +121,11 @@ function criarLeitor(socket: Socket) {
 
 async function comando(ler: () => Promise<string>, socket: Socket, linha: string | null): Promise<string> {
   if (linha != null) {
-    await socket.write(new TextEncoder().encode(linha + "\r\n"));
+    await ioComPrazo(
+      socket.write(new TextEncoder().encode(linha + "\r\n")),
+      SMTP_IO_MS,
+      () => socket.close(),
+    );
   }
   let ultima = "";
   for (let i = 0; i < 40; i++) {
@@ -104,7 +172,11 @@ export async function enviarSmtp(
     if (codigo(rcpt) !== 250 && codigo(rcpt) !== 251) throw new Error("smtp_rcpt");
     const data = await comando(ler, socket, "DATA");
     if (codigo(data) !== 354) throw new Error("smtp_data");
-    await socket.write(new TextEncoder().encode(mensagem.data + "\r\n.\r\n"));
+    await ioComPrazo(
+      socket.write(new TextEncoder().encode(mensagem.data + "\r\n.\r\n")),
+      SMTP_IO_MS,
+      () => socket.close(),
+    );
     const fim = await comando(ler, socket, null);
     if (codigo(fim) !== 250) throw new Error("smtp_envio");
     await comando(ler, socket, "QUIT");
