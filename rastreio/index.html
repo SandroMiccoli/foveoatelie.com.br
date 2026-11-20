@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rastreio — Foveō Ateliê</title>
+  <meta name="description" content="Acompanhe o pedido da Foveō com o código e o e-mail ou o CPF da compra.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500&display=swap">
+  <link rel="stylesheet" href="rastreio.css">
+</head>
+<body>
+  <a class="pular" href="#conteudo">Ir para o conteúdo</a>
+  <header class="topo">
+    <p class="marca">Foveō</p>
+  </header>
+  <main id="conteudo" class="miolo">
+    <h1>Onde está o pedido</h1>
+    <p class="lede">O código tem nove números, no formato do dia da compra. Junto, o e-mail ou o CPF usados no pagamento.</p>
+    <form id="form-rastreio" novalidate>
+      <div class="campo">
+        <label for="codigo">Código do pedido</label>
+        <input id="codigo" name="codigo" inputmode="numeric" autocomplete="off" maxlength="9" required>
+      </div>
+      <div class="campo">
+        <label for="email">E-mail da compra</label>
+        <input id="email" name="email" type="email" autocomplete="email" inputmode="email">
+      </div>
+      <div class="campo">
+        <label for="cpf">Ou o CPF</label>
+        <input id="cpf" name="cpf" inputmode="numeric" autocomplete="off" maxlength="14">
+      </div>
+      <p id="erro" class="erro" role="alert" hidden></p>
+      <button type="submit" class="botao">Ver pedido</button>
+    </form>
+    <section id="resultado" class="resultado" hidden aria-live="polite"></section>
+  </main>
+  <script
+    src="rastreio.js"
+    data-supabase-url="https://bbksditqlgdjftwowtje.supabase.co"
+    data-supabase-key="sb_publishable_6xLjzmCZXShNyEzcqXyKAw_fefRsDOC"
+  ></script>
+</body>
+</html>

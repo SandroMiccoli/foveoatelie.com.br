@@ -14,6 +14,12 @@ import {
   formatarVelas,
   lerSessao,
   linkWhatsApp,
+  linkRastreio,
+  podeGerarEtiqueta,
+  podeImprimirEtiqueta,
+  precisaConferirEtiqueta,
+  resumoEtiquetas,
+  rotuloMeStatus,
   listarPedidos,
   confirmarReembolso,
   mensagemApagarTeste,
@@ -815,6 +821,92 @@ test("as telas novas cabem no computador sem cortar coluna", async () => {
   assert.match(css, /\.lista-clientes th\.th-num[\s\S]*text-align:\s*right/);
   assert.match(css, /\.marca-entrada\s*\{[\s\S]*max-width:\s*calc\(100vw - 3rem\)/);
   assert.match(css, /max-width:\s*59\.99rem\)[\s\S]*\.nav\s*\{[\s\S]*position:\s*static/);
+});
+
+test("resumo da etiqueta avisa saldo curto e não libera a compra", () => {
+  const curto = resumoEtiquetas({
+    quantidade: 2,
+    gerar: 0,
+    total_centavos: 5000,
+    saldo_centavos: 1200,
+    falta_centavos: 3800,
+    pode_comprar: false,
+  });
+  assert.match(curto.frase, /2 pedidos/);
+  assert.equal(curto.falta.replace(/\s/g, " "), "R$ 38,00");
+  assert.equal(curto.podeComprar, false);
+
+  const ok = resumoEtiquetas({
+    quantidade: 1,
+    gerar: 0,
+    total_centavos: 1800,
+    saldo_centavos: 5000,
+    falta_centavos: 0,
+    pode_comprar: true,
+  });
+  assert.equal(ok.podeComprar, true);
+  assert.equal(ok.falta, "");
+});
+
+test("etiqueta só para envio pago, e o rastreio aponta a transportadora", () => {
+  const pago = pedidoFixture({ status: "pago", entrega_tipo: "envio", me_order_id: "", rastreio: "" });
+  assert.equal(podeGerarEtiqueta(pago), true);
+  assert.equal(podeImprimirEtiqueta(pago), false);
+  const gerada = pedidoFixture({
+    status: "etiqueta_gerada",
+    me_order_id: "9b1c2d3e-4f50-6789-abcd-ef0123456789",
+    rastreio: "AA123456789BR",
+  });
+  assert.equal(podeGerarEtiqueta(gerada), false);
+  assert.equal(podeImprimirEtiqueta(gerada), true);
+  assert.equal(podeGerarEtiqueta(pedidoFixture({ teste: true })), false);
+  assert.equal(podeGerarEtiqueta(pedidoFixture({ entrega_tipo: "retirada" })), false);
+  const conferir = pedidoFixture({
+    status: "pago",
+    me_order_id: "9b1c2d3e-4f50-6789-abcd-ef0123456789",
+    me_status: "precisa_conferir",
+    rastreio: "",
+  });
+  assert.equal(precisaConferirEtiqueta(conferir), true);
+  assert.equal(podeGerarEtiqueta(conferir), false);
+  assert.equal(rotuloMeStatus("precisa_conferir"), "Precisa conferir");
+  assert.match(linkRastreio("Correios", "AA123456789BR"), /correios\.com\.br/);
+  assert.match(linkRastreio("Jadlog", "JAD1234"), /jadlog\.com\.br/);
+  assert.equal(rotuloMeStatus("posted"), "Postada");
+  assert.equal(rotuloOrigem("melhor_envio"), "Melhor Envio");
+});
+
+test("a etapa 4 não abre pedidos nem e-mails para anon", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261120180000_admin_etapa4_envio.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = sql.replace(/--.*$/gm, "");
+  assert.match(sql, /SECURITY DEFINER/);
+  assert.match(sql, /search_path = pg_catalog/);
+  assert.match(sql, /public\.is_admin\(\)/);
+  assert.match(sql, /melhor_envio/);
+  assert.match(sql, /pedido_emails/);
+  assert.match(sql, /interval '2 minutes'/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.admin_registrar_etiqueta/);
+  assert.match(sql, /TO service_role/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*pedido_emails[^;]*TO authenticated/i);
+
+  const app = await readFile(new URL("../admin/js/app.mjs", import.meta.url), "utf8");
+  assert.match(app, /Gerar etiquetas da quarta/);
+  assert.match(app, /Comprar etiquetas/);
+  assert.match(app, /Não vou comprar/);
+  assert.match(app, /Imprimir em A4/);
+  assert.match(app, /Imprimir na térmica/);
+  assert.match(app, /notificarCliente/);
+  assert.match(app, /Conferir etiqueta/);
+  assert.match(app, /Não compre outra/);
+  assert.match(app, /data-conferir-etiqueta/);
+
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.match(css, /\.detalhe-topo[\s\S]*position:\s*sticky/);
+  assert.match(css, /scroll-margin-top:\s*5\.5rem/);
 });
 
 function pedidoFixture(extra) {

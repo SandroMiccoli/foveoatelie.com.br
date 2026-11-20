@@ -127,3 +127,62 @@ Números: Mastercard `5480 8328 0103 3311`, Visa `4235 6477 2802 5682`. A lista 
 6. Dá para simular o webhook no painel (Simular notificação, evento de order, o `data.id` da order). Sem o secret, a função processa mesmo assim. Com o secret, a simulação do painel precisa bater a assinatura.
 
 O preço na tela é só exibição. Um real a menos no JSON do navegador não muda o que o Mercado Pago cobra: `reservar_pedido` chama `calcular_preco_centavos` (1 = R$ 60, 2 = R$ 110, 3 = R$ 150, e o resto segue a tabela) e a cotação de frete roda de novo no servidor.
+
+## Etapa 4 — etiqueta, status e e-mail
+
+Duas migrations, nesta ordem, no SQL editor, cada arquivo inteiro, uma vez. Não usar `supabase db push`.
+
+1. `supabase/migrations/20261120180000_admin_etapa4_envio.sql`
+2. `supabase/migrations/20261120200000_admin_etapa4_conferencia.sql`
+
+O painel compra a etiqueta só depois da confirmação na tela. O resumo pede a cotação atual no Melhor Envio (não gasta saldo) e compara com o saldo. A compra trava os pedidos (`admin_reservar_compra_etiqueta`), põe no carrinho, grava o id como `pendente` e só então faz o checkout se o preço do carrinho couber no saldo. Se o checkout não responder, a função pergunta o status ao Melhor Envio: pago segue para gerar; não pago só sai do carrinho se o DELETE voltar 2xx e o status continuar sem pagamento. Caso contrário fica `precisa_conferir` e o botão "Conferir etiqueta" tenta de novo. Um 404 nesse conferir não solta o pedido: só sai se o DELETE do carrinho voltar 2xx e a leitura seguinte continuar sem pagamento. Senão continua `precisa_conferir`. Não compre outra etiqueta nesse estado. O webhook não troca `comprando`, `pendente` nem `precisa_conferir` enquanto o evento não provar o pagamento. Antes de gravar "released", a função confere de novo se a etiqueta foi paga.
+
+Remetente (origem 31030-285, Foveō Ateliê) sai de secret. Nada de endereço pessoal no código. Informe CPF **ou** CNPJ.
+
+```bash
+supabase secrets set \
+  MELHOR_ENVIO_FROM_NAME="Foveō Ateliê" \
+  MELHOR_ENVIO_FROM_EMAIL="contato@foveoatelie.com.br" \
+  MELHOR_ENVIO_FROM_PHONE="31900000000" \
+  MELHOR_ENVIO_FROM_DOCUMENT="<CPF com 11 dígitos, ou vazio se houver CNPJ>" \
+  MELHOR_ENVIO_FROM_COMPANY_DOCUMENT="<CNPJ com 14 dígitos, ou vazio se houver CPF>" \
+  MELHOR_ENVIO_FROM_ADDRESS="<logradouro>" \
+  MELHOR_ENVIO_FROM_NUMBER="<número>" \
+  MELHOR_ENVIO_FROM_COMPLEMENT="<opcional>" \
+  MELHOR_ENVIO_FROM_DISTRICT="<bairro>" \
+  MELHOR_ENVIO_FROM_CITY="Belo Horizonte" \
+  MELHOR_ENVIO_FROM_STATE="MG" \
+  MELHOR_ENVIO_FROM_POSTAL_CODE="31030285" \
+  MELHOR_ENVIO_AGENCY_ID="<só Latam, Azul ou Buslog; senão não defina>" \
+  MELHOR_ENVIO_APP_SECRET="<segredo do app, para o webhook>" \
+  SMTP_HOST="smtp.gmail.com" \
+  SMTP_PORT="465" \
+  SMTP_USER="<conta Gmail que envia como o domínio>" \
+  SMTP_PASS="<senha de app>" \
+  --project-ref bbksditqlgdjftwowtje
+```
+
+`MELHOR_ENVIO_TOKEN` e `MELHOR_ENVIO_BASE_URL` (`https://melhorenvio.com.br`) já existem. O token tem de ser do mesmo aplicativo que recebe o webhook. `SMTP_PORT` 465 é TLS direto; 587 usa STARTTLS. O From e o Reply-To são sempre `contato@foveoatelie.com.br`, nome "Foveō Ateliê". A autenticação usa `SMTP_USER` e `SMTP_PASS`.
+
+Deploy, na raiz, com a CLI autenticada. Não rode daqui.
+
+```bash
+supabase functions deploy etiquetas-melhor-envio --project-ref bbksditqlgdjftwowtje
+supabase functions deploy notificar-cliente --project-ref bbksditqlgdjftwowtje
+supabase functions deploy webhook-melhor-envio --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy rastrear-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy consultar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy webhook-mercado-pago --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+```
+
+`consultar-pedido` e `webhook-mercado-pago` precisam ir de novo: o primeiro passa a devolver o rastreio, o segundo manda o e-mail de pagamento confirmado. `verify_jwt` está em `supabase/config.toml`.
+
+Webhook do Melhor Envio, em Integrações → Área Dev → o aplicativo → Novo Webhook:
+
+`https://bbksditqlgdjftwowtje.supabase.co/functions/v1/webhook-melhor-envio`
+
+A função confere `X-ME-Signature` (HMAC-SHA256 do corpo cru, com `MELHOR_ENVIO_APP_SECRET`). Sem o secret, ou com assinatura errada, responde 401. Postagem vira "Enviado". Entrega vira "Entregue". O histórico fica com origem "Melhor Envio". Retirada ("Pronto pra retirada" e "Retirado") continua manual. A térmica em lote pede um PDF só em `/api/v2/me/imprimir/pdf/{ids}`. Se o Melhor Envio recusar vários ids nesse caminho, o painel abre o PDF de folha, que a documentação garante como um arquivo.
+
+A consulta pública conta falha no banco (`rastreio_falhas`): 5 por código e 20 por IP, numa hora. A resposta é a mesma de pedido inexistente. `anon` e `authenticated` não leem essa tabela. O SMTP corta conexão, leitura e escrita em 8 segundos. O e-mail de pagamento sai em segundo plano (`EdgeRuntime.waitUntil`), para o webhook do Mercado Pago responder logo. Se o webhook do Melhor Envio repetir, o e-mail pendente ou falho tenta de novo; o que já saiu não sai outra vez. A reserva do e-mail só é considerada abandonada depois de 15 minutos, e uma falha grava `falhou_em`.
+
+A página pública está em `rastreio/` (HTML, CSS e JS). O script da página pós-pagamento está em `vitrine/assets/js/pedido.js`, para substituir `assets/js/pedido.js` no branch `main`. Não faça merge de `admin` em `main`: este branch não tem a vitrine. `anon` continua sem leitura de `pedidos`. A consulta passa pela função `rastrear-pedido`, com código `YYMMDDNNN` e e-mail ou CPF.

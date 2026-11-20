@@ -98,6 +98,12 @@ export const SELECT_PEDIDOS = [
   "mp_order_id",
   "mp_payment_id",
   "pago_em",
+  "me_order_id",
+  "me_protocolo",
+  "rastreio",
+  "me_status",
+  "me_preco_centavos",
+  "etiqueta_em",
 ].join(",");
 
 export function emailEhAdmin(email) {
@@ -307,6 +313,12 @@ export function normalizarPedido(row) {
     mp_order_id: textoOuVazio(row.mp_order_id),
     mp_payment_id: textoOuVazio(row.mp_payment_id),
     pago_em: typeof row.pago_em === "string" ? row.pago_em : "",
+    me_order_id: textoOuVazio(row.me_order_id),
+    me_protocolo: textoOuVazio(row.me_protocolo),
+    rastreio: textoOuVazio(row.rastreio).replace(/[^A-Za-z0-9]/g, ""),
+    me_status: textoOuVazio(row.me_status).toLowerCase(),
+    me_preco_centavos: centavosOuNulo(row.me_preco_centavos),
+    etiqueta_em: typeof row.etiqueta_em === "string" ? row.etiqueta_em : "",
   };
 }
 
@@ -384,6 +396,91 @@ export function telefoneParaWa(telefone) {
   if (digitos.startsWith("55") && digitos.length >= 12) return digitos;
   if (digitos.length >= 10 && digitos.length <= 11) return "55" + digitos;
   return "";
+}
+
+export function linkRastreio(transportadora, codigo) {
+  const code = String(codigo || "").replace(/[^A-Za-z0-9]/g, "");
+  if (code.length < 4 || code.length > 40) return "";
+  const nome = String(transportadora || "").toLowerCase();
+  if (nome.includes("correio")) {
+    return "https://rastreamento.correios.com.br/app/index.php?objetos=" + code;
+  }
+  if (nome.includes("jadlog")) return "https://www.jadlog.com.br/tracking?cte=" + code;
+  if (nome.includes("azul")) {
+    return "https://www.azulcargoexpress.com.br/Rastreio/Rastreio/Rastrear?codigo=" + code;
+  }
+  if (nome.includes("loggi")) return "https://www.loggi.com/rastreador/" + code;
+  if (nome.includes("latam")) return "https://www.latamcargo.com/en/track-shipment?trackingNumber=" + code;
+  if (nome.includes("j&t") || nome.includes("jet")) {
+    return "https://www.jtexpress.com.br/trajectoryQuery?waybillNo=" + code;
+  }
+  return "https://www.melhorrastreio.com.br/rastreio/" + code;
+}
+
+const ROTULO_ME = {
+  pending: "No carrinho",
+  pendente: "No carrinho",
+  comprando: "Compra em andamento",
+  precisa_conferir: "Precisa conferir",
+  released: "Paga",
+  generated: "Gerada",
+  posted: "Postada",
+  delivered: "Entregue",
+  canceled: "Cancelada",
+  cancelled: "Cancelada",
+  undelivered: "Não entregue",
+};
+
+export function rotuloMeStatus(status) {
+  const chave = typeof status === "string" ? status.trim().toLowerCase() : "";
+  if (!chave) return "";
+  return ROTULO_ME[chave] || chave;
+}
+
+export function precisaConferirEtiqueta(pedido) {
+  if (!pedido || pedido.teste || pedido.entrega_tipo !== "envio") return false;
+  const fase = typeof pedido.me_status === "string" ? pedido.me_status.trim().toLowerCase() : "";
+  if (fase === "precisa_conferir") return true;
+  return fase === "pendente" && Boolean(pedido.me_order_id) && pedido.status === "pago" && !pedido.rastreio;
+}
+
+export function podeGerarEtiqueta(pedido) {
+  if (!pedido || pedido.teste || pedido.entrega_tipo !== "envio") return false;
+  if (pedido.status !== "pago") return false;
+  if (pedido.me_order_id && pedido.rastreio) return false;
+  if (precisaConferirEtiqueta(pedido)) return false;
+  const fase = typeof pedido.me_status === "string" ? pedido.me_status.trim().toLowerCase() : "";
+  if (fase === "comprando") return false;
+  return true;
+}
+
+export function podeImprimirEtiqueta(pedido) {
+  if (!pedido || pedido.teste || !pedido.me_order_id) return false;
+  if (precisaConferirEtiqueta(pedido)) return false;
+  return ["pago", "etiqueta_gerada", "enviado", "entregue"].includes(pedido.status);
+}
+
+export function resumoEtiquetas(entrada) {
+  const qtd = entrada && Number.isFinite(entrada.quantidade) ? entrada.quantidade : 0;
+  const gerar = entrada && Number.isFinite(entrada.gerar) ? entrada.gerar : 0;
+  const falta = entrada && Number.isFinite(entrada.falta_centavos) ? entrada.falta_centavos : 0;
+  const total = entrada && Number.isFinite(entrada.total_centavos) ? entrada.total_centavos : 0;
+  const saldo = entrada && Number.isFinite(entrada.saldo_centavos) ? entrada.saldo_centavos : 0;
+  let frase = "Nenhum pedido pago de envio está sem etiqueta.";
+  if (qtd === 1 && gerar === 0) frase = "1 pedido de envio, pago, sem etiqueta.";
+  else if (qtd > 1 && gerar === 0) frase = qtd + " pedidos de envio, pagos, sem etiqueta.";
+  else if (qtd === 0 && gerar === 1) frase = "1 etiqueta já foi paga. Falta gerar o rastreio.";
+  else if (qtd === 0 && gerar > 1) frase = gerar + " etiquetas já foram pagas. Falta gerar o rastreio.";
+  else if (qtd > 0 && gerar > 0) {
+    frase = qtd + (qtd === 1 ? " pedido novo" : " pedidos novos") + " e " + gerar + " já " + (gerar === 1 ? "pago" : "pagos") + ".";
+  }
+  return {
+    frase,
+    custo: formatarPreco(total),
+    saldo: formatarPreco(saldo),
+    falta: falta > 0 ? formatarPreco(falta) : "",
+    podeComprar: Boolean(entrada && entrada.pode_comprar) && falta === 0 && (qtd > 0 || gerar > 0),
+  };
 }
 
 export function linkWhatsApp(telefone) {
@@ -1229,6 +1326,42 @@ export async function ajusteEstoque(config, accessToken, produtoId, disponivel, 
     p_disponivel: disponivel,
     p_observacao: observacao || "",
   }, fetchImpl);
+}
+
+export async function chamarEtiquetas(config, accessToken, corpo, fetchImpl) {
+  let res;
+  try {
+    res = await fetchImpl(config.url + "/functions/v1/etiquetas-melhor-envio", {
+      method: "POST",
+      headers: cabecalhos(config, accessToken),
+      body: JSON.stringify(corpo),
+    });
+  } catch (_err) {
+    return { ok: false, rede: true };
+  }
+  const data = await lerCorpo(res);
+  if (!res.ok || (data && data.ok === false)) {
+    return { ok: false, status: res.status, body: data };
+  }
+  return { ok: true, body: data };
+}
+
+export async function notificarCliente(config, accessToken, pedidoId, evento, fetchImpl) {
+  let res;
+  try {
+    res = await fetchImpl(config.url + "/functions/v1/notificar-cliente", {
+      method: "POST",
+      headers: cabecalhos(config, accessToken),
+      body: JSON.stringify({ pedido_id: pedidoId, evento }),
+    });
+  } catch (_err) {
+    return { ok: false, rede: true };
+  }
+  const data = await lerCorpo(res);
+  if (!res.ok || (data && data.ok === false)) {
+    return { ok: false, status: res.status, body: data };
+  }
+  return { ok: true, body: data };
 }
 
 export async function reembolsarPedido(config, accessToken, pedidoId, fetchImpl) {
