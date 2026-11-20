@@ -203,12 +203,18 @@ h2 {
 
 .marca-entrada {
   align-self: center;
+  justify-content: center;
+  width: min(12rem, 100%);
   margin-bottom: 2rem;
+}
+
+.marca-entrada .marca-cheia {
+  width: 100%;
 }
 
 .marca-cheia {
   display: block;
-  width: min(12rem, 72%);
+  width: min(12rem, 100%);
 }
 
 .topo {
@@ -367,8 +373,14 @@ input:-webkit-autofill {
 }
 
 #form-entrar {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   margin-top: 0;
+}
+
+#form-entrar > .botao {
+  align-self: center;
 }
 
 .alerta {
