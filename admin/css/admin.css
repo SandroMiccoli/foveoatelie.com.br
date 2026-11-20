@@ -858,6 +858,115 @@ td[data-campo="entrega"] {
   margin-top: 0;
 }
 
+.acoes-pedidos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.25rem 0 1.25rem;
+}
+
+.acoes-pedidos .botao {
+  margin-top: 0;
+  width: 100%;
+}
+
+.acoes-etiquetas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acoes-etiquetas .botao {
+  margin-top: 0;
+  width: 100%;
+}
+
+.rastreio-valor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+}
+
+.rastreio-link {
+  margin-left: 0;
+}
+
+.etiquetas-camada {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: rgba(13, 9, 8, 0.78);
+}
+
+.dialogo-etiquetas {
+  width: min(32rem, 100%);
+  max-height: min(85dvh, 40rem);
+  overflow: auto;
+  padding: 1.25rem 1.15rem 1.35rem;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  color: var(--paper);
+}
+
+.dialogo-etiquetas h2 {
+  width: fit-content;
+  margin: 0 0 0.85rem;
+  font-family: "EB Garamond", "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.75rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--paper);
+}
+
+.dialogo-etiquetas h2:focus {
+  outline: 2px solid var(--copper);
+  outline-offset: 3px;
+}
+
+.dialogo-etiquetas p {
+  margin: 0.55rem 0 0;
+}
+
+.dialogo-etiquetas .alerta {
+  margin-top: 0.85rem;
+}
+
+.dialogo-etiquetas .confirmacao-acoes {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dialogo-etiquetas .botao,
+.dialogo-etiquetas .botao-texto {
+  width: 100%;
+  margin-top: 0;
+}
+
+.dialogo-etiquetas .barra {
+  display: block;
+  height: 0.35rem;
+  margin-top: 1rem;
+  background: var(--line);
+}
+
+.fora-lista {
+  margin: 0.85rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--paper-dim);
+  font-size: 0.875rem;
+}
+
+.fora-lista li + li {
+  margin-top: 0.35rem;
+}
+
 body.detalhe-aberto {
   overflow: hidden;
 }
@@ -1198,6 +1307,26 @@ td[data-campo="total"] {
      fixo à direita). A tabela mantém a largura cheia por baixo. */
   .pedidos-com-detalhe .lista-pedidos {
     width: 100%;
+  }
+
+  .acoes-pedidos .botao,
+  .acoes-etiquetas .botao {
+    width: auto;
+  }
+
+  .etiquetas-camada {
+    align-items: center;
+    padding: 1.5rem;
+  }
+
+  .dialogo-etiquetas .confirmacao-acoes {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .dialogo-etiquetas .botao,
+  .dialogo-etiquetas .botao-texto {
+    width: auto;
   }
 
   .pedidos-com-detalhe .detalhe-camada {

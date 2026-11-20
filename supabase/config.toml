@@ -18,3 +18,17 @@ verify_jwt = false
 # a função ainda exige contato@foveoatelie.com.br.
 [functions.reembolsar-pedido]
 verify_jwt = true
+
+[functions.etiquetas-melhor-envio]
+verify_jwt = true
+
+[functions.notificar-cliente]
+verify_jwt = true
+
+# O Melhor Envio chama sem JWT. A função confere X-ME-Signature.
+[functions.webhook-melhor-envio]
+verify_jwt = false
+
+# A cliente consulta com a chave publishable, que não é um JWT.
+[functions.rastrear-pedido]
+verify_jwt = false

@@ -4,10 +4,23 @@
 import { aplicarOrderMercadoPago } from "../_shared/aplicar-order.ts";
 import { credenciaisSupabase } from "../_shared/frete.ts";
 import { json, cabecalhosCors, origemPermitida } from "../_shared/http.ts";
+import { linkRastreio, statusPublico } from "../_shared/etiquetas.ts";
 import { checkoutUrlConfiavel, dataPostagem, numeroCurto, primeiroNome, retentativaDePagamento } from "../_shared/pedido.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const STATUS = new Set(["pendente", "pago", "expirado", "recusado", "cancelado", "enviado", "entregue"]);
+const STATUS = new Set([
+  "pendente",
+  "pago",
+  "etiqueta_gerada",
+  "enviado",
+  "entregue",
+  "pronto_retirada",
+  "retirado",
+  "expirado",
+  "recusado",
+  "cancelado",
+  "reembolsado",
+]);
 const INTERVALO_MP_MS = 5000;
 const ultimaConsultaMp = new Map<string, number>();
 
@@ -58,7 +71,10 @@ Deno.serve(async (req) => {
   }
 
   const statusBruto = typeof row.status === "string" ? row.status : "";
-  const status = STATUS.has(statusBruto) ? statusBruto : "pendente";
+  const status = STATUS.has(statusBruto) ? statusBruto : statusPublico(statusBruto);
+  const rastreio = typeof row.rastreio === "string" ? row.rastreio.replace(/[^A-Za-z0-9]/g, "") : "";
+  const freteRow = row.frete && typeof row.frete === "object" ? row.frete as Record<string, unknown> : {};
+  const transportadora = typeof freteRow.transportadora === "string" ? freteRow.transportadora : "";
   const nome = typeof row.cliente_nome === "string" ? row.cliente_nome : "";
   const entrega = row.entrega_tipo === "retirada" ? "retirada" : "envio";
   const quando = typeof row.pago_em === "string" && row.pago_em
@@ -83,6 +99,8 @@ Deno.serve(async (req) => {
     data_postagem: quando ? dataPostagem(quando) : null,
     retentativa,
     checkout_url: retentativa ? checkoutParaRetentar(row) : null,
+    rastreio: rastreio.length >= 4 ? rastreio : null,
+    rastreio_url: rastreio.length >= 4 ? linkRastreio(transportadora, rastreio) : null,
   });
 });
 
@@ -176,6 +194,7 @@ async function buscarPedido(
     "pago_em",
     "created_at",
     "codigo",
+    "rastreio",
   ].join(",");
   let res: Response;
   try {

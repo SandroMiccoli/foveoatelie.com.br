@@ -20,6 +20,13 @@ import {
   formatarEnderecoCompleto,
   formatarPreco,
   formatarVelas,
+  chamarEtiquetas,
+  linkRastreio,
+  notificarCliente,
+  podeGerarEtiqueta,
+  podeImprimirEtiqueta,
+  resumoEtiquetas,
+  rotuloMeStatus,
   gravarMostrarTestes,
   gravarRail,
   gravarSessao,
@@ -91,6 +98,7 @@ let pedidoAbertoId = "";
 let historicoAberto = [];
 let avisoPedido = "";
 let confirmacao = null;
+let etiquetasUi = null;
 let notasRascunho = "";
 let railEstado = RAIL_AUTO;
 let railHoverTimer = 0;
@@ -761,7 +769,60 @@ function painelDetalhe(pedido) {
       campoDetalhe("Taxa Mercado Pago", tracoOu(formatarPreco(pedido.mp_taxa_centavos))),
       campoDetalhe("Líquido recebido", tracoOu(formatarPreco(pedido.mp_liquido_centavos))),
       campoDetalhe("Liberação", tracoOu(liberacao ? liberacao.texto : "")),
+      pedido.entrega_tipo === "envio"
+        ? campoDetalhe(
+          "Rastreio",
+          pedido.rastreio
+            ? el("span", { class: "rastreio-valor" }, [
+              el("span", { class: "codigo", text: pedido.rastreio }),
+              linkRastreio(frete.transportadora, pedido.rastreio)
+                ? el("a", {
+                  class: "rastreio-link",
+                  href: linkRastreio(frete.transportadora, pedido.rastreio),
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                  text: "Acompanhar",
+                })
+                : null,
+            ])
+            : tracoOu(""),
+        )
+        : null,
+      pedido.me_status
+        ? campoDetalhe("Melhor Envio", tracoOu(rotuloMeStatus(pedido.me_status)))
+        : null,
     ].filter(Boolean)),
+    pedido.entrega_tipo === "envio" && !pedido.teste
+      ? el("div", { class: "detalhe-bloco" }, [
+        el("h3", { text: "Etiqueta" }),
+        podeGerarEtiqueta(pedido)
+          ? el("button", {
+            type: "button",
+            class: "botao",
+            "data-gerar-etiqueta": pedido.id,
+            text: pedido.me_order_id ? "Gerar rastreio" : "Gerar etiqueta",
+          })
+          : null,
+        podeImprimirEtiqueta(pedido)
+          ? el("div", { class: "acoes-etiquetas" }, [
+            el("button", {
+              type: "button",
+              class: "botao",
+              "data-imprimir-uma": "a4",
+              "data-pedido-id": pedido.id,
+              text: "Imprimir em A4",
+            }),
+            el("button", {
+              type: "button",
+              class: "botao botao-secundario",
+              "data-imprimir-uma": "termica",
+              "data-pedido-id": pedido.id,
+              text: "Imprimir na térmica",
+            }),
+          ])
+          : null,
+      ])
+      : null,
     el("div", { class: "detalhe-bloco" }, [
       el("label", { for: "status-pedido", text: "Status" }),
       el("select", { id: "status-pedido", "data-status-pedido": pedido.id }, opcoes),
@@ -838,13 +899,118 @@ function mioloPedidos(estado) {
         ? el("div", { class: "detalhe-camada", "data-fechar-fundo": "1" }, [painelDetalhe(pedidoAberto)])
         : null,
     ]),
+    dialogoEtiquetas(),
   ]);
 }
 
 function paginaPedidos(estado) {
   return el("div", { class: "pagina pagina-pedidos" }, [
     titulo("Pedidos"),
+    el("div", { class: "acoes-pedidos" }, [
+      el("button", {
+        type: "button",
+        class: "botao",
+        "data-etiquetas-quarta": "1",
+        text: "Gerar etiquetas da quarta",
+      }),
+      el("button", {
+        type: "button",
+        class: "botao botao-secundario",
+        "data-imprimir-lote": "1",
+        text: "Imprimir etiquetas",
+      }),
+    ]),
     el("div", { id: "regiao-pedidos" }, [mioloPedidos(estado)]),
+  ]);
+}
+
+function dialogoEtiquetas() {
+  if (!etiquetasUi) return null;
+  const ui = etiquetasUi;
+  let corpo = [];
+  if (ui.fase === "carregando" || ui.fase === "comprando" || ui.fase === "imprimindo") {
+    const texto = ui.fase === "comprando"
+      ? "Comprando as etiquetas no Melhor Envio."
+      : ui.fase === "imprimindo"
+      ? "Pedindo o PDF."
+      : "Conferindo saldo e pedidos.";
+    corpo = [el("p", { text: texto }), el("span", { class: "barra" })];
+  } else if (ui.fase === "erro") {
+    corpo = [
+      el("p", { class: "alerta", role: "alert", text: ui.mensagem || "Não deu certo." }),
+      el("button", { type: "button", class: "botao-texto", "data-etiquetas-fechar": "1", text: "Fechar" }),
+    ];
+  } else if (ui.fase === "resumo") {
+    const resumo = resumoEtiquetas(ui.resumo || {});
+    const fora = Array.isArray(ui.resumo && ui.resumo.fora) ? ui.resumo.fora : [];
+    corpo = [
+      el("p", { text: resumo.frase }),
+      ui.resumo && ui.resumo.quantidade
+        ? el("p", { text: "Custo no Melhor Envio: " + resumo.custo + "." })
+        : null,
+      el("p", { text: "Saldo: " + resumo.saldo + "." }),
+      resumo.falta
+        ? el("p", { class: "alerta", role: "alert", text: "Falta " + resumo.falta + " no saldo. Não vou comprar." })
+        : null,
+      ui.resumo && ui.resumo.remetente_ok === false
+        ? el("p", { class: "alerta", role: "alert", text: "Faltam os dados do remetente. Não vou comprar." })
+        : null,
+      fora.length
+        ? el("ul", { class: "fora-lista" }, fora.map((item) =>
+          el("li", { text: (item.codigo ? "#" + item.codigo + ": " : "") + (item.motivo || "Ficou de fora.") })
+        ))
+        : null,
+      el("div", { class: "confirmacao-acoes" }, [
+        resumo.podeComprar
+          ? el("button", {
+            type: "button",
+            class: "botao",
+            "data-etiquetas-comprar": "1",
+            text: ui.resumo && ui.resumo.quantidade > 0 ? "Comprar etiquetas" : "Gerar rastreio",
+          })
+          : null,
+        el("button", { type: "button", class: "botao-texto", "data-etiquetas-fechar": "1", text: "Voltar" }),
+      ]),
+    ];
+  } else if (ui.fase === "pronto") {
+    corpo = [
+      el("p", { text: ui.mensagem || "Etiquetas geradas." }),
+      el("div", { class: "confirmacao-acoes" }, [
+        el("button", { type: "button", class: "botao", "data-imprimir-formato": "a4", text: "Imprimir em A4" }),
+        el("button", {
+          type: "button",
+          class: "botao botao-secundario",
+          "data-imprimir-formato": "termica",
+          text: "Imprimir na térmica",
+        }),
+        el("button", { type: "button", class: "botao-texto", "data-etiquetas-fechar": "1", text: "Fechar" }),
+      ]),
+    ];
+  } else if (ui.fase === "formato") {
+    corpo = [
+      el("p", { text: ui.mensagem || "Escolha o papel. Sai um PDF só, com todas as etiquetas." }),
+      el("div", { class: "confirmacao-acoes" }, [
+        el("button", { type: "button", class: "botao", "data-imprimir-formato": "a4", text: "Imprimir em A4" }),
+        el("button", {
+          type: "button",
+          class: "botao botao-secundario",
+          "data-imprimir-formato": "termica",
+          text: "Imprimir na térmica",
+        }),
+        el("button", { type: "button", class: "botao-texto", "data-etiquetas-fechar": "1", text: "Voltar" }),
+      ]),
+    ];
+  }
+  return el("div", { class: "etiquetas-camada", "data-etiquetas-fundo": "1" }, [
+    el("div", {
+      class: "dialogo-etiquetas",
+      role: "alertdialog",
+      "aria-modal": "true",
+      "aria-labelledby": "etiquetas-titulo",
+    }, [
+      el("h2", { id: "etiquetas-titulo", tabindex: "-1", text: ui.titulo || "Etiquetas da quarta" }),
+      ...corpo,
+    ]),
   ]);
 }
 
@@ -1615,6 +1781,115 @@ function lerFiltrosDoForm(form) {
   pintarRegiao();
 }
 
+function idsDoUi() {
+  if (!etiquetasUi) return null;
+  if (etiquetasUi.pedidoId) return [etiquetasUi.pedidoId];
+  return null;
+}
+
+async function abrirResumoEtiquetas(pedidoId) {
+  etiquetasUi = {
+    fase: "carregando",
+    pedidoId: pedidoId || "",
+    titulo: pedidoId ? "Etiqueta do pedido" : "Etiquetas da quarta",
+  };
+  pintarRegiao();
+  const corpo = { acao: "resumo" };
+  if (pedidoId) corpo.pedido_ids = [pedidoId];
+  const resposta = await chamarEtiquetas(config, sessao.access_token, corpo, fetch);
+  if (!resposta.ok) {
+    etiquetasUi = {
+      fase: "erro",
+      pedidoId: pedidoId || "",
+      titulo: pedidoId ? "Etiqueta do pedido" : "Etiquetas da quarta",
+      mensagem: resposta.rede
+        ? "Não consegui falar com o servidor. Tente de novo."
+        : mensagemDeAcao(resposta.body, "Não consegui montar o resumo."),
+    };
+    pintarRegiao();
+    return;
+  }
+  etiquetasUi = {
+    fase: "resumo",
+    pedidoId: pedidoId || "",
+    titulo: pedidoId ? "Etiqueta do pedido" : "Etiquetas da quarta",
+    resumo: resposta.body,
+  };
+  pintarRegiao();
+  const titulo = document.getElementById("etiquetas-titulo");
+  if (titulo) titulo.focus();
+}
+
+async function comprarEtiquetas() {
+  if (!etiquetasUi || etiquetasUi.fase !== "resumo") return;
+  const pedidoId = etiquetasUi.pedidoId;
+  const titulo = etiquetasUi.titulo;
+  etiquetasUi = { fase: "comprando", pedidoId, titulo };
+  pintarRegiao();
+  const corpo = { acao: "comprar" };
+  if (pedidoId) corpo.pedido_ids = [pedidoId];
+  const resposta = await chamarEtiquetas(config, sessao.access_token, corpo, fetch);
+  if (!resposta.ok) {
+    etiquetasUi = {
+      fase: "erro",
+      pedidoId,
+      titulo,
+      mensagem: resposta.rede
+        ? "Não consegui falar com o servidor. Se o saldo não mudou, nada foi comprado."
+        : mensagemDeAcao(resposta.body, "Não comprei as etiquetas."),
+    };
+    pintarRegiao();
+    return;
+  }
+  etiquetasUi = {
+    fase: "pronto",
+    pedidoId,
+    titulo,
+    mensagem: resposta.body && resposta.body.mensagem ? resposta.body.mensagem : "Etiquetas geradas.",
+    pedidoIds: (resposta.body && resposta.body.geradas || []).map((item) => item.id).filter(Boolean),
+  };
+  await carregarPedidos();
+  if (pedidoId) {
+    const hist = await listarHistorico(config, sessao.access_token, pedidoId, fetch);
+    if (hist.ok) historicoAberto = hist.linhas;
+    pintarRegiao();
+  }
+}
+
+async function imprimirEtiquetas(formato, pedidoId) {
+  const titulo = etiquetasUi && etiquetasUi.titulo ? etiquetasUi.titulo : "Imprimir etiquetas";
+  const ids = pedidoId ? [pedidoId] : etiquetasUi && etiquetasUi.pedidoIds && etiquetasUi.pedidoIds.length
+    ? etiquetasUi.pedidoIds
+    : etiquetasUi && etiquetasUi.pedidoId
+    ? [etiquetasUi.pedidoId]
+    : null;
+  etiquetasUi = { fase: "imprimindo", titulo, pedidoId: pedidoId || (etiquetasUi && etiquetasUi.pedidoId) || "" };
+  pintarRegiao();
+  const corpo = { acao: "imprimir", formato };
+  if (ids) corpo.pedido_ids = ids;
+  const resposta = await chamarEtiquetas(config, sessao.access_token, corpo, fetch);
+  if (!resposta.ok || !resposta.body || !resposta.body.url) {
+    etiquetasUi = {
+      fase: "erro",
+      titulo,
+      mensagem: resposta.rede
+        ? "Não consegui falar com o servidor."
+        : mensagemDeAcao(resposta.body, "Não consegui o PDF."),
+    };
+    pintarRegiao();
+    return;
+  }
+  window.open(resposta.body.url, "_blank", "noopener");
+  etiquetasUi = {
+    fase: "pronto",
+    titulo,
+    mensagem: resposta.body.mensagem || "PDF pronto.",
+    pedidoIds: ids || undefined,
+    pedidoId: pedidoId || "",
+  };
+  pintarRegiao();
+}
+
 async function pedirMudancaStatus(pedidoId, novoStatus) {
   const pedido = pedidosBrutos.find((p) => p.id === pedidoId);
   if (!pedido || !novoStatus || novoStatus === pedido.status) {
@@ -1664,6 +1939,20 @@ async function aplicarStatus(pedidoId, novoStatus) {
   const hist = await listarHistorico(config, sessao.access_token, pedidoId, fetch);
   if (hist.ok) historicoAberto = hist.linhas;
   pintarRegiao();
+  const eventoEmail = novoStatus === "enviado"
+    ? "enviado"
+    : novoStatus === "entregue"
+    ? "entregue"
+    : novoStatus === "pronto_retirada"
+    ? "pronto_retirada"
+    : "";
+  if (eventoEmail && resultado.body && resultado.body.ja !== true) {
+    const aviso = await notificarCliente(config, sessao.access_token, pedidoId, eventoEmail, fetch);
+    if (!aviso.ok && !aviso.rede) {
+      avisoPedido = mensagemDeAcao(aviso.body, "O status mudou, mas o e-mail não saiu.");
+      pintarRegiao();
+    }
+  }
 }
 
 async function aplicarReembolso(pedidoId) {
@@ -1810,6 +2099,54 @@ app.addEventListener("click", (event) => {
       cascaNode.classList.remove("rail-hover");
       aplicarClasseRail(cascaNode);
     }
+    return;
+  }
+  const fecharEtiquetas = event.target.closest("[data-etiquetas-fechar]");
+  if (fecharEtiquetas) {
+    etiquetasUi = null;
+    pintarRegiao();
+    return;
+  }
+  const fundoEtiquetas = event.target.closest("[data-etiquetas-fundo]");
+  if (fundoEtiquetas && event.target === fundoEtiquetas) {
+    if (!etiquetasUi || etiquetasUi.fase === "comprando" || etiquetasUi.fase === "imprimindo") return;
+    etiquetasUi = null;
+    pintarRegiao();
+    return;
+  }
+  const quarta = event.target.closest("[data-etiquetas-quarta]");
+  if (quarta) {
+    abrirResumoEtiquetas("");
+    return;
+  }
+  const gerarUma = event.target.closest("[data-gerar-etiqueta]");
+  if (gerarUma) {
+    abrirResumoEtiquetas(gerarUma.getAttribute("data-gerar-etiqueta"));
+    return;
+  }
+  const comprarBtn = event.target.closest("[data-etiquetas-comprar]");
+  if (comprarBtn) {
+    comprarEtiquetas();
+    return;
+  }
+  const lote = event.target.closest("[data-imprimir-lote]");
+  if (lote) {
+    etiquetasUi = {
+      fase: "formato",
+      titulo: "Imprimir etiquetas",
+      mensagem: "Escolha o papel. O lote sai num PDF só.",
+    };
+    pintarRegiao();
+    return;
+  }
+  const formatoBtn = event.target.closest("[data-imprimir-formato]");
+  if (formatoBtn) {
+    imprimirEtiquetas(formatoBtn.getAttribute("data-imprimir-formato"), "");
+    return;
+  }
+  const uma = event.target.closest("[data-imprimir-uma]");
+  if (uma) {
+    imprimirEtiquetas(uma.getAttribute("data-imprimir-uma"), uma.getAttribute("data-pedido-id"));
     return;
   }
   const fechar = event.target.closest("[data-fechar-detalhe]");
@@ -1991,6 +2328,12 @@ app.addEventListener("input", (event) => {
 
 app.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (etiquetasUi && etiquetasUi.fase !== "comprando" && etiquetasUi.fase !== "imprimindo") {
+      event.preventDefault();
+      etiquetasUi = null;
+      pintarRegiao();
+      return;
+    }
     if (pedidoAbertoId) {
       event.preventDefault();
       fecharDetalhe();

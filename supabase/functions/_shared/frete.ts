@@ -133,7 +133,7 @@ export function montarPacotes(qtd: number, valorCentavos: number): Pacote[] {
   return pacotes;
 }
 
-function baseUrlMelhorEnvio(): string | null {
+export function baseUrlMelhorEnvio(): string | null {
   const bruta = (Deno.env.get("MELHOR_ENVIO_BASE_URL") || BASE_URL_PADRAO).replace(/\/+$/, "");
   return BASES_PERMITIDAS.has(bruta) ? bruta : null;
 }

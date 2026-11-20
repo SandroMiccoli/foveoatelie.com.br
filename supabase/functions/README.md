@@ -127,3 +127,57 @@ Números: Mastercard `5480 8328 0103 3311`, Visa `4235 6477 2802 5682`. A lista 
 6. Dá para simular o webhook no painel (Simular notificação, evento de order, o `data.id` da order). Sem o secret, a função processa mesmo assim. Com o secret, a simulação do painel precisa bater a assinatura.
 
 O preço na tela é só exibição. Um real a menos no JSON do navegador não muda o que o Mercado Pago cobra: `reservar_pedido` chama `calcular_preco_centavos` (1 = R$ 60, 2 = R$ 110, 3 = R$ 150, e o resto segue a tabela) e a cotação de frete roda de novo no servidor.
+
+## Etapa 4 — etiqueta, status e e-mail
+
+A migration `supabase/migrations/20261120180000_admin_etapa4_envio.sql` vem depois das anteriores. No SQL editor, o arquivo inteiro, uma vez. Não usar `supabase db push`.
+
+O painel compra a etiqueta só depois da confirmação na tela. O resumo lê o saldo e o frete já gravado no pedido. Não há chamada de carrinho antes do "Comprar etiquetas". Se o saldo não cobre, a função não compra.
+
+Remetente (origem 31030-285, Foveō Ateliê) sai de secret. Nada de endereço pessoal no código. Informe CPF **ou** CNPJ.
+
+```bash
+supabase secrets set \
+  MELHOR_ENVIO_FROM_NAME="Foveō Ateliê" \
+  MELHOR_ENVIO_FROM_EMAIL="contato@foveoatelie.com.br" \
+  MELHOR_ENVIO_FROM_PHONE="31900000000" \
+  MELHOR_ENVIO_FROM_DOCUMENT="<CPF com 11 dígitos, ou vazio se houver CNPJ>" \
+  MELHOR_ENVIO_FROM_COMPANY_DOCUMENT="<CNPJ com 14 dígitos, ou vazio se houver CPF>" \
+  MELHOR_ENVIO_FROM_ADDRESS="<logradouro>" \
+  MELHOR_ENVIO_FROM_NUMBER="<número>" \
+  MELHOR_ENVIO_FROM_COMPLEMENT="<opcional>" \
+  MELHOR_ENVIO_FROM_DISTRICT="<bairro>" \
+  MELHOR_ENVIO_FROM_CITY="Belo Horizonte" \
+  MELHOR_ENVIO_FROM_STATE="MG" \
+  MELHOR_ENVIO_FROM_POSTAL_CODE="31030285" \
+  MELHOR_ENVIO_AGENCY_ID="<só Latam, Azul ou Buslog; senão não defina>" \
+  MELHOR_ENVIO_APP_SECRET="<segredo do app, para o webhook>" \
+  SMTP_HOST="smtp.gmail.com" \
+  SMTP_PORT="465" \
+  SMTP_USER="<conta Gmail que envia como o domínio>" \
+  SMTP_PASS="<senha de app>" \
+  --project-ref bbksditqlgdjftwowtje
+```
+
+`MELHOR_ENVIO_TOKEN` e `MELHOR_ENVIO_BASE_URL` (`https://melhorenvio.com.br`) já existem. O token tem de ser do mesmo aplicativo que recebe o webhook. `SMTP_PORT` 465 é TLS direto; 587 usa STARTTLS. O From e o Reply-To são sempre `contato@foveoatelie.com.br`, nome "Foveō Ateliê". A autenticação usa `SMTP_USER` e `SMTP_PASS`.
+
+Deploy, na raiz, com a CLI autenticada. Não rode daqui.
+
+```bash
+supabase functions deploy etiquetas-melhor-envio --project-ref bbksditqlgdjftwowtje
+supabase functions deploy notificar-cliente --project-ref bbksditqlgdjftwowtje
+supabase functions deploy webhook-melhor-envio --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy rastrear-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy consultar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+supabase functions deploy webhook-mercado-pago --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+```
+
+`consultar-pedido` e `webhook-mercado-pago` precisam ir de novo: o primeiro passa a devolver o rastreio, o segundo manda o e-mail de pagamento confirmado. `verify_jwt` está em `supabase/config.toml`.
+
+Webhook do Melhor Envio, em Integrações → Área Dev → o aplicativo → Novo Webhook:
+
+`https://bbksditqlgdjftwowtje.supabase.co/functions/v1/webhook-melhor-envio`
+
+A função confere `X-ME-Signature` (HMAC-SHA256 do corpo cru, com `MELHOR_ENVIO_APP_SECRET`). Sem o secret, ou com assinatura errada, responde 401. Postagem vira "Enviado". Entrega vira "Entregue". O histórico fica com origem "Melhor Envio". Retirada ("Pronto pra retirada" e "Retirado") continua manual. A térmica em lote pede um PDF só em `/api/v2/me/imprimir/pdf/{ids}`. Se o Melhor Envio recusar vários ids nesse caminho, o painel abre o PDF de folha, que a documentação garante como um arquivo.
+
+A página pública está em `rastreio/` (HTML, CSS e JS). O script da página pós-pagamento está em `vitrine/assets/js/pedido.js`, para substituir `assets/js/pedido.js` no branch `main`. Não faça merge de `admin` em `main`: este branch não tem a vitrine. `anon` continua sem leitura de `pedidos`. A consulta passa pela função `rastrear-pedido`, com código `YYMMDDNNN` e e-mail ou CPF.
