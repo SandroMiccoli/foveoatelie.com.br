@@ -898,6 +898,7 @@ test("a etapa 4 não abre pedidos nem e-mails para anon", async () => {
 
   const app = await readFile(new URL("../admin/js/app.mjs", import.meta.url), "utf8");
   assert.match(app, /Gerar etiquetas da quarta/);
+  assert.match(app, /tituloEtiquetasLote|quarta_lote_fmt/);
   assert.match(app, /Comprar etiquetas/);
   assert.match(app, /Não vou comprar/);
   assert.match(app, /Imprimir em A4/);

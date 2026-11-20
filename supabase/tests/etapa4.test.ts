@@ -111,6 +111,7 @@ function pedido(extra: Partial<PedidoEtiqueta> = {}): PedidoEtiqueta {
     me_order_id: "",
     me_status: "",
     rastreio: "",
+    quando: "2026-11-23T12:00:00-03:00",
     ...extra,
   };
 }

@@ -1915,11 +1915,17 @@ function idsDoUi() {
   return null;
 }
 
+function tituloEtiquetasLote(pedidoId, corpo) {
+  if (pedidoId) return "Etiqueta do pedido";
+  const dia = corpo && typeof corpo.quarta_lote_fmt === "string" ? corpo.quarta_lote_fmt.trim() : "";
+  return dia ? "Etiquetas da quarta, " + dia : "Etiquetas da quarta";
+}
+
 async function abrirResumoEtiquetas(pedidoId) {
   etiquetasUi = {
     fase: "carregando",
     pedidoId: pedidoId || "",
-    titulo: pedidoId ? "Etiqueta do pedido" : "Etiquetas da quarta",
+    titulo: tituloEtiquetasLote(pedidoId, null),
   };
   pintarRegiao();
   const corpo = { acao: "resumo" };
@@ -1929,7 +1935,7 @@ async function abrirResumoEtiquetas(pedidoId) {
     etiquetasUi = {
       fase: "erro",
       pedidoId: pedidoId || "",
-      titulo: pedidoId ? "Etiqueta do pedido" : "Etiquetas da quarta",
+      titulo: tituloEtiquetasLote(pedidoId, null),
       mensagem: resposta.rede
         ? "Não consegui falar com o servidor. Tente de novo."
         : mensagemDeAcao(resposta.body, "Não consegui montar o resumo."),
@@ -1940,7 +1946,7 @@ async function abrirResumoEtiquetas(pedidoId) {
   etiquetasUi = {
     fase: "resumo",
     pedidoId: pedidoId || "",
-    titulo: pedidoId ? "Etiqueta do pedido" : "Etiquetas da quarta",
+    titulo: tituloEtiquetasLote(pedidoId, resposta.body),
     resumo: resposta.body,
   };
   pintarRegiao();

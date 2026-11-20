@@ -11,6 +11,8 @@ import {
   checkoutUrlConfiavel,
   dataPostagem,
   proximaQuartaPostagem,
+  quartaAlvoLote,
+  pedidoNoLoteQuarta,
   itensPagamento,
   manifestos,
   codigoPedido,
@@ -82,12 +84,34 @@ test("status da order vira ação do pedido", () => {
   assert.equal(retentativaDePagamento("processed", "accredited"), false);
 });
 
-test("postagem cai na quarta depois da sexta de fechamento", () => {
-  assert.equal(dataPostagem("2026-11-19T15:00:00-03:00"), "2026-11-25");
-  assert.equal(dataPostagem("2026-11-20T23:30:00-03:00"), "2026-11-25");
-  assert.equal(dataPostagem("2026-11-21T12:00:00-03:00"), "2026-12-02");
-  assert.equal(dataPostagem("2026-11-22T12:00:00-03:00"), "2026-12-02");
-  assert.equal(dataPostagem("2026-11-23T09:00:00-03:00"), "2026-12-02");
+test("postagem: corte na segunda 23:59 em São Paulo (dataPostagem e proximaQuartaPostagem)", () => {
+  // Domingo 22/11 → quarta 25/11
+  assert.equal(dataPostagem("2026-11-22T12:00:00-03:00"), "2026-11-25");
+  assert.equal(proximaQuartaPostagem("2026-11-22T12:00:00-03:00"), "25/11");
+  // Segunda 23:59 → quarta da mesma semana
+  assert.equal(dataPostagem("2026-11-23T23:59:00-03:00"), "2026-11-25");
+  assert.equal(proximaQuartaPostagem("2026-11-23T23:59:00-03:00"), "25/11");
+  // Terça 00:00 → quarta da semana seguinte
+  assert.equal(dataPostagem("2026-11-24T00:00:00-03:00"), "2026-12-02");
+  assert.equal(proximaQuartaPostagem("2026-11-24T00:00:00-03:00"), "02/12");
+  // Quarta em si → próxima quarta
+  assert.equal(dataPostagem("2026-11-25T12:00:00-03:00"), "2026-12-02");
+  assert.equal(proximaQuartaPostagem("2026-11-25T12:00:00-03:00"), "02/12");
+  // Domingo da semana seguinte
+  assert.equal(dataPostagem("2026-11-29T18:00:00-03:00"), "2026-12-02");
+  assert.equal(proximaQuartaPostagem("2026-11-29T18:00:00-03:00"), "02/12");
+  // Fronteira de mês / ano
+  assert.equal(dataPostagem("2026-12-29T10:00:00-03:00"), "2027-01-06");
+  assert.equal(proximaQuartaPostagem("2026-12-29T10:00:00-03:00"), "06/01");
+  assert.equal(dataPostagem("2026-12-28T23:59:00-03:00"), "2026-12-30");
+  assert.equal(proximaQuartaPostagem("2026-12-28T23:59:00-03:00"), "30/12");
+  // Instante em UTC que ainda é segunda em SP / já é terça
+  assert.equal(dataPostagem("2026-11-24T02:59:00Z"), "2026-11-25");
+  assert.equal(proximaQuartaPostagem("2026-11-24T02:59:00Z"), "25/11");
+  assert.equal(dataPostagem("2026-11-24T03:00:00Z"), "2026-12-02");
+  assert.equal(proximaQuartaPostagem("2026-11-24T03:00:00Z"), "02/12");
+  assert.equal(dataPostagem("data-invalida"), null);
+  assert.equal(proximaQuartaPostagem("data-invalida"), null);
   assert.equal(numeroCurto("75b7d5ab-1111-4111-8111-111111111111"), "75B7D5");
   assert.equal(primeiroNome("Ana Lima"), "Ana");
   assert.equal(primeiroNome("SANDRO"), "Sandro");
@@ -95,23 +119,17 @@ test("postagem cai na quarta depois da sexta de fechamento", () => {
   assert.equal(primeiroNome("íris"), "Íris");
 });
 
-test("proximaQuartaPostagem: corte na segunda 23:59 em São Paulo", () => {
-  // Segunda 23:59 → quarta da mesma semana
-  assert.equal(proximaQuartaPostagem("2026-11-23T23:59:00-03:00"), "25/11");
-  // Terça 00:00 → quarta da semana seguinte
-  assert.equal(proximaQuartaPostagem("2026-11-24T00:00:00-03:00"), "02/12");
-  // Quarta em si → próxima quarta
-  assert.equal(proximaQuartaPostagem("2026-11-25T12:00:00-03:00"), "02/12");
-  // Domingo → quarta seguinte
-  assert.equal(proximaQuartaPostagem("2026-11-29T18:00:00-03:00"), "02/12");
-  // Fronteira de mês (terça 24/11 já cobre 02/12); ano novo
-  assert.equal(proximaQuartaPostagem("2026-12-29T10:00:00-03:00"), "06/01");
-  assert.equal(proximaQuartaPostagem("2026-12-28T23:59:00-03:00"), "30/12");
-  // Instante em UTC que ainda é segunda em SP
-  assert.equal(proximaQuartaPostagem("2026-11-24T02:59:00Z"), "25/11");
-  // Instante em UTC que já é terça em SP
-  assert.equal(proximaQuartaPostagem("2026-11-24T03:00:00Z"), "02/12");
-  assert.equal(proximaQuartaPostagem("data-invalida"), null);
+test("lote da quarta: alvo e quem entra", () => {
+  // Quarta 25/11: o lote é o dia; pedido da terça 24/11 (posta 02/12) fica de fora
+  assert.equal(quartaAlvoLote("2026-11-25T10:00:00-03:00"), "2026-11-25");
+  assert.equal(pedidoNoLoteQuarta("2026-11-23T23:59:00-03:00", "2026-11-25T10:00:00-03:00"), true);
+  assert.equal(pedidoNoLoteQuarta("2026-11-22T12:00:00-03:00", "2026-11-25T10:00:00-03:00"), true);
+  assert.equal(pedidoNoLoteQuarta("2026-11-24T00:00:00-03:00", "2026-11-25T10:00:00-03:00"), false);
+  // Quinta 26/11: o lote passa a ser 02/12; a terça 24/11 entra
+  assert.equal(quartaAlvoLote("2026-11-26T09:00:00-03:00"), "2026-12-02");
+  assert.equal(pedidoNoLoteQuarta("2026-11-24T00:00:00-03:00", "2026-11-26T09:00:00-03:00"), true);
+  // Atraso: postagem 25/11 ainda entra no lote de 02/12
+  assert.equal(pedidoNoLoteQuarta("2026-11-23T12:00:00-03:00", "2026-11-26T09:00:00-03:00"), true);
 });
 
 test("código do pedido é YYMMDDNNN no fuso de São Paulo", () => {

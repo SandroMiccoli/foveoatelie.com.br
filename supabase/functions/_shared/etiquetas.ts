@@ -50,6 +50,8 @@ export type PedidoEtiqueta = {
   me_order_id: string;
   me_status: string;
   rastreio: string;
+  /** pago_em ou created_at — define a quarta do lote. */
+  quando: string;
 };
 
 export type Remetente = {
