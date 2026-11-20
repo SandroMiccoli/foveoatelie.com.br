@@ -1,15 +1,20 @@
 // Consulta pública do pedido pelo código (YYMMDDNNN) mais o e-mail da compra
-// ou o CPF. Não devolve endereço, telefone, notas nem ids de pagamento.
-// anon não lê a tabela: a função usa a service role e responde só o que cabe.
+// ou o CPF — ou pelo UUID do pedido (deep-link pós-pagamento). Não devolve
+// endereço, telefone, notas nem ids de pagamento. anon não lê a tabela: a
+// função usa a service role e responde só o que cabe.
 
 import { json, cabecalhosCors, origemPermitida } from "../_shared/http.ts";
+import { dataPostagem } from "../_shared/pedido.ts";
 import {
   combinaRastreio,
   credencialRastreio,
+  historicoComTimestamps,
   linhaDoTempo,
   ipClienteRastreio,
   linkRastreio,
   statusPublico,
+  uuidPedido,
+  type PassoRastreio,
 } from "../_shared/etiquetas.ts";
 
 Deno.serve(async (req) => {
@@ -41,6 +46,21 @@ Deno.serve(async (req) => {
     return json(origin, 400, { erro: "pedido_invalido" });
   }
 
+  const pedidoUuid = typeof corpo.pedido_id === "string" ? uuidPedido(corpo.pedido_id) : null;
+  if (pedidoUuid) {
+    const limiteUuid = await rpcRastreio(url, key, "bloqueio_rastreio", {
+      p_codigo: "000000000",
+      p_ip: ip,
+    });
+    if (!limiteUuid || limiteUuid.ok !== true) return json(origin, 503, { erro: "consulta_indisponivel" });
+    if (limiteUuid.bloqueado === true) return json(origin, 404, { erro: "nao_encontrado" });
+
+    const pedido = await buscarPorId(url, key, pedidoUuid);
+    if (pedido === "rede") return json(origin, 503, { erro: "consulta_indisponivel" });
+    if (!pedido) return json(origin, 404, { erro: "nao_encontrado" });
+    return json(origin, 200, await respostaPublica(url, key, pedido));
+  }
+
   const credencial = credencialRastreio(
     typeof corpo.codigo === "string" ? corpo.codigo : "",
     typeof corpo.email === "string" ? corpo.email : "",
@@ -55,7 +75,7 @@ Deno.serve(async (req) => {
   if (!limite || limite.ok !== true) return json(origin, 503, { erro: "consulta_indisponivel" });
   if (limite.bloqueado === true) return json(origin, 404, { erro: "nao_encontrado" });
 
-  const pedido = await buscar(url, key, credencial.codigo);
+  const pedido = await buscarPorCodigo(url, key, credencial.codigo);
   if (pedido === "rede") return json(origin, 503, { erro: "consulta_indisponivel" });
   if (!pedido || !combinaRastreio(credencial, pedido.email, pedido.cpf)) {
     await rpcRastreio(url, key, "anotar_falha_rastreio", {
@@ -65,20 +85,44 @@ Deno.serve(async (req) => {
     return json(origin, 404, { erro: "nao_encontrado" });
   }
 
-  const historico = await buscarHistorico(url, key, pedido.id);
+  return json(origin, 200, await respostaPublica(url, key, pedido));
+});
+
+async function respostaPublica(
+  url: string,
+  key: string,
+  pedido: PedidoSeguro,
+): Promise<Record<string, unknown>> {
+  const brutoHistorico = await buscarHistorico(url, key, pedido.id);
   const status = statusPublico(pedido.status);
+  const marcas = marcasDoPedido(pedido, status);
+  const historico = historicoComTimestamps(brutoHistorico, marcas);
   const rastreio = pedido.rastreio;
-  return json(origin, 200, {
-    codigo: credencial.codigo,
+  const quando = pedido.pago_em || pedido.created_at || "";
+  return {
+    codigo: pedido.codigo,
     status,
     entrega_tipo: pedido.entrega,
     transportadora: pedido.transportadora,
     servico: pedido.servico,
     rastreio: rastreio || null,
     rastreio_url: rastreio ? linkRastreio(pedido.transportadora, rastreio) : null,
-    historico: historico,
-  });
-});
+    data_postagem: quando ? dataPostagem(quando) : null,
+    email: pedido.email || null,
+    historico,
+  };
+}
+
+function marcasDoPedido(pedido: PedidoSeguro, status: string): { status: string; em: string }[] {
+  const marcas: { status: string; em: string }[] = [];
+  if (pedido.created_at) marcas.push({ status: "pendente", em: pedido.created_at });
+  if (pedido.pago_em) marcas.push({ status: "pago", em: pedido.pago_em });
+  if (status !== "pendente" && status !== "pago") {
+    const em = pedido.pago_em || pedido.created_at || "";
+    if (em) marcas.push({ status, em });
+  }
+  return marcas;
+}
 
 async function rpcRastreio(
   url: string,
@@ -108,6 +152,7 @@ async function rpcRastreio(
 
 type PedidoSeguro = {
   id: string;
+  codigo: string;
   status: string;
   entrega: "envio" | "retirada";
   email: string;
@@ -115,13 +160,41 @@ type PedidoSeguro = {
   transportadora: string;
   servico: string;
   rastreio: string;
+  pago_em: string;
+  created_at: string;
 };
 
-async function buscar(url: string, key: string, codigo: string): Promise<PedidoSeguro | null | "rede"> {
-  const campos = "id,status,entrega_tipo,cliente_email,cliente_cpf,frete,rastreio";
+const CAMPOS_PEDIDO =
+  "id,codigo,status,entrega_tipo,cliente_email,cliente_cpf,frete,rastreio,pago_em,created_at";
+
+function montarPedido(row: Record<string, unknown>): PedidoSeguro | null {
+  const id = typeof row.id === "string" ? row.id : "";
+  if (!id) return null;
+  const frete = row.frete && typeof row.frete === "object" ? row.frete as Record<string, unknown> : {};
+  const codigo = typeof row.codigo === "string" && /^\d{9}$/.test(row.codigo) ? row.codigo : "";
+  return {
+    id,
+    codigo,
+    status: typeof row.status === "string" ? row.status : "",
+    entrega: row.entrega_tipo === "retirada" ? "retirada" : "envio",
+    email: typeof row.cliente_email === "string" ? row.cliente_email : "",
+    cpf: typeof row.cliente_cpf === "string" ? row.cliente_cpf : "",
+    transportadora: typeof frete.transportadora === "string" ? frete.transportadora : "",
+    servico: typeof frete.servico === "string" ? frete.servico : "",
+    rastreio: typeof row.rastreio === "string" ? row.rastreio : "",
+    pago_em: typeof row.pago_em === "string" ? row.pago_em : "",
+    created_at: typeof row.created_at === "string" ? row.created_at : "",
+  };
+}
+
+async function buscarRest(
+  url: string,
+  key: string,
+  filtro: string,
+): Promise<PedidoSeguro | null | "rede"> {
   let res: Response;
   try {
-    res = await fetch(`${url}/rest/v1/pedidos?codigo=eq.${codigo}&select=${campos}`, {
+    res = await fetch(`${url}/rest/v1/pedidos?${filtro}&select=${CAMPOS_PEDIDO}`, {
       headers: {
         apikey: key,
         Authorization: `Bearer ${key}`,
@@ -137,30 +210,33 @@ async function buscar(url: string, key: string, codigo: string): Promise<PedidoS
     const data = await res.json();
     const row = Array.isArray(data) ? data[0] : null;
     if (!row || typeof row !== "object") return null;
-    const pedido = row as Record<string, unknown>;
-    const id = typeof pedido.id === "string" ? pedido.id : "";
-    if (!id) return null;
-    const frete = pedido.frete && typeof pedido.frete === "object" ? pedido.frete as Record<string, unknown> : {};
-    return {
-      id,
-      status: typeof pedido.status === "string" ? pedido.status : "",
-      entrega: pedido.entrega_tipo === "retirada" ? "retirada" : "envio",
-      email: typeof pedido.cliente_email === "string" ? pedido.cliente_email : "",
-      cpf: typeof pedido.cliente_cpf === "string" ? pedido.cliente_cpf : "",
-      transportadora: typeof frete.transportadora === "string" ? frete.transportadora : "",
-      servico: typeof frete.servico === "string" ? frete.servico : "",
-      rastreio: typeof pedido.rastreio === "string" ? pedido.rastreio : "",
-    };
+    return montarPedido(row as Record<string, unknown>);
   } catch (_err) {
     return "rede";
   }
+}
+
+async function buscarPorCodigo(
+  url: string,
+  key: string,
+  codigo: string,
+): Promise<PedidoSeguro | null | "rede"> {
+  return buscarRest(url, key, `codigo=eq.${codigo}`);
+}
+
+async function buscarPorId(
+  url: string,
+  key: string,
+  pedidoId: string,
+): Promise<PedidoSeguro | null | "rede"> {
+  return buscarRest(url, key, `id=eq.${pedidoId}`);
 }
 
 async function buscarHistorico(
   url: string,
   key: string,
   pedidoId: string,
-): Promise<{ status: string; em: string }[]> {
+): Promise<PassoRastreio[]> {
   let res: Response;
   try {
     res = await fetch(
