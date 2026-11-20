@@ -78,15 +78,14 @@
     var nivel = lib.nivelEstoqueDoTom(tom);
     var rotulo = lib.rotuloStatus(dados.status, opts);
 
-    var statusLinha = el("p", {
-      class: "stock",
+    // Status uma vez: ponto + rótulo como título do resultado.
+    var heading = el("h2", {
+      class: "stock resultado-status",
       "data-stock-level": nivel
     });
-    statusLinha.appendChild(el("span", { class: "stock-dot", "aria-hidden": "true" }));
-    statusLinha.appendChild(el("span", {}, rotulo));
-    resultado.appendChild(statusLinha);
-
-    resultado.appendChild(el("h2", {}, rotulo));
+    heading.appendChild(el("span", { class: "stock-dot", "aria-hidden": "true" }));
+    heading.appendChild(el("span", {}, rotulo));
+    resultado.appendChild(heading);
 
     var codigoTexto = dados.codigo || dados.numero || "";
     if (codigoTexto) {
@@ -96,8 +95,7 @@
     var wa = whatsappHref(dados);
     var contexto = lib.mensagemContexto(dados, wa);
     if (contexto) {
-      var ctx = el("p", { class: "resultado-contexto" }, contexto);
-      resultado.appendChild(ctx);
+      resultado.appendChild(el("p", { class: "resultado-contexto" }, contexto));
     }
 
     var lista = document.createElement("ol");
@@ -116,26 +114,34 @@
     resultado.appendChild(lista);
 
     if (dados.rastreio) {
-      resultado.appendChild(el("p", { class: "rastreio" }, "Rastreio " + dados.rastreio));
-    }
-    if (dados.rastreio_url) {
-      var link = el("a", {
+      var rastreioLinha = el("p", { class: "rastreio" });
+      rastreioLinha.appendChild(document.createTextNode("Rastreio " + dados.rastreio));
+      if (dados.rastreio_url) {
+        rastreioLinha.appendChild(document.createTextNode(" · "));
+        rastreioLinha.appendChild(el("a", {
+          href: dados.rastreio_url,
+          target: "_blank",
+          rel: "noopener noreferrer"
+        }, "ver na transportadora"));
+      }
+      resultado.appendChild(rastreioLinha);
+    } else if (dados.rastreio_url) {
+      var soLink = document.createElement("p");
+      soLink.appendChild(el("a", {
         href: dados.rastreio_url,
         target: "_blank",
         rel: "noopener noreferrer"
-      }, "Acompanhar na transportadora");
-      var p = document.createElement("p");
-      p.appendChild(link);
-      resultado.appendChild(p);
+      }, "Acompanhar na transportadora"));
+      resultado.appendChild(soLink);
     }
+
     if (dados.entrega_tipo === "retirada" && lib.pagoOuDepois(dados.status) && wa) {
-      var waLink = el("a", {
+      resultado.appendChild(el("a", {
         class: "resultado-whats",
         href: wa,
         target: "_blank",
         rel: "noopener noreferrer"
-      }, "Combinar retirada no WhatsApp");
-      resultado.appendChild(waLink);
+      }, "Combinar retirada no WhatsApp"));
     }
 
     preencherFormulario(dados);

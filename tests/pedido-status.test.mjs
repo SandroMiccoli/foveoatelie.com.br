@@ -57,33 +57,39 @@ test("formatarQuando usa dd/mm às HH:mm em America/Sao_Paulo", () => {
   assert.equal(formatarDia("quebrado"), "");
 });
 
-test("mensagem de contexto por estado", () => {
-  assert.match(
-    mensagemContexto({ status: "pago", entrega_tipo: "envio", data_postagem: "2026-12-02" }),
-    /Pagamento confirmado\. Seu pedido será postado na quarta-feira, 02\/12\./,
+test("mensagem de contexto não repete o rótulo do status", () => {
+  const envio = mensagemContexto({
+    status: "pago",
+    entrega_tipo: "envio",
+    data_postagem: "2026-12-02",
+  });
+  assert.equal(envio, "Seu pedido será postado na quarta-feira, 02/12.");
+  assert.doesNotMatch(envio, /pagamento confirmado/i);
+
+  const retirada = mensagemContexto(
+    { status: "pago", entrega_tipo: "retirada", data_postagem: "2026-12-02" },
+    "https://wa.me/55",
   );
-  assert.match(
-    mensagemContexto({ status: "pago", entrega_tipo: "retirada", data_postagem: "2026-12-02" }, "https://wa.me/55"),
-    /Suas velas ficam prontas a partir de quarta-feira, 02\/12\. Chama a gente no WhatsApp/,
-  );
-  assert.match(
-    mensagemContexto({ status: "enviado", rastreio: "AA123456789BR" }),
-    /Pedido postado\. Código AA123456789BR\./,
-  );
-  assert.match(
-    mensagemContexto({ status: "entregue" }),
-    /Chegou/,
-  );
-  assert.match(
-    mensagemContexto({ status: "pendente" }),
-    /esperando a confirmação/,
-  );
-  assert.match(
-    mensagemContexto({ status: "recusado" }),
-    /recusado/,
-  );
-  assert.match(
-    mensagemContexto({ status: "reembolsado" }),
-    /reembolsado/,
-  );
+  assert.match(retirada, /Suas velas ficam prontas a partir de quarta-feira, 02\/12\. Chama a gente no WhatsApp/);
+  assert.doesNotMatch(retirada, /pagamento confirmado/i);
+
+  const postado = mensagemContexto({ status: "enviado", rastreio: "AA123456789BR" });
+  assert.equal(postado, "Use o código na transportadora pra ver a previsão de entrega.");
+  assert.doesNotMatch(postado, /enviado|pedido postado|AA123456789BR/i);
+
+  const entregue = mensagemContexto({ status: "entregue" });
+  assert.match(entregue, /toque da Foveō/);
+  assert.doesNotMatch(entregue, /chegou|entregue/i);
+
+  const pendente = mensagemContexto({ status: "pendente" });
+  assert.match(pendente, /Pix e cartão/);
+  assert.doesNotMatch(pendente, /em análise|confirmado/i);
+
+  const recusado = mensagemContexto({ status: "recusado" });
+  assert.match(recusado, /ajuda a tentar/);
+  assert.doesNotMatch(recusado, /recusado/i);
+
+  const reembolsado = mensagemContexto({ status: "reembolsado" });
+  assert.match(reembolsado, /dúvida/i);
+  assert.doesNotMatch(reembolsado, /reembolsado/i);
 });

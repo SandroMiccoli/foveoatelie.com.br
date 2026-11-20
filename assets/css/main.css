@@ -2157,6 +2157,7 @@ button.cta {
 }
 
 .pedido-resumo[hidden],
+#pedido-titulo[hidden],
 #pedido-nota[hidden],
 #pedido-prazo[hidden],
 .pedido-acoes[hidden],

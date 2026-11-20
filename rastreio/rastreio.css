@@ -290,16 +290,13 @@ input[aria-invalid="true"] {
   line-height: 1.55;
 }
 
-.resultado .stock {
+.resultado-status {
   margin: 0 0 0.55rem;
+  font-size: 0.9375rem;
 }
 
-.resultado h2 {
-  margin: 0 0 0.35rem;
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 1.6rem;
+.resultado-status .stock-dot {
+  top: 0.08em;
 }
 
 .codigo {

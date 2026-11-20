@@ -11,15 +11,6 @@
   var INTERVALO = 3000;
   var LIMITE = 60000;
 
-  var TITULOS = {
-    pago: "Pagamento aprovado",
-    etiqueta_gerada: "Etiqueta gerada",
-    enviado: "Pedido enviado",
-    entregue: "Pedido entregue",
-    pronto_retirada: "Pronto pra retirada",
-    retirado: "Pedido retirado"
-  };
-
   var raiz = document.getElementById("pedido-pagina");
   if (!raiz) return;
 
@@ -66,6 +57,23 @@
     if (!nota) return;
     nota.hidden = !texto;
     nota.textContent = texto || "";
+  }
+
+  function definirTitulo(texto) {
+    if (!titulo) return;
+    if (!texto) {
+      titulo.hidden = true;
+      titulo.textContent = "";
+      return;
+    }
+    titulo.hidden = false;
+    titulo.textContent = texto;
+  }
+
+  function mostrarContexto(texto) {
+    if (!prazo) return;
+    prazo.hidden = !texto;
+    prazo.textContent = texto || "";
   }
 
   function pintarStatus(status, opcoes) {
@@ -275,42 +283,39 @@
     var bloco = document.createElement("div");
     bloco.id = "pedido-rastreio";
     bloco.className = "pedido-rastreio";
-    var rotulo = document.createElement("p");
-    rotulo.className = "pedido-nota";
-    rotulo.textContent = "Rastreio " + dados.rastreio;
-    bloco.appendChild(rotulo);
+    var linha = document.createElement("p");
+    linha.className = "pedido-nota";
+    linha.appendChild(document.createTextNode("Rastreio " + dados.rastreio));
     if (dados.rastreio_url) {
+      linha.appendChild(document.createTextNode(" · "));
       var link = document.createElement("a");
-      link.className = "cta";
       link.href = dados.rastreio_url;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = "Acompanhar na transportadora";
-      bloco.appendChild(link);
+      link.textContent = "ver na transportadora";
+      linha.appendChild(link);
     }
+    bloco.appendChild(linha);
     prazo.parentNode.insertBefore(bloco, prazo.nextSibling);
   }
 
   function desenhar(dados) {
     if (!dados || !titulo) return;
     if (resumo) resumo.hidden = true;
-    if (prazo) prazo.hidden = true;
+    mostrarContexto("");
     esconderAcoes();
     document.title = "Pedido — Foveō Ateliê";
     var opts = { retentativa: !!dados.retentativa };
+    var rotulo = lib.rotuloStatus(dados.status, opts);
     pintarStatus(dados.status, opts);
 
     if (lib.pagoOuDepois(dados.status)) {
-      var tituloPago = TITULOS[dados.status] || "Pagamento aprovado";
-      titulo.textContent = tituloPago;
-      document.title = tituloPago + " — Foveō Ateliê";
-      mostrarNota(dados.primeiro_nome ? "Obrigado, " + dados.primeiro_nome + "!" : "Obrigado!");
+      var obrigado = dados.primeiro_nome ? "Obrigado, " + dados.primeiro_nome + "!" : "Obrigado!";
+      definirTitulo(obrigado);
+      document.title = rotulo + " — Foveō Ateliê";
+      mostrarNota("");
       desenharResumo(dados);
-      if (prazo) {
-        var frase = textoPrazo(dados);
-        prazo.hidden = !frase;
-        prazo.textContent = frase;
-      }
+      mostrarContexto(textoPrazo(dados));
       blocoRastreio(dados);
       ligarWhatsapp(dados, "");
       mostrarSecundarioLink("Acompanhar pedido", linkAcompanhar());
@@ -322,11 +327,11 @@
     if (velho) velho.remove();
 
     if (dados.status === "pendente" && dados.retentativa) {
-      titulo.textContent = "Pagamento não aprovado";
-      document.title = "Pagamento não aprovado — Foveō Ateliê";
+      definirTitulo("");
+      document.title = rotulo + " — Foveō Ateliê";
       mostrarNota(dados.checkout_url
-        ? "O pagamento não foi aprovado. Tente de novo com outro cartão ou com Pix. As velas seguem reservadas por enquanto."
-        : "O pagamento não foi aprovado. A reserva já acabou.");
+        ? "Tente de novo com outro cartão ou com Pix. As velas seguem reservadas por enquanto."
+        : "A reserva já acabou. Monte de novo na sacola quando quiser.");
       desenharResumo(dados);
       ligarRetentar(dados.checkout_url);
       if (acao) {
@@ -340,9 +345,9 @@
     }
 
     if (dados.status === "pendente") {
-      titulo.textContent = "Pagamento em análise";
-      document.title = "Pagamento em análise — Foveō Ateliê";
-      mostrarNota("Pix e cartão podem levar alguns minutos. A página atualiza sozinha.");
+      definirTitulo("");
+      document.title = rotulo + " — Foveō Ateliê";
+      mostrarNota(textoPrazo(dados));
       desenharResumo(dados);
       if (conferir) conferir.hidden = false;
       if (acao) {
@@ -360,20 +365,12 @@
     }
 
     var extraWhats = "Pagamento não aprovado.";
-    if (dados.status === "expirado") {
-      titulo.textContent = "O tempo pra pagar acabou";
-      extraWhats = "O tempo pra pagar acabou.";
-    } else if (dados.status === "cancelado") {
-      titulo.textContent = "Esse pedido foi cancelado";
-      extraWhats = "Pedido cancelado.";
-    } else if (dados.status === "reembolsado") {
-      titulo.textContent = "Pedido reembolsado";
-      extraWhats = "Pedido reembolsado.";
-    } else {
-      titulo.textContent = "Pagamento não aprovado";
-    }
-    document.title = titulo.textContent + " — Foveō Ateliê";
-    mostrarNota("A sacola continua aqui.");
+    if (dados.status === "expirado") extraWhats = "O tempo pra pagar acabou.";
+    else if (dados.status === "cancelado") extraWhats = "Pedido cancelado.";
+    else if (dados.status === "reembolsado") extraWhats = "Pedido reembolsado.";
+    definirTitulo("");
+    document.title = rotulo + " — Foveō Ateliê";
+    mostrarNota(textoPrazo(dados) || "A sacola continua aqui.");
     if (acao) {
       acao.target = "";
       acao.rel = "";
@@ -385,10 +382,10 @@
 
   function falhaConsulta(mensagem) {
     limparStatus();
-    if (titulo) titulo.textContent = mensagem || "Não conseguimos consultar o pedido agora.";
+    definirTitulo(mensagem || "Não conseguimos consultar o pedido agora.");
     mostrarNota("Tente de novo em instantes.");
     if (resumo) resumo.hidden = true;
-    if (prazo) prazo.hidden = true;
+    mostrarContexto("");
     var velho = document.getElementById("pedido-rastreio");
     if (velho) velho.remove();
     esconderAcoes();
@@ -429,7 +426,7 @@
         }
         if (resultado.status === 404) {
           limparStatus();
-          if (titulo) titulo.textContent = "Não achamos esse pedido.";
+          definirTitulo("Não achamos esse pedido.");
           mostrarNota("");
           esconderAcoes();
           mostrarTentarDeNovo();
@@ -451,7 +448,7 @@
           tentarDeNovo.disabled = false;
           tentarDeNovo.textContent = "Tentar de novo";
         }
-        if (titulo && titulo.textContent === "Conferindo o pagamento.") {
+        if (titulo && !titulo.hidden && titulo.textContent === "Conferindo o pagamento.") {
           falhaConsulta("Não conseguimos consultar o pedido agora.");
         } else if (!manual && Date.now() - inicio < LIMITE) {
           window.setTimeout(function () { consultar(false); }, INTERVALO);
@@ -464,7 +461,7 @@
   pedidoId = idDoLink();
   if (!pedidoId) {
     limparStatus();
-    if (titulo) titulo.textContent = "Não achamos esse pedido.";
+    definirTitulo("Não achamos esse pedido.");
     mostrarTentarDeNovo();
     return;
   }
@@ -477,7 +474,7 @@
   if (tentarDeNovo) {
     tentarDeNovo.addEventListener("click", function () {
       if (tentarDeNovo.disabled) return;
-      if (titulo) titulo.textContent = "Conferindo o pagamento.";
+      definirTitulo("Conferindo o pagamento.");
       mostrarNota("");
       consultar(true);
     });

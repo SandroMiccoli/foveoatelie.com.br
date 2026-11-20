@@ -115,50 +115,49 @@
     return dia + "/" + mes + " às " + hora + ":" + minuto;
   }
 
+  // Só o próximo passo / detalhe útil. O status fica no ponto+rótulo (e no
+  // título pessoal quando houver) — daí estas frases não repetem o rótulo.
   function mensagemContexto(dados, whatsappHref) {
     var st = statusChave(dados && dados.status);
     var opts = { retentativa: !!(dados && dados.retentativa) };
     var dia = formatarDia(dados && dados.data_postagem);
     var entrega = dados && dados.entrega_tipo === "retirada" ? "retirada" : "envio";
-    var rastreio = dados && dados.rastreio ? String(dados.rastreio) : "";
 
     if (st === "pendente" && opts.retentativa) {
-      return "O pagamento não passou. Dá pra tentar de novo enquanto a reserva estiver valendo.";
+      return "Dá pra tentar de novo com outro cartão ou com Pix enquanto a reserva estiver valendo.";
     }
     if (st === "pendente") {
-      return "Estamos esperando a confirmação do Pix ou do cartão. Isso costuma levar só alguns minutos.";
+      return "Pix e cartão podem levar alguns minutos. A página atualiza sozinha.";
     }
     if (st === "recusado") {
-      return "O pagamento foi recusado. Se quiser, a gente te ajuda a tentar de outro jeito.";
+      return "Se quiser, a gente te ajuda a tentar de outro jeito.";
     }
     if (st === "expirado") {
-      return "O tempo pra pagar acabou e a reserva soltou. Monte de novo na sacola quando quiser.";
+      return "A reserva soltou. Monte de novo na sacola quando quiser.";
     }
     if (st === "cancelado") {
-      return "Esse pedido foi cancelado. Se precisar de algo, chama a gente no WhatsApp.";
+      return "Se precisar de algo, chama a gente no WhatsApp.";
     }
     if (st === "reembolsado") {
-      return "O valor desse pedido foi reembolsado. Qualquer dúvida, fala com a gente.";
+      return "Qualquer dúvida, fala com a gente.";
     }
     if (st === "entregue") {
-      return "Chegou. Esperamos que o toque da Foveō te faça bem.";
+      return "Esperamos que o toque da Foveō te faça bem.";
     }
     if (st === "retirado") {
-      return "Retirada feita. Obrigado por passar no ateliê.";
+      return "Obrigado por passar no ateliê.";
     }
     if (st === "pronto_retirada") {
-      var basePronto = "Suas velas estão prontas pra retirada.";
       if (whatsappHref) {
-        return basePronto + " Chama a gente no WhatsApp pra combinar o horário.";
+        return "Chama a gente no WhatsApp pra combinar o horário.";
       }
-      return basePronto;
+      return "Chama a gente pra combinar o horário da retirada.";
     }
     if (st === "enviado") {
-      var codigo = rastreio ? " Código " + rastreio + "." : "";
-      return "Pedido postado." + codigo + " Use o código na transportadora pra ver a previsão de entrega.";
+      return "Use o código na transportadora pra ver a previsão de entrega.";
     }
     if (st === "etiqueta_gerada") {
-      return "A etiqueta já saiu. Em breve o pedido é postado e o rastreio aparece aqui.";
+      return "Em breve o pedido é postado e o rastreio aparece aqui.";
     }
     if (pagoOuDepois(st) && entrega === "retirada") {
       var frase = dia
@@ -171,8 +170,8 @@
     }
     if (pagoOuDepois(st)) {
       return dia
-        ? "Pagamento confirmado. Seu pedido será postado na quarta-feira, " + dia + "."
-        : "Pagamento confirmado. Seu pedido será postado na próxima quarta-feira.";
+        ? "Seu pedido será postado na quarta-feira, " + dia + "."
+        : "Seu pedido será postado na próxima quarta-feira.";
     }
     return "";
   }
