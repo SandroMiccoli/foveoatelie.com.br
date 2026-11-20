@@ -17,10 +17,13 @@ import {
   credencialRastreio,
   emailDoEvento,
   fecharResumo,
+  formatarQuandoSp,
+  historicoComTimestamps,
   lerEventoMe,
   lerRemetente,
   linhaDoTempo,
   linkRastreio,
+  uuidPedido,
   montarCarrinho,
   ipClienteRastreio,
   planoDepoisDoCheckout,
@@ -397,6 +400,27 @@ test("rastreio público exige código e e-mail ou CPF, e os dois quando os dois 
     { status: "enviado", created_at: "2026-11-21T12:00:00.000Z" },
   ]);
   assert.deepEqual(linha.map((passo) => passo.status), ["pago", "enviado"]);
+  assert.deepEqual(linha.map((passo) => passo.em), [
+    "2026-11-20T12:00:00.000Z",
+    "2026-11-21T12:00:00.000Z",
+  ]);
+  assert.equal(uuidPedido("75b7d5ab-1111-4111-8111-111111111111"), "75b7d5ab-1111-4111-8111-111111111111");
+  assert.equal(uuidPedido("nao-e-uuid"), null);
+  const completo = historicoComTimestamps([], [
+    { status: "pendente", em: "2026-11-20T10:00:00.000Z" },
+    { status: "pago", em: "2026-11-20T12:00:00.000Z" },
+    { status: "enviado", em: "2026-11-21T12:00:00.000Z" },
+  ]);
+  assert.deepEqual(completo.map((passo) => passo.status), ["pendente", "pago", "enviado"]);
+  assert.ok(completo.every((passo) => passo.em));
+  const preenchido = historicoComTimestamps(
+    [{ status: "pago", em: "" }, { status: "enviado", em: "" }],
+    [{ status: "pago", em: "2026-11-20T12:00:00.000Z" }, { status: "enviado", em: "2026-11-21T12:00:00.000Z" }],
+  );
+  assert.equal(preenchido[0].em, "2026-11-20T12:00:00.000Z");
+  assert.equal(preenchido[1].em, "2026-11-21T12:00:00.000Z");
+  assert.equal(formatarQuandoSp("2026-11-20T18:05:00.000Z"), "20/11 às 15:05");
+  assert.equal(formatarQuandoSp(""), "");
 });
 
 test("e-mail usa a paleta, o rastreio, e não sai sem SMTP", () => {

@@ -676,6 +676,14 @@ export function statusPublico(status: string): string {
 
 export type PassoRastreio = { status: string; em: string };
 
+const UUID_PEDIDO = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** UUID do pedido na URL de deep-link do rastreio. Null se inválido. */
+export function uuidPedido(valor: string): string | null {
+  const id = valor.trim().toLowerCase();
+  return UUID_PEDIDO.test(id) ? id : null;
+}
+
 export function linhaDoTempo(linhas: { status: string; created_at: string }[]): PassoRastreio[] {
   const saida: PassoRastreio[] = [];
   for (const linha of linhas) {
@@ -686,4 +694,52 @@ export function linhaDoTempo(linhas: { status: string; created_at: string }[]): 
     saida.push({ status, em });
   }
   return saida;
+}
+
+/**
+ * Garante um instante por passo. Se a tabela de histórico vier vazia ou sem
+ * created_at, completa com pago_em / created_at / marcas do próprio pedido.
+ */
+export function historicoComTimestamps(
+  historico: PassoRastreio[],
+  marcas: { status: string; em: string }[],
+): PassoRastreio[] {
+  const porStatus = new Map<string, string>();
+  for (const marca of marcas) {
+    const st = statusPublico(marca.status);
+    const em = typeof marca.em === "string" ? marca.em.trim() : "";
+    if (!em || porStatus.has(st)) continue;
+    porStatus.set(st, em);
+  }
+  if (!historico.length) {
+    return linhaDoTempo(
+      [...porStatus.entries()].map(([status, created_at]) => ({ status, created_at })),
+    );
+  }
+  return historico.map((passo) => {
+    if (passo.em) return passo;
+    return { status: passo.status, em: porStatus.get(passo.status) || "" };
+  });
+}
+
+/** dd/mm às HH:mm em America/Sao_Paulo — espelho da formatação do front. */
+export function formatarQuandoSp(iso: string): string {
+  if (!iso) return "";
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "";
+  const partes = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(data);
+  const ler = (tipo: string) => partes.find((parte) => parte.type === tipo)?.value ?? "";
+  const dia = ler("day");
+  const mes = ler("month");
+  const hora = ler("hour");
+  const minuto = ler("minute");
+  if (!dia || !mes || !hora || !minuto) return "";
+  return `${dia}/${mes} às ${hora}:${minuto}`;
 }
