@@ -1,0 +1,56 @@
+---
+layout: null
+title: "Rastreio — Foveō Ateliê"
+description: "Acompanhe o pedido da Foveō com o código e o e-mail ou o CPF da compra."
+noindex: true
+sitemap: false
+---
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | escape }}</title>
+  <meta name="description" content="{{ page.description | escape }}">
+  <meta name="robots" content="noindex, follow">
+  <meta name="theme-color" content="#0D0908">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="{{ '/assets/favicon.svg' | relative_url }}?v=3" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500&display=swap">
+  <link rel="stylesheet" href="{{ '/rastreio/rastreio.css' | relative_url }}">
+</head>
+<body>
+  <a class="pular" href="#conteudo">Ir para o conteúdo</a>
+  <header class="topo">
+    <p class="marca"><a href="{{ '/' | relative_url }}">Foveō</a></p>
+  </header>
+  <main id="conteudo" class="miolo">
+    <h1>Onde está o pedido</h1>
+    <p class="lede">O código tem nove números, no formato do dia da compra. Junto, o e-mail ou o CPF usados no pagamento.</p>
+    <form id="form-rastreio" novalidate>
+      <div class="campo">
+        <label for="codigo">Código do pedido</label>
+        <input id="codigo" name="codigo" inputmode="numeric" autocomplete="off" maxlength="9" required>
+      </div>
+      <div class="campo">
+        <label for="email">E-mail da compra</label>
+        <input id="email" name="email" type="email" autocomplete="email" inputmode="email">
+      </div>
+      <div class="campo">
+        <label for="cpf">Ou o CPF</label>
+        <input id="cpf" name="cpf" inputmode="numeric" autocomplete="off" maxlength="14">
+      </div>
+      <p id="erro" class="erro" role="alert" hidden></p>
+      <button type="submit" class="botao">Ver pedido</button>
+    </form>
+    <section id="resultado" class="resultado" hidden aria-live="polite"></section>
+  </main>
+  <script
+    src="{{ '/rastreio/rastreio.js' | relative_url }}"
+    data-supabase-url="{{ site.supabase.url }}"
+    data-supabase-key="{{ site.supabase.anon_key }}"
+  ></script>
+</body>
+</html>

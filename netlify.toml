@@ -20,3 +20,10 @@
   for = "/assets/css/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# Página pública de rastreio (código + e-mail/CPF → Edge Function rastrear-pedido).
+# Pretty permalinks já publicam /rastreio/; o redirect cobre quem chega sem barra.
+[[redirects]]
+  from = "/rastreio"
+  to = "/rastreio/"
+  status = 301
