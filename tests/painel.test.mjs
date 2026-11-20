@@ -3,19 +3,37 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   EMAIL_ADMIN,
+  alterarStatusPedido,
+  apagarPedidoTeste,
   caminhoDepois,
   emailEhAdmin,
   entrar,
+  filtrarPedidos,
   formatarData,
   formatarPreco,
+  formatarVelas,
   lerSessao,
+  linkWhatsApp,
   listarPedidos,
+  mensagemApagarTeste,
+  mensagemCancelar,
+  mensagemDeAcao,
   mensagemDeEntrada,
   mensagemDePedidos,
+  mensagemReembolsar,
   montarSessao,
   normalizarPedido,
+  opcoesStatus,
+  reembolsarPedido,
   resumoPedidos,
+  rotuloEntrega,
+  proximoRail,
+  rotuloOrigem,
+  rotuloRail,
   rotuloStatus,
+  RAIL_ABERTO,
+  RAIL_AUTO,
+  RAIL_RECOLHIDO,
   sessaoPrecisaRenovar,
 } from "../admin/js/painel.mjs";
 
@@ -47,6 +65,10 @@ test("preço e data em português, no fuso de São Paulo", () => {
 
 test("status e resumo", () => {
   assert.equal(rotuloStatus("pago"), "Pago");
+  assert.equal(rotuloStatus("pendente"), "Aguardando pagamento");
+  assert.equal(rotuloStatus("etiqueta_gerada"), "Etiqueta gerada");
+  assert.equal(rotuloStatus("pronto_retirada"), "Pronto para retirada");
+  assert.equal(rotuloStatus("reembolsado"), "Reembolsado");
   assert.equal(rotuloStatus("EXPIRADO"), "Expirado");
   assert.equal(rotuloStatus("outro"), "—");
   assert.equal(resumoPedidos([{ teste: false }, { teste: true }]), "2 pedidos, 1 de teste.");
@@ -56,17 +78,117 @@ test("status e resumo", () => {
 
 test("pedido normalizado marca teste só quando é true", () => {
   const linha = normalizarPedido({
+    id: "11111111-1111-1111-1111-111111111111",
     codigo: "261119003",
     created_at: "2026-11-19T17:00:00.000Z",
     cliente_nome: "  Ana  ",
-    total_centavos: 15000,
+    cliente_email: "Ana@Exemplo.com",
+    cliente_telefone: "31999990000",
+    cliente_cpf: "12345678909",
+    itens: [{ produto_id: "acolher", nome: "Acolher", qtd: 2, preco_unitario_centavos: 6000 }],
+    entrega_tipo: "envio",
+    endereco: { cidade: "Ilhéus", uf: "ba", cep: "45656552", logradouro: "Rua A", numero: "1", bairro: "Centro" },
+    frete: { transportadora: "Jadlog", servico: "Package", preco_centavos: 2500 },
+    frete_centavos: 2500,
+    subtotal_centavos: 12000,
+    desconto_centavos: 1000,
+    total_centavos: 13500,
     status: "pago",
     teste: true,
   });
   assert.equal(linha.cliente_nome, "Ana");
+  assert.equal(linha.cliente_email, "ana@exemplo.com");
   assert.equal(linha.teste, true);
+  assert.equal(linha.itens[0].qtd, 2);
+  assert.equal(linha.endereco.uf, "BA");
   assert.equal(normalizarPedido({ teste: false }).teste, false);
   assert.equal(normalizarPedido({ teste: "true" }).teste, false);
+});
+
+test("velas, entrega e WhatsApp", () => {
+  assert.equal(formatarVelas([{ nome: "Acolher", qtd: 1 }, { nome: "Despertar", qtd: 2 }]), "Acolher, 2× Despertar");
+  assert.equal(
+    rotuloEntrega({
+      entrega_tipo: "envio",
+      endereco: { cidade: "Ilhéus", uf: "BA" },
+    }),
+    "Envio · Ilhéus/BA",
+  );
+  assert.equal(rotuloEntrega({ entrega_tipo: "retirada" }), "Retirada");
+  assert.equal(linkWhatsApp("31996099111"), "https://wa.me/5531996099111");
+  assert.equal(linkWhatsApp("5531996099111"), "https://wa.me/5531996099111");
+  assert.equal(linkWhatsApp(""), "");
+});
+
+test("filtros, busca e toggle de teste", () => {
+  const base = [
+    pedidoFixture({
+      id: "a",
+      codigo: "261119003",
+      cliente_nome: "Ana Silva",
+      cliente_email: "ana@exemplo.com",
+      cliente_cpf: "12345678909",
+      status: "pago",
+      entrega_tipo: "envio",
+      teste: true,
+      created_at: "2026-11-19T17:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "b",
+      codigo: "261119012",
+      cliente_nome: "Bia Costa",
+      cliente_email: "bia@exemplo.com",
+      status: "pendente",
+      entrega_tipo: "retirada",
+      teste: false,
+      created_at: "2026-11-20T15:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "c",
+      codigo: "261118001",
+      cliente_nome: "Carla",
+      status: "enviado",
+      entrega_tipo: "envio",
+      teste: false,
+      created_at: "2026-11-18T12:00:00.000Z",
+    }),
+  ];
+
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "", de: "", ate: "" }).length, 3);
+  assert.equal(filtrarPedidos(base, { mostrarTestes: false, entrega: "todos", status: "", busca: "", de: "", ate: "" }).length, 2);
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "retirada", status: "", busca: "", de: "", ate: "" }).map((p) => p.id).join(), "b");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "pago", busca: "", de: "", ate: "" }).map((p) => p.id).join(), "a");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "261119012", de: "", ate: "" }).map((p) => p.id).join(), "b");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "#261119003", de: "", ate: "" }).map((p) => p.id).join(), "a");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "bia@", de: "", ate: "" }).map((p) => p.id).join(), "b");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "12345678909", de: "", ate: "" }).map((p) => p.id).join(), "a");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "", de: "2026-11-19", ate: "2026-11-19" }).map((p) => p.id).join(), "a");
+  assert.equal(filtrarPedidos(base, { mostrarTestes: true, entrega: "todos", status: "", busca: "", de: "2026-11-19", ate: "2026-11-20" }).map((p) => p.id).sort().join(), "a,b");
+});
+
+test("opções de status seguem o tipo de entrega", () => {
+  assert.ok(opcoesStatus("envio").includes("etiqueta_gerada"));
+  assert.ok(!opcoesStatus("envio").includes("pronto_retirada"));
+  assert.ok(opcoesStatus("retirada").includes("pronto_retirada"));
+  assert.ok(opcoesStatus("retirada").includes("cancelado"));
+  assert.ok(opcoesStatus("envio").includes("reembolsado"));
+});
+
+test("confirmações de cancelar, reembolsar e apagar teste", () => {
+  const pago = pedidoFixture({
+    codigo: "261119012",
+    total_centavos: 6000,
+    forma_pagamento: "Pix",
+    teste: true,
+  });
+  assert.match(mensagemCancelar(pago), /#261119012/);
+  assert.match(mensagemCancelar(pago), /estoque/);
+  assert.match(mensagemReembolsar(pago).replace(/\s/g, " "), /R\$ 60,00/);
+  assert.match(mensagemReembolsar(pago), /Mercado Pago/);
+  assert.match(mensagemReembolsar(pago), /Pix/);
+  assert.match(mensagemReembolsar(pago), /desfazer/);
+  assert.match(mensagemApagarTeste(pago), /teste/);
+  assert.match(mensagemApagarTeste(pago), /#261119012/);
 });
 
 test("sessão de outra conta não fica gravada", () => {
@@ -122,12 +244,15 @@ test("lista de pedidos usa o token da sessão, não a chave sozinha", async () =
   const fetchLista = async (_url, init) => {
     autorizacao = init.headers.Authorization;
     return resposta(200, [{
+      id: "11111111-1111-1111-1111-111111111111",
       codigo: "261119009",
       created_at: "2026-11-19T17:00:00.000Z",
       cliente_nome: "Ana",
       total_centavos: 15000,
       status: "pago",
       teste: true,
+      itens: [],
+      entrega_tipo: "retirada",
     }]);
   };
   const lista = await listarPedidos({ url: "https://exemplo", anonKey: "chave" }, "token-da-sessao", fetchLista);
@@ -136,14 +261,60 @@ test("lista de pedidos usa o token da sessão, não a chave sozinha", async () =
   assert.equal(autorizacao, "Bearer token-da-sessao");
 });
 
+test("alterar status, apagar teste e reembolso chamam os endpoints certos", async () => {
+  const urls = [];
+  const fetchSpy = async (url, init) => {
+    urls.push({ url: String(url), method: init.method, body: init.body });
+    if (String(url).includes("reembolsar-pedido")) {
+      return resposta(200, { ok: true, status: "reembolsado" });
+    }
+    return resposta(200, { ok: true, status: "cancelado" });
+  };
+  const cfg = { url: "https://exemplo", anonKey: "chave" };
+  const cancelar = await alterarStatusPedido(cfg, "tok", "11111111-1111-1111-1111-111111111111", "cancelado", fetchSpy);
+  assert.equal(cancelar.ok, true);
+  assert.match(urls[0].url, /rpc\/admin_alterar_status_pedido$/);
+  assert.match(urls[0].body, /"p_status":"cancelado"/);
+
+  const apagar = await apagarPedidoTeste(cfg, "tok", "11111111-1111-1111-1111-111111111111", fetchSpy);
+  assert.equal(apagar.ok, true);
+  assert.match(urls[1].url, /rpc\/admin_apagar_pedido_teste$/);
+
+  const reembolso = await reembolsarPedido(cfg, "tok", "11111111-1111-1111-1111-111111111111", fetchSpy);
+  assert.equal(reembolso.ok, true);
+  assert.match(urls[2].url, /functions\/v1\/reembolsar-pedido$/);
+  assert.match(urls[2].body, /pedido_id/);
+});
+
+test("reembolso recusado pelo Mercado Pago não inventa sucesso", async () => {
+  const fetchMp = async () => resposta(409, {
+    ok: false,
+    erro: "mp_recusou",
+    mensagem: "O Mercado Pago diz que esse pagamento já foi devolvido.",
+  });
+  const resultado = await reembolsarPedido(
+    { url: "https://exemplo", anonKey: "k" },
+    "tok",
+    "11111111-1111-1111-1111-111111111111",
+    fetchMp,
+  );
+  assert.equal(resultado.ok, false);
+  assert.equal(
+    mensagemDeAcao(resultado.body, "falhou"),
+    "O Mercado Pago diz que esse pagamento já foi devolvido.",
+  );
+});
+
 test("mensagens não repetem o texto cru do servidor", () => {
   assert.equal(mensagemDeEntrada(400, { error_code: "invalid_credentials" }), "E-mail ou senha não conferem.");
   assert.equal(mensagemDePedidos(401, { code: "42501" }), "A leitura dos pedidos foi recusada. A migration do painel precisa estar aplicada.");
   assert.match(mensagemDePedidos(500, { message: "segredo interno" }), /Não foi possível carregar/);
   assert.doesNotMatch(mensagemDePedidos(500, { message: "segredo interno" }), /segredo/);
+  assert.equal(mensagemDeAcao({ erro: "nao_teste" }), "Pedido real não pode ser apagado.");
+  assert.equal(mensagemDeAcao({ erro: "use_reembolso" }), "Reembolso passa pelo Mercado Pago, não pela troca de status.");
 });
 
-test("a migration não abre pedidos para a chave da loja", async () => {
+test("a migration do estágio 1 não abre pedidos para a chave da loja", async () => {
   const sql = await readFile(new URL("../supabase/migrations/20261119230000_admin_acesso.sql", import.meta.url), "utf8");
   const semComentario = sql.replace(/--.*$/gm, "");
   assert.match(sql, /contato@foveoatelie\.com\.br/);
@@ -154,6 +325,40 @@ test("a migration não abre pedidos para a chave da loja", async () => {
   assert.doesNotMatch(sql, /DROP POLICY pedidos_sem_acesso_cliente/);
   assert.match(sql, /pedidos_admin_leitura/);
   assert.match(sql, /pedidos_admin_atualizacao/);
+});
+
+test("a migration da etapa 2 trava estoque, histórico e apagar teste", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261120060000_admin_pedidos_etapa2.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = sql.replace(/--.*$/gm, "");
+  assert.match(sql, /cliente_cpf/);
+  assert.match(sql, /pedido_status_historico/);
+  assert.match(sql, /admin_alterar_status_pedido/);
+  assert.match(sql, /admin_confirmar_reembolso/);
+  assert.match(sql, /admin_apagar_pedido_teste/);
+  assert.match(sql, /estoque_restaurado_em/);
+  assert.match(sql, /teste IS TRUE/);
+  assert.match(sql, /SET search_path = pg_catalog/);
+  assert.match(sql, /REVOKE UPDATE, DELETE, INSERT ON TABLE public\.pedidos FROM authenticated/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+  assert.match(sql, /etiqueta_gerada/);
+  assert.match(sql, /pronto_retirada/);
+  assert.match(sql, /reembolsado/);
+});
+
+test("a Edge Function de reembolso não expõe o token e exige o admin", async () => {
+  const src = await readFile(
+    new URL("../supabase/functions/reembolsar-pedido/index.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(src, /MERCADO_PAGO_ACCESS_TOKEN/);
+  assert.match(src, /contato@foveoatelie\.com\.br/);
+  assert.match(src, /\/v1\/orders\/.*\/refund/);
+  assert.match(src, /admin_confirmar_reembolso/);
+  assert.doesNotMatch(src, /jsonPainel\([^)]*tokenMp/);
+  assert.doesNotMatch(src, /mensagem:.*tokenMp/);
 });
 
 test("a tela de login mostra só a marca e o formulário", async () => {
@@ -167,6 +372,86 @@ test("a tela de login mostra só a marca e o formulário", async () => {
   assert.doesNotMatch(tela, /Use a conta do ateliê/);
   assert.doesNotMatch(tela, /class:\s*"lede"/);
 });
+
+test("o detalhe e as confirmações existem na interface", async () => {
+  const app = await readFile(new URL("../admin/js/app.mjs", import.meta.url), "utf8");
+  assert.match(app, /painel-detalhe/);
+  assert.match(app, /data-fechar-detalhe/);
+  assert.match(app, /Escape/);
+  assert.match(app, /notas-pedido/);
+  assert.match(app, /data-apagar-teste/);
+  assert.match(app, /data-confirmar-sim/);
+  assert.match(app, /filtros-pedidos/);
+  assert.match(app, /data-toggle-testes/);
+});
+
+test("origem do histórico fica em português", () => {
+  assert.equal(rotuloOrigem("mercado_pago"), "Mercado Pago");
+  assert.equal(rotuloOrigem("checkout"), "Checkout");
+  assert.equal(rotuloOrigem("admin"), "Ajuste manual");
+  assert.equal(rotuloOrigem("manual"), "Ajuste manual");
+  assert.equal(rotuloOrigem("webhook"), "Mercado Pago");
+  assert.equal(rotuloOrigem("reembolso"), "Reembolso");
+  assert.equal(rotuloOrigem("sistema"), "Sistema");
+  assert.equal(rotuloOrigem("melhor_envio"), "Melhor Envio");
+  assert.equal(rotuloOrigem("fonte_desconhecida"), "Fonte Desconhecida");
+  assert.equal(rotuloOrigem(""), "");
+});
+
+test("a lista no computador não espreme nem quebra palavra no meio", async () => {
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(css, /word-break:\s*break-all/);
+  assert.doesNotMatch(css, /min-width:\s*56rem/);
+  assert.match(css, /td\[data-campo="velas"\][\s\S]*?white-space:\s*normal/);
+  assert.match(css, /td\[data-campo="entrega"\][\s\S]*?white-space:\s*normal/);
+  assert.match(css, /pedidos-com-detalhe \.detalhe-camada[\s\S]*position:\s*fixed/);
+  assert.match(css, /\.detalhe\s*\{[\s\S]*27\.5rem/);
+  assert.doesNotMatch(css, /pedidos-com-detalhe \.pedidos-miolo[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*min\(/);
+  assert.match(css, /\.detalhe-campo\s*\{[\s\S]*column-gap:\s*1\.25rem/);
+  assert.match(css, /\.detalhe-campo\s*\{[\s\S]*9\.5rem/);
+});
+
+test("o menu lateral no computador recolhe e fixa o estado", async () => {
+  assert.equal(proximoRail(RAIL_AUTO), RAIL_ABERTO);
+  assert.equal(proximoRail(RAIL_ABERTO), RAIL_RECOLHIDO);
+  assert.equal(proximoRail(RAIL_RECOLHIDO), RAIL_AUTO);
+  assert.match(rotuloRail(RAIL_AUTO), /Fixar/);
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.match(css, /--rail-w:\s*4rem/);
+  assert.match(css, /\.casca\.rail-aberta \.rail/);
+  assert.match(css, /\.casca\.rail-hover \.rail/);
+  const app = await readFile(new URL("../admin/js/app.mjs", import.meta.url), "utf8");
+  assert.match(app, /data-rail-fixar/);
+  assert.match(app, /RAIL_HOVER_MS\s*=\s*300/);
+  assert.match(app, /iconeWhatsApp|wa-icone/);
+  assert.match(app, /nav-icone/);
+  assert.match(app, /text:\s*"WhatsApp"/);
+  assert.match(app, /Abrir WhatsApp de/);
+  assert.match(app, /viewBox:\s*"142 85 796 910"/);
+  assert.match(app, /fill:\s*"currentColor"/);
+});
+
+function pedidoFixture(extra) {
+  return normalizarPedido({
+    id: "00000000-0000-0000-0000-000000000000",
+    codigo: "261119000",
+    created_at: "2026-11-19T17:00:00.000Z",
+    cliente_nome: "Cliente",
+    cliente_email: "cliente@exemplo.com",
+    cliente_telefone: "31999990000",
+    itens: [{ produto_id: "acolher", nome: "Acolher", qtd: 1, preco_unitario_centavos: 6000 }],
+    entrega_tipo: "envio",
+    endereco: { cidade: "BH", uf: "MG" },
+    frete_centavos: 0,
+    subtotal_centavos: 6000,
+    desconto_centavos: 0,
+    total_centavos: 6000,
+    status: "pago",
+    teste: false,
+    ...extra,
+  });
+}
 
 function memoria() {
   const dados = new Map();
