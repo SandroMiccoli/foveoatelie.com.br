@@ -156,6 +156,18 @@ test("a migration não abre pedidos para a chave da loja", async () => {
   assert.match(sql, /pedidos_admin_atualizacao/);
 });
 
+test("a tela de login mostra só a marca e o formulário", async () => {
+  const app = await readFile(new URL("../admin/js/app.mjs", import.meta.url), "utf8");
+  const tela = app.slice(app.indexOf("function telaEntrar"), app.indexOf("function telaSumida"));
+  assert.match(tela, /class:\s*"sr-only"/);
+  assert.match(tela, /text:\s*"Entrar"/);
+  assert.match(tela, /id:\s*"form-entrar"/);
+  assert.match(tela, /marca-entrada/);
+  assert.doesNotMatch(tela, /titulo\("Entrar"\)/);
+  assert.doesNotMatch(tela, /Use a conta do ateliê/);
+  assert.doesNotMatch(tela, /class:\s*"lede"/);
+});
+
 function memoria() {
   const dados = new Map();
   return {

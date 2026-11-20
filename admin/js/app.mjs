@@ -367,8 +367,7 @@ function telaEntrar(mensagem) {
 
   return el("main", { id: "conteudo", class: "entrar", tabindex: "-1" }, [
     el("a", { class: "marca marca-entrada", href: "/entrar", "aria-label": "Foveō Ateliê" }, [marca(false)]),
-    titulo("Entrar"),
-    el("p", { class: "lede", text: "Use a conta do ateliê." }),
+    el("h1", { class: "sr-only", text: "Entrar" }),
     form,
   ]);
 }

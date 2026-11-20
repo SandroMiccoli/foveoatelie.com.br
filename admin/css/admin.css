@@ -172,6 +172,7 @@ h2 {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: safe center;
   width: min(24rem, 100%);
   margin: 0 auto;
@@ -201,12 +202,13 @@ h2 {
 }
 
 .marca-entrada {
-  margin-bottom: 2.5rem;
+  align-self: center;
+  margin-bottom: 2rem;
 }
 
 .marca-cheia {
   display: block;
-  width: min(14rem, 78%);
+  width: min(12rem, 72%);
 }
 
 .topo {
@@ -365,7 +367,8 @@ input:-webkit-autofill {
 }
 
 #form-entrar {
-  margin-top: 2rem;
+  width: 100%;
+  margin-top: 0;
 }
 
 .alerta {
