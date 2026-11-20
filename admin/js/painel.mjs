@@ -399,6 +399,20 @@ export function formatarCpf(cpf) {
   return digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
+export function formatarTelefone(telefone) {
+  const digitos = String(telefone || "").replace(/\D/g, "");
+  if (!digitos) return "";
+  let local = digitos;
+  if (local.startsWith("55") && local.length >= 12) local = local.slice(2);
+  if (local.length === 11) {
+    return "(" + local.slice(0, 2) + ") " + local.slice(2, 7) + "-" + local.slice(7);
+  }
+  if (local.length === 10) {
+    return "(" + local.slice(0, 2) + ") " + local.slice(2, 6) + "-" + local.slice(6);
+  }
+  return "";
+}
+
 export function telefoneParaWa(telefone) {
   const digitos = String(telefone || "").replace(/\D/g, "");
   if (!digitos) return "";

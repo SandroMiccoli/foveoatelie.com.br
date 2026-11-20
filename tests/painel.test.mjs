@@ -14,6 +14,7 @@ import {
   formatarVelas,
   lerSessao,
   linkWhatsApp,
+  formatarTelefone,
   linkRastreio,
   podeGerarEtiqueta,
   podeImprimirEtiqueta,
@@ -151,6 +152,11 @@ test("velas, entrega e WhatsApp", () => {
   assert.equal(linkWhatsApp("31996099111"), "https://wa.me/5531996099111");
   assert.equal(linkWhatsApp("5531996099111"), "https://wa.me/5531996099111");
   assert.equal(linkWhatsApp(""), "");
+  assert.equal(formatarTelefone("31996099111"), "(31) 99609-9111");
+  assert.equal(formatarTelefone("5531996099111"), "(31) 99609-9111");
+  assert.equal(formatarTelefone("(31) 3333-4444"), "(31) 3333-4444");
+  assert.equal(formatarTelefone(""), "");
+  assert.equal(formatarTelefone("123"), "");
 });
 
 test("filtros, busca e toggle de teste", () => {
@@ -516,8 +522,12 @@ test("o menu lateral no computador recolhe e fixa o estado", async () => {
   assert.match(app, /nav-icone/);
   assert.match(app, /text:\s*"WhatsApp"/);
   assert.match(app, /Abrir WhatsApp de/);
+  assert.match(app, /linkWaComNumero/);
+  assert.match(app, /wa-com-numero/);
+  assert.match(app, /formatarTelefone/);
   assert.match(app, /viewBox:\s*"142 85 796 910"/);
   assert.match(app, /fill:\s*"currentColor"/);
+  assert.match(css, /\.wa-com-numero/);
 });
 
 test("início ignora teste e separa envio, pagamento, semana, mês e liberação", () => {
