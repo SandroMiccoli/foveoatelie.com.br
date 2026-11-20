@@ -10,12 +10,14 @@ O deploy fica com o Sandro. Daqui não se publica função, não se aplica migra
 
 ## Migration
 
-Arquivos, nesta ordem, no SQL editor:
+Arquivos, nesta ordem, no SQL editor (só os que ainda não rodaram):
 
 - `supabase/migrations/20261119100000_checkout_mercado_pago.sql`
 - `supabase/migrations/20261119180000_pedido_codigo.sql`
+- `supabase/migrations/20261119230000_admin_acesso.sql` (painel, etapa 1)
+- `supabase/migrations/20261120060000_admin_pedidos_etapa2.sql` (painel, etapa 2)
 
-O segundo acrescenta `pedidos.codigo` (`YYMMDDNNN`), preenche os pedidos que já existem e gera o próximo num gatilho. A sequência recomeça todo dia.
+O segundo acrescenta `pedidos.codigo` (`YYMMDDNNN`), preenche os pedidos que já existem e gera o próximo num gatilho. A sequência recomeça todo dia. A etapa 2 acrescenta histórico de status, CPF/notas opcionais, RPCs de cancelar/reembolsar/apagar teste e amplia os status do pedido.
 
 As três migrations de 18/11/2026 já estão no projeto `foveo-loja` (`bbksditqlgdjftwowtje`) e não estão neste repositório. Por isso **não** use `supabase db push`: a CLI vê versões no remoto que não existem localmente e recusa. Abra o SQL editor do projeto e rode cada arquivo uma vez.
 
@@ -59,15 +61,19 @@ supabase functions deploy criar-pedido --project-ref bbksditqlgdjftwowtje --no-v
 supabase functions deploy webhook-mercado-pago --project-ref bbksditqlgdjftwowtje --no-verify-jwt
 
 supabase functions deploy consultar-pedido --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+
+# Painel: reembolso. JWT do usuário logado (verify_jwt = true).
+supabase functions deploy reembolsar-pedido --project-ref bbksditqlgdjftwowtje
 ```
 
-`--no-verify-jwt` está também em `supabase/config.toml`. A sacola manda a chave publishable, que não é um JWT. O Mercado Pago chama o webhook sem JWT.
+`--no-verify-jwt` está também em `supabase/config.toml` para as funções da sacola. A sacola manda a chave publishable, que não é um JWT. O Mercado Pago chama o webhook sem JWT. `reembolsar-pedido` exige JWT e confere `contato@foveoatelie.com.br`.
 
 URLs:
 
 - criar pedido: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/criar-pedido`
 - webhook: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/webhook-mercado-pago`
 - consultar pedido: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/consultar-pedido`
+- reembolsar pedido: `https://bbksditqlgdjftwowtje.supabase.co/functions/v1/reembolsar-pedido`
 
 ## Webhook no painel
 

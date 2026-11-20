@@ -13,3 +13,8 @@ verify_jwt = false
 
 [functions.consultar-pedido]
 verify_jwt = false
+
+# O painel manda o JWT do usuário logado. O gateway confere a assinatura;
+# a função ainda exige contato@foveoatelie.com.br.
+[functions.reembolsar-pedido]
+verify_jwt = true
