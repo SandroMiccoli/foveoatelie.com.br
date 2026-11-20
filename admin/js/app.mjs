@@ -39,17 +39,41 @@ import {
   opcoesStatus,
   proximoRail,
   reembolsarPedido,
+  METRICA_REAIS,
+  ajusteEstoque,
+  agruparClientes,
+  agruparEstoque,
+  deslocarMes,
+  entradaProducao,
+  filtrarClientes,
+  juntarEstoque,
+  listarLinhasEstoque,
+  listarMovimentos,
+  listarProdutos,
+  mensagemDeLeitura,
+  mesAtualSp,
+  periodoMes,
+  podeAvancarMes,
   renovar,
+  resumoInicio,
   resumoPedidos,
+  rotuloDia,
   rotuloEntrega,
+  rotuloMes,
   rotuloOrigem,
   rotuloRail,
   rotuloStatus,
   sair,
   salvarNotasPedido,
+  serieVendas,
   sessaoPrecisaRenovar,
   tituloDaRota,
+  validarAjuste,
+  validarEntrada,
+  validarMotivo,
+  validarPeriodo,
 } from "./painel.mjs";
+import { mioloClientes, mioloEstoque, mioloInicio, paginaClientes, paginaEstoque, paginaInicio } from "./telas.mjs";
 
 const config = { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
 const app = document.querySelector("#app");
@@ -69,6 +93,39 @@ let notasRascunho = "";
 let railEstado = RAIL_AUTO;
 let railHoverTimer = 0;
 const RAIL_HOVER_MS = 300;
+
+let cargaInicio = 0;
+let cargaEstoque = 0;
+let cargaClientes = 0;
+let pedidosInicio = [];
+let velasBrutas = [];
+let inicioTipo = "carregando";
+let inicioMensagem = "";
+let inicioErroEstoque = "";
+let estoqueTipo = "carregando";
+let estoqueMensagem = "";
+let clientesTipo = "carregando";
+let clientesMensagem = "";
+let velaAbertaId = "";
+let movimentosAbertos = [];
+let historicoEstoqueCarregando = false;
+let avisoEstoque = "";
+let notaEstoque = "";
+let estoqueSalvando = false;
+let rascunhoQuantidade = "";
+let rascunhoObs = "";
+let rascunhoAjuste = null;
+let rascunhoMotivo = "";
+let clienteAbertoChave = "";
+let buscaCliente = "";
+let graficoMetrica = METRICA_REAIS;
+let graficoAno = null;
+let graficoMes = null;
+let graficoPersonalizado = false;
+let graficoDe = "";
+let graficoAte = "";
+let graficoDia = "";
+let avisoPeriodo = "";
 
 function el(tag, attrs, children) {
   const node = document.createElement(tag);
@@ -360,35 +417,27 @@ function titulo(texto) {
   return el("h1", { text: texto });
 }
 
-function paginaSimples(nome, texto) {
-  return el("div", { class: "pagina" }, [
-    titulo(nome),
-    el("p", { class: "lede", text: texto }),
-  ]);
+function limparSobrepostos() {
+  pedidoAbertoId = "";
+  historicoAberto = [];
+  avisoPedido = "";
+  confirmacao = null;
+  notasRascunho = "";
+  velaAbertaId = "";
+  clienteAbertoChave = "";
+  movimentosAbertos = [];
+  avisoEstoque = "";
+  notaEstoque = "";
+  rascunhoQuantidade = "";
+  rascunhoObs = "";
+  rascunhoAjuste = null;
+  rascunhoMotivo = "";
+  document.body.classList.remove("detalhe-aberto");
 }
 
-function paginaInicio() {
-  const itens = [
-    ["/pedidos", "Pedidos", "Lista, detalhe, status e notas."],
-    ["/estoque", "Estoque", "Acolher, Despertar e Permanecer."],
-    ["/clientes", "Clientes", "Quem já comprou."],
-  ].map(([href, nome, nota]) =>
-    el("li", {}, [
-      el("a", { href }, [
-        el("span", { class: "atalho-nome", text: nome }),
-        el("span", { class: "atalho-nota", text: nota }),
-      ]),
-    ]),
-  );
-
-  return el("div", { class: "pagina" }, [
-    titulo("Início"),
-    el("p", {
-      class: "lede",
-      text: "Pedidos abrem com filtro, detalhe e troca de status. Estoque e clientes ficam para a próxima etapa.",
-    }),
-    el("ul", { class: "atalhos" }, itens),
-  ]);
+function sincronizarSobreposto() {
+  const aberto = Boolean(pedidoAbertoId || velaAbertaId || clienteAbertoChave);
+  document.body.classList.toggle("detalhe-aberto", aberto);
 }
 
 function pontoStatus(nivel) {
@@ -871,13 +920,21 @@ function pintarConteudo(node, focar) {
   if (focar) focarTitulo();
 }
 
-function pintarRegiaoPedidos() {
+function pintarRegiao() {
+  const caminho = caminhoAgora();
+  if (caminho === "/pedidos") renderPedidos();
+  else if (caminho === "/") pintarRegiaoInicio();
+  else if (caminho === "/estoque") pintarRegiaoEstoque();
+  else if (caminho === "/clientes") pintarRegiaoClientes();
+}
+
+function renderPedidos() {
   const regiao = document.getElementById("regiao-pedidos");
   if (!regiao) return;
   regiao.replaceChildren(mioloPedidos({ tipo: "pronto", linhas: pedidosBrutos }));
-  if (pedidoAbertoId) {
+  if (pedidoAbertoId && caminhoAgora() === "/pedidos") {
     const fechar = document.querySelector("[data-fechar-detalhe]");
-    if (fechar) fechar.focus();
+    if (fechar && document.activeElement !== fechar) fechar.focus();
   }
 }
 
@@ -887,8 +944,8 @@ function fecharDetalhe() {
   avisoPedido = "";
   confirmacao = null;
   notasRascunho = "";
-  document.body.classList.remove("detalhe-aberto");
-  pintarRegiaoPedidos();
+  sincronizarSobreposto();
+  pintarRegiao();
 }
 
 async function abrirPedido(id) {
@@ -905,12 +962,478 @@ async function abrirPedido(id) {
   notasRascunho = pedido.notas_internas || "";
   historicoAberto = [];
   document.body.classList.add("detalhe-aberto");
-  pintarRegiaoPedidos();
+  pintarRegiao();
 
   const hist = await listarHistorico(config, sessao.access_token, id, fetch);
   if (pedidoAbertoId !== id) return;
   if (hist.ok) historicoAberto = hist.linhas;
-  pintarRegiaoPedidos();
+  pintarRegiao();
+  if (caminhoAgora() === "/clientes") {
+    const fecharPedido = document.querySelector("[data-fechar-detalhe]");
+    if (fecharPedido) fecharPedido.focus();
+  }
+}
+
+function garantirMesGrafico(agora = new Date()) {
+  if (graficoAno == null || graficoMes == null) {
+    const atual = mesAtualSp(agora);
+    graficoAno = atual.ano;
+    graficoMes = atual.mes;
+  }
+}
+
+function periodoAtual(agora = new Date()) {
+  if (graficoPersonalizado && graficoDe && graficoAte) {
+    return { de: graficoDe, ate: graficoAte };
+  }
+  garantirMesGrafico(agora);
+  return periodoMes(graficoAno, graficoMes);
+}
+
+function estadoInicio(agora = new Date()) {
+  const periodo = periodoAtual(agora);
+  const serie = serieVendas(pedidosInicio, periodo.de, periodo.ate, graficoMetrica);
+  if (graficoDia && !serie.pontos.some((ponto) => ponto.dia === graficoDia)) graficoDia = "";
+  return {
+    tipo: inicioTipo,
+    mensagem: inicioMensagem,
+    erroEstoque: inicioErroEstoque,
+    resumo: resumoInicio(pedidosInicio, agora),
+    grupos: agruparEstoque(velasBrutas),
+    serie,
+    metrica: graficoMetrica,
+    tituloPeriodo: graficoPersonalizado
+      ? rotuloDia(periodo.de) + " – " + rotuloDia(periodo.ate)
+      : rotuloMes(graficoAno, graficoMes),
+    personalizado: graficoPersonalizado,
+    podeVoltar: !graficoPersonalizado,
+    podeAvancar: !graficoPersonalizado && podeAvancarMes(graficoAno, graficoMes, agora),
+    de: periodo.de,
+    ate: periodo.ate,
+    diaAtivo: graficoDia,
+    avisoPeriodo,
+  };
+}
+
+function larguraDoGrafico(regiao) {
+  const pagina = regiao.closest(".pagina") || regiao;
+  const estilo = getComputedStyle(pagina);
+  const pad = (parseFloat(estilo.paddingLeft) || 0) + (parseFloat(estilo.paddingRight) || 0);
+  return Math.max(280, Math.round(pagina.clientWidth - pad));
+}
+
+function pintarRegiaoInicio() {
+  const regiao = document.getElementById("regiao-inicio");
+  if (!regiao) return;
+  const estado = estadoInicio();
+  estado.largura = larguraDoGrafico(regiao);
+  regiao.replaceChildren(mioloInicio(estado));
+}
+
+function estadoEstoque() {
+  const grupos = agruparEstoque(velasBrutas);
+  const vela = velasBrutas.find((item) => item.id === velaAbertaId) || null;
+  return {
+    tipo: estoqueTipo,
+    mensagem: estoqueMensagem,
+    grupos,
+    vela,
+    movimentos: movimentosAbertos,
+    historicoCarregando: historicoEstoqueCarregando,
+    aviso: avisoEstoque,
+    nota: notaEstoque,
+    salvando: estoqueSalvando,
+    rascunhoQuantidade,
+    rascunhoObs,
+    rascunhoAjuste,
+    rascunhoMotivo,
+  };
+}
+
+function pintarRegiaoEstoque() {
+  const regiao = document.getElementById("regiao-estoque");
+  if (!regiao) return;
+  const ativo = document.activeElement;
+  const idAtivo = ativo && ativo.id ? ativo.id : "";
+  const selecao = ativo && typeof ativo.selectionStart === "number" ? ativo.selectionStart : null;
+  regiao.replaceChildren(mioloEstoque(estadoEstoque()));
+  if (idAtivo) {
+    const novo = document.getElementById(idAtivo);
+    if (novo) {
+      novo.focus();
+      if (selecao != null && novo.setSelectionRange) {
+        const fim = Math.min(selecao, novo.value.length);
+        novo.setSelectionRange(fim, fim);
+      }
+    }
+  }
+}
+
+function clientesAgrupados() {
+  return agruparClientes(pedidosBrutos);
+}
+
+function estadoClientes() {
+  const todos = clientesAgrupados();
+  const clientes = filtrarClientes(todos, buscaCliente);
+  const cliente = todos.find((item) => item.chave === clienteAbertoChave) || null;
+  const pedido = pedidosBrutos.find((item) => item.id === pedidoAbertoId) || null;
+  return {
+    tipo: clientesTipo,
+    mensagem: clientesMensagem,
+    clientes,
+    total: todos.length,
+    busca: buscaCliente,
+    cliente,
+    detalhePedido: pedido ? painelDetalhe(pedido) : null,
+  };
+}
+
+function pintarRegiaoClientes() {
+  const regiao = document.getElementById("regiao-clientes");
+  if (!regiao) return;
+  const campo = document.getElementById("busca-clientes-campo");
+  const tinhaFoco = campo && document.activeElement === campo;
+  const selecao = campo ? campo.selectionStart : null;
+  regiao.replaceChildren(mioloClientes(estadoClientes()));
+  if (tinhaFoco) {
+    const novo = document.getElementById("busca-clientes-campo");
+    if (novo) {
+      novo.focus();
+      if (selecao != null && novo.setSelectionRange) novo.setSelectionRange(selecao, selecao);
+    }
+  }
+}
+
+async function renovarSePreciso(resposta) {
+  const codigo = resposta && resposta.body && resposta.body.code;
+  if (!resposta || resposta.ok || resposta.abortado || resposta.rede || resposta.status !== 401 || codigo === "42501") {
+    return "segue";
+  }
+  const renovada = await renovar(config, sessao, fetch, Date.now());
+  if (!renovada.ok) {
+    sessao = null;
+    limparSessao(localStorage);
+    avisoEntrada = "A sessão expirou. Entre de novo.";
+    ir("/entrar", { substituir: true });
+    return "saiu";
+  }
+  sessao = renovada.sessao;
+  gravarSessao(localStorage, sessao);
+  return "renovou";
+}
+
+async function carregarInicio() {
+  const id = ++cargaInicio;
+  inicioTipo = "carregando";
+  const sinal = undefined;
+  let pedidos = await listarPedidos(config, sessao.access_token, fetch, sinal);
+  let produtos = await listarProdutos(config, sessao.access_token, fetch, sinal);
+  let linhas = await listarLinhasEstoque(config, sessao.access_token, fetch, sinal);
+  if (id !== cargaInicio || caminhoAgora() !== "/") return;
+  const algum401 = [pedidos, produtos, linhas].find((item) => item.status === 401 && !(item.body && item.body.code === "42501"));
+  if (algum401) {
+    const seguiu = await renovarSePreciso(algum401);
+    if (seguiu === "saiu" || id !== cargaInicio || caminhoAgora() !== "/") return;
+    if (seguiu === "renovou") {
+      pedidos = await listarPedidos(config, sessao.access_token, fetch, sinal);
+      produtos = await listarProdutos(config, sessao.access_token, fetch, sinal);
+      linhas = await listarLinhasEstoque(config, sessao.access_token, fetch, sinal);
+      if (id !== cargaInicio || caminhoAgora() !== "/") return;
+    }
+  }
+  if (!pedidos.ok) {
+    inicioTipo = "erro";
+    inicioMensagem = pedidos.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeLeitura(pedidos.status, pedidos.body, "do início");
+    pintarRegiaoInicio();
+    const alerta = document.querySelector("#regiao-inicio [role=alert]");
+    if (alerta) alerta.focus();
+    return;
+  }
+  pedidosInicio = pedidos.linhas;
+  if (produtos.ok && linhas.ok) {
+    velasBrutas = juntarEstoque(produtos.linhas, linhas.linhas);
+    inicioErroEstoque = "";
+  } else {
+    velasBrutas = [];
+    const falha = !produtos.ok ? produtos : linhas;
+    inicioErroEstoque = falha.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeLeitura(falha.status, falha.body, "do estoque");
+  }
+  inicioTipo = "pronto";
+  garantirMesGrafico();
+  pintarRegiaoInicio();
+}
+
+async function carregarEstoque() {
+  const id = ++cargaEstoque;
+  estoqueTipo = "carregando";
+  let produtos = await listarProdutos(config, sessao.access_token, fetch);
+  let linhas = await listarLinhasEstoque(config, sessao.access_token, fetch);
+  if (id !== cargaEstoque || caminhoAgora() !== "/estoque") return;
+  const algum401 = [produtos, linhas].find((item) => item.status === 401 && !(item.body && item.body.code === "42501"));
+  if (algum401) {
+    const seguiu = await renovarSePreciso(algum401);
+    if (seguiu === "saiu" || id !== cargaEstoque || caminhoAgora() !== "/estoque") return;
+    if (seguiu === "renovou") {
+      produtos = await listarProdutos(config, sessao.access_token, fetch);
+      linhas = await listarLinhasEstoque(config, sessao.access_token, fetch);
+      if (id !== cargaEstoque || caminhoAgora() !== "/estoque") return;
+    }
+  }
+  if (!produtos.ok || !linhas.ok) {
+    const falha = !produtos.ok ? produtos : linhas;
+    estoqueTipo = "erro";
+    estoqueMensagem = falha.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeLeitura(falha.status, falha.body, "do estoque");
+    pintarRegiaoEstoque();
+    const alerta = document.querySelector("#regiao-estoque [role=alert]");
+    if (alerta) alerta.focus();
+    return;
+  }
+  velasBrutas = juntarEstoque(produtos.linhas, linhas.linhas);
+  if (velaAbertaId && !velasBrutas.some((vela) => vela.id === velaAbertaId)) velaAbertaId = "";
+  estoqueTipo = "pronto";
+  pintarRegiaoEstoque();
+}
+
+async function carregarClientes() {
+  const id = ++cargaClientes;
+  clientesTipo = "carregando";
+  let resposta = await listarPedidos(config, sessao.access_token, fetch);
+  if (id !== cargaClientes || caminhoAgora() !== "/clientes") return;
+  const seguiu = await renovarSePreciso(resposta);
+  if (seguiu === "saiu" || id !== cargaClientes || caminhoAgora() !== "/clientes") return;
+  if (seguiu === "renovou") {
+    resposta = await listarPedidos(config, sessao.access_token, fetch);
+    if (id !== cargaClientes || caminhoAgora() !== "/clientes") return;
+  }
+  if (!resposta.ok) {
+    clientesTipo = "erro";
+    clientesMensagem = resposta.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeLeitura(resposta.status, resposta.body, "dos clientes");
+    pintarRegiaoClientes();
+    const alerta = document.querySelector("#regiao-clientes [role=alert]");
+    if (alerta) alerta.focus();
+    return;
+  }
+  pedidosBrutos = resposta.linhas;
+  if (clienteAbertoChave && !clientesAgrupados().some((cliente) => cliente.chave === clienteAbertoChave)) {
+    clienteAbertoChave = "";
+  }
+  clientesTipo = "pronto";
+  pintarRegiaoClientes();
+}
+
+function fecharVela() {
+  velaAbertaId = "";
+  movimentosAbertos = [];
+  avisoEstoque = "";
+  notaEstoque = "";
+  historicoEstoqueCarregando = false;
+  rascunhoQuantidade = "";
+  rascunhoObs = "";
+  rascunhoAjuste = null;
+  rascunhoMotivo = "";
+  sincronizarSobreposto();
+  pintarRegiaoEstoque();
+}
+
+async function abrirVela(id) {
+  if (!id) return;
+  if (velaAbertaId === id) {
+    fecharVela();
+    return;
+  }
+  velaAbertaId = id;
+  movimentosAbertos = [];
+  avisoEstoque = "";
+  notaEstoque = "";
+  rascunhoQuantidade = "";
+  rascunhoObs = "";
+  rascunhoAjuste = null;
+  rascunhoMotivo = "";
+  historicoEstoqueCarregando = true;
+  sincronizarSobreposto();
+  pintarRegiaoEstoque();
+  const fechar = document.querySelector("[data-fechar-vela]");
+  if (fechar) fechar.focus();
+  const resposta = await listarMovimentos(config, sessao.access_token, id, fetch);
+  if (velaAbertaId !== id) return;
+  historicoEstoqueCarregando = false;
+  if (resposta.ok) movimentosAbertos = resposta.linhas;
+  else {
+    avisoEstoque = resposta.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeLeitura(resposta.status, resposta.body, "do histórico");
+  }
+  pintarRegiaoEstoque();
+}
+
+function fecharCliente() {
+  clienteAbertoChave = "";
+  pedidoAbertoId = "";
+  historicoAberto = [];
+  avisoPedido = "";
+  confirmacao = null;
+  notasRascunho = "";
+  sincronizarSobreposto();
+  pintarRegiaoClientes();
+}
+
+function abrirCliente(chave) {
+  if (!chave) return;
+  if (clienteAbertoChave === chave && !pedidoAbertoId) {
+    fecharCliente();
+    return;
+  }
+  clienteAbertoChave = chave;
+  pedidoAbertoId = "";
+  historicoAberto = [];
+  avisoPedido = "";
+  confirmacao = null;
+  sincronizarSobreposto();
+  pintarRegiaoClientes();
+  const fechar = document.querySelector("[data-fechar-cliente]");
+  if (fechar) fechar.focus();
+}
+
+async function registrarEntrada(form) {
+  const produtoId = form.getAttribute("data-produto");
+  const quantidade = form.quantidade.value;
+  const observacao = form.observacao.value;
+  rascunhoQuantidade = quantidade;
+  rascunhoObs = observacao;
+  const erro = validarEntrada(quantidade) || validarMotivo(observacao);
+  if (erro) {
+    avisoEstoque = erro;
+    notaEstoque = "";
+    pintarRegiaoEstoque();
+    return;
+  }
+  estoqueSalvando = true;
+  avisoEstoque = "";
+  notaEstoque = "";
+  pintarRegiaoEstoque();
+  const resultado = await entradaProducao(
+    config,
+    sessao.access_token,
+    produtoId,
+    Number(quantidade),
+    observacao.trim(),
+    fetch,
+  );
+  estoqueSalvando = false;
+  if (!resultado.ok) {
+    avisoEstoque = resultado.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeAcao(resultado.body, "Não foi possível registrar a entrada.");
+    pintarRegiaoEstoque();
+    return;
+  }
+  rascunhoQuantidade = "";
+  rascunhoObs = "";
+  notaEstoque = "Entrada registrada.";
+  await carregarEstoque();
+  if (velaAbertaId === produtoId) {
+    historicoEstoqueCarregando = true;
+    pintarRegiaoEstoque();
+    const movs = await listarMovimentos(config, sessao.access_token, produtoId, fetch);
+    historicoEstoqueCarregando = false;
+    if (movs.ok) movimentosAbertos = movs.linhas;
+    pintarRegiaoEstoque();
+  }
+}
+
+async function enviarAjuste(form) {
+  const produtoId = form.getAttribute("data-produto");
+  const disponivel = form.disponivel.value;
+  const motivo = form.motivo.value;
+  rascunhoAjuste = disponivel;
+  rascunhoMotivo = motivo;
+  const erro = validarAjuste(disponivel) || validarMotivo(motivo);
+  if (erro) {
+    avisoEstoque = erro;
+    notaEstoque = "";
+    pintarRegiaoEstoque();
+    return;
+  }
+  estoqueSalvando = true;
+  avisoEstoque = "";
+  notaEstoque = "";
+  pintarRegiaoEstoque();
+  const resultado = await ajusteEstoque(
+    config,
+    sessao.access_token,
+    produtoId,
+    Number(disponivel),
+    motivo.trim(),
+    fetch,
+  );
+  estoqueSalvando = false;
+  if (!resultado.ok) {
+    avisoEstoque = resultado.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeAcao(resultado.body, "Não foi possível ajustar o estoque.");
+    pintarRegiaoEstoque();
+    return;
+  }
+  rascunhoAjuste = null;
+  rascunhoMotivo = "";
+  notaEstoque = resultado.body && resultado.body.ja ? "O disponível já estava nesse número." : "Ajuste registrado.";
+  await carregarEstoque();
+  if (velaAbertaId === produtoId) {
+    const movs = await listarMovimentos(config, sessao.access_token, produtoId, fetch);
+    if (movs.ok) movimentosAbertos = movs.linhas;
+    pintarRegiaoEstoque();
+  }
+}
+
+function aplicarPeriodo(form) {
+  const dados = new FormData(form);
+  const de = String(dados.get("de") || "");
+  const ate = String(dados.get("ate") || "");
+  const erro = validarPeriodo(de, ate);
+  if (erro) {
+    avisoPeriodo = erro;
+    pintarRegiaoInicio();
+    return;
+  }
+  graficoPersonalizado = true;
+  graficoDe = de;
+  graficoAte = ate;
+  graficoDia = "";
+  avisoPeriodo = "";
+  pintarRegiaoInicio();
+}
+
+function moverMes(delta) {
+  if (graficoPersonalizado) return;
+  garantirMesGrafico();
+  if (delta > 0 && !podeAvancarMes(graficoAno, graficoMes, new Date())) return;
+  const proximo = deslocarMes(graficoAno, graficoMes, delta);
+  graficoAno = proximo.ano;
+  graficoMes = proximo.mes;
+  graficoDia = "";
+  avisoPeriodo = "";
+  pintarRegiaoInicio();
+}
+
+function voltarEsteMes() {
+  const atual = mesAtualSp(new Date());
+  graficoAno = atual.ano;
+  graficoMes = atual.mes;
+  graficoPersonalizado = false;
+  graficoDe = "";
+  graficoAte = "";
+  graficoDia = "";
+  avisoPeriodo = "";
+  pintarRegiaoInicio();
 }
 
 function pintar() {
@@ -947,26 +1470,45 @@ function pintar() {
     filtros.mostrarTestes = lerMostrarTestes(localStorage);
     const regiao = document.getElementById("regiao-pedidos");
     if (!regiao || mudou) {
-      fecharDetalhe();
+      limparSobrepostos();
       pintarConteudo(paginaPedidos({ tipo: "carregando" }), true);
       carregarPedidos();
     }
     return;
   }
 
-  fecharDetalhe();
-  const paginas = {
-    "/": paginaInicio(),
-    "/estoque": paginaSimples(
-      "Estoque",
-      "Acolher, Despertar e Permanecer. A quantidade entra numa etapa seguinte.",
-    ),
-    "/clientes": paginaSimples(
-      "Clientes",
-      "Quem já comprou, a partir dos pedidos. A lista entra numa etapa seguinte.",
-    ),
-  };
-  pintarConteudo(paginas[caminho], mudou);
+  if (caminho === "/") {
+    const regiao = document.getElementById("regiao-inicio");
+    if (!regiao || mudou) {
+      limparSobrepostos();
+      inicioTipo = "carregando";
+      inicioErroEstoque = "";
+      pintarConteudo(paginaInicio(estadoInicio()), true);
+      carregarInicio();
+    }
+    return;
+  }
+
+  if (caminho === "/estoque") {
+    const regiao = document.getElementById("regiao-estoque");
+    if (!regiao || mudou) {
+      limparSobrepostos();
+      estoqueTipo = "carregando";
+      pintarConteudo(paginaEstoque(estadoEstoque()), true);
+      carregarEstoque();
+    }
+    return;
+  }
+
+  if (caminho === "/clientes") {
+    const regiao = document.getElementById("regiao-clientes");
+    if (!regiao || mudou) {
+      limparSobrepostos();
+      clientesTipo = "carregando";
+      pintarConteudo(paginaClientes(estadoClientes()), true);
+      carregarClientes();
+    }
+  }
 }
 
 async function carregarPedidos() {
@@ -1012,7 +1554,7 @@ async function carregarPedidos() {
   if (pedidoAbertoId && !pedidosBrutos.some((p) => p.id === pedidoAbertoId)) {
     fecharDetalhe();
   }
-  pintarRegiaoPedidos();
+  pintarRegiao();
 }
 
 function mensagemFormulario(email, senha) {
@@ -1068,13 +1610,13 @@ function lerFiltrosDoForm(form) {
     entrega: String(dados.get("entrega") || "todos"),
     busca: String(dados.get("busca") || ""),
   };
-  pintarRegiaoPedidos();
+  pintarRegiao();
 }
 
 async function pedirMudancaStatus(pedidoId, novoStatus) {
   const pedido = pedidosBrutos.find((p) => p.id === pedidoId);
   if (!pedido || !novoStatus || novoStatus === pedido.status) {
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
 
@@ -1086,7 +1628,7 @@ async function pedirMudancaStatus(pedidoId, novoStatus) {
       simLabel: "Devolver",
       status: novoStatus,
     };
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
 
@@ -1098,7 +1640,7 @@ async function pedirMudancaStatus(pedidoId, novoStatus) {
       simLabel: "Cancelar pedido",
       status: novoStatus,
     };
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
 
@@ -1111,7 +1653,7 @@ async function aplicarStatus(pedidoId, novoStatus) {
   if (!resultado.ok) {
     avisoPedido = mensagemDeAcao(resultado.body, "Não foi possível mudar o status.");
     confirmacao = null;
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   const pedido = pedidosBrutos.find((p) => p.id === pedidoId);
@@ -1119,26 +1661,26 @@ async function aplicarStatus(pedidoId, novoStatus) {
   confirmacao = null;
   const hist = await listarHistorico(config, sessao.access_token, pedidoId, fetch);
   if (hist.ok) historicoAberto = hist.linhas;
-  pintarRegiaoPedidos();
+  pintarRegiao();
 }
 
 async function aplicarReembolso(pedidoId) {
   avisoPedido = "";
   confirmacao = null;
-  pintarRegiaoPedidos();
+  pintarRegiao();
   const resultado = await reembolsarPedido(config, sessao.access_token, pedidoId, fetch);
   if (!resultado.ok) {
     avisoPedido = resultado.rede
       ? "Não consegui falar com o servidor. Tente de novo."
       : mensagemDeAcao(resultado.body, "O reembolso não foi concluído.");
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   const pedido = pedidosBrutos.find((p) => p.id === pedidoId);
   if (pedido) pedido.status = "reembolsado";
   const hist = await listarHistorico(config, sessao.access_token, pedidoId, fetch);
   if (hist.ok) historicoAberto = hist.linhas;
-  pintarRegiaoPedidos();
+  pintarRegiao();
 }
 
 async function aplicarApagar(pedidoId) {
@@ -1147,7 +1689,7 @@ async function aplicarApagar(pedidoId) {
   if (!resultado.ok) {
     avisoPedido = mensagemDeAcao(resultado.body, "Não foi possível apagar o pedido.");
     confirmacao = null;
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   pedidosBrutos = pedidosBrutos.filter((p) => p.id !== pedidoId);
@@ -1162,13 +1704,13 @@ async function aplicarNotas(pedidoId) {
   const resultado = await salvarNotasPedido(config, sessao.access_token, pedidoId, notas, fetch);
   if (!resultado.ok) {
     avisoPedido = mensagemDeAcao(resultado.body, "Não foi possível salvar as notas.");
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   const pedido = pedidosBrutos.find((p) => p.id === pedidoId);
   if (pedido) pedido.notas_internas = notas;
   avisoPedido = "";
-  pintarRegiaoPedidos();
+  pintarRegiao();
 }
 
 app.addEventListener("click", (event) => {
@@ -1180,6 +1722,25 @@ app.addEventListener("click", (event) => {
   }
   const recarregar = event.target.closest("[data-recarregar]");
   if (recarregar) {
+    const qual = recarregar.getAttribute("data-recarregar");
+    if (qual === "inicio") {
+      inicioTipo = "carregando";
+      pintarRegiaoInicio();
+      carregarInicio();
+      return;
+    }
+    if (qual === "estoque") {
+      estoqueTipo = "carregando";
+      pintarRegiaoEstoque();
+      carregarEstoque();
+      return;
+    }
+    if (qual === "clientes") {
+      clientesTipo = "carregando";
+      pintarRegiaoClientes();
+      carregarClientes();
+      return;
+    }
     const regiao = document.getElementById("regiao-pedidos");
     if (regiao) regiao.replaceChildren(mioloPedidos({ tipo: "carregando" }));
     carregarPedidos();
@@ -1198,7 +1759,7 @@ app.addEventListener("click", (event) => {
   if (toggleTestes) {
     filtros.mostrarTestes = !filtros.mostrarTestes;
     gravarMostrarTestes(localStorage, filtros.mostrarTestes);
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   const fixarRail = event.target.closest("[data-rail-fixar]");
@@ -1218,15 +1779,52 @@ app.addEventListener("click", (event) => {
     fecharDetalhe();
     return;
   }
+  const fecharVelaBtn = event.target.closest("[data-fechar-vela]");
+  if (fecharVelaBtn) {
+    fecharVela();
+    return;
+  }
+  const fecharClienteBtn = event.target.closest("[data-fechar-cliente]");
+  if (fecharClienteBtn) {
+    fecharCliente();
+    return;
+  }
   const fundo = event.target.closest("[data-fechar-fundo]");
   if (fundo && event.target === fundo) {
-    fecharDetalhe();
+    const qual = fundo.getAttribute("data-fechar-fundo");
+    if (qual === "vela") fecharVela();
+    else if (qual === "cliente") fecharCliente();
+    else fecharDetalhe();
+    return;
+  }
+  const mesBtn = event.target.closest("[data-mes]");
+  if (mesBtn && !mesBtn.disabled) {
+    moverMes(Number(mesBtn.getAttribute("data-mes")));
+    return;
+  }
+  const metricaBtn = event.target.closest("[data-metrica]");
+  if (metricaBtn) {
+    graficoMetrica = metricaBtn.getAttribute("data-metrica") || METRICA_REAIS;
+    graficoDia = "";
+    pintarRegiaoInicio();
+    return;
+  }
+  const esteMes = event.target.closest("[data-este-mes]");
+  if (esteMes) {
+    voltarEsteMes();
+    return;
+  }
+  const diaBtn = event.target.closest("[data-dia]");
+  if (diaBtn) {
+    const dia = diaBtn.getAttribute("data-dia");
+    graficoDia = graficoDia === dia ? "" : dia;
+    pintarRegiaoInicio();
     return;
   }
   const nao = event.target.closest("[data-confirmar-nao]");
   if (nao) {
     confirmacao = null;
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   const sim = event.target.closest("[data-confirmar-sim]");
@@ -1262,7 +1860,7 @@ app.addEventListener("click", (event) => {
       texto: mensagemApagarTeste(pedido),
       simLabel: "Apagar",
     };
-    pintarRegiaoPedidos();
+    pintarRegiao();
     return;
   }
   const wa = event.target.closest("a.wa, .detalhe a[href^='https://wa.me']");
@@ -1270,10 +1868,28 @@ app.addEventListener("click", (event) => {
     event.stopPropagation();
     return;
   }
+  const abrirDoCliente = event.target.closest("[data-abrir-pedido]");
+  if (abrirDoCliente) {
+    event.preventDefault();
+    abrirPedido(abrirDoCliente.getAttribute("data-abrir-pedido"));
+    return;
+  }
   const linha = event.target.closest("[data-pedido]");
   if (linha && !event.target.closest(".detalhe")) {
     event.preventDefault();
     abrirPedido(linha.getAttribute("data-pedido"));
+    return;
+  }
+  const vela = event.target.closest("[data-vela]");
+  if (vela && !event.target.closest(".detalhe")) {
+    event.preventDefault();
+    abrirVela(vela.getAttribute("data-vela"));
+    return;
+  }
+  const cliente = event.target.closest("[data-cliente]");
+  if (cliente && !event.target.closest(".detalhe")) {
+    event.preventDefault();
+    abrirCliente(cliente.getAttribute("data-cliente"));
     return;
   }
   const link = event.target.closest("a[href]");
@@ -1304,6 +1920,27 @@ app.addEventListener("input", (event) => {
     notasRascunho = event.target.value;
     return;
   }
+  if (event.target && event.target.id === "entrada-quantidade") {
+    rascunhoQuantidade = event.target.value;
+    return;
+  }
+  if (event.target && event.target.id === "entrada-obs") {
+    rascunhoObs = event.target.value;
+    return;
+  }
+  if (event.target && event.target.id === "ajuste-disponivel") {
+    rascunhoAjuste = event.target.value;
+    return;
+  }
+  if (event.target && event.target.id === "ajuste-motivo") {
+    rascunhoMotivo = event.target.value;
+    return;
+  }
+  if (event.target && event.target.id === "busca-clientes-campo") {
+    buscaCliente = event.target.value;
+    pintarRegiaoClientes();
+    return;
+  }
   const form = event.target.closest("#filtros-pedidos");
   if (form && event.target.name === "busca") {
     lerFiltrosDoForm(form);
@@ -1311,15 +1948,34 @@ app.addEventListener("input", (event) => {
 });
 
 app.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && pedidoAbertoId) {
-    event.preventDefault();
-    fecharDetalhe();
-    return;
+  if (event.key === "Escape") {
+    if (pedidoAbertoId) {
+      event.preventDefault();
+      fecharDetalhe();
+      return;
+    }
+    if (clienteAbertoChave) {
+      event.preventDefault();
+      fecharCliente();
+      return;
+    }
+    if (velaAbertaId) {
+      event.preventDefault();
+      fecharVela();
+      return;
+    }
   }
-  const linha = event.target.closest("[data-pedido]");
-  if (linha && (event.key === "Enter" || event.key === " ")) {
-    event.preventDefault();
-    abrirPedido(linha.getAttribute("data-pedido"));
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const linha = event.target.closest("[data-pedido], [data-vela], [data-cliente], [data-dia]");
+  if (!linha) return;
+  event.preventDefault();
+  if (linha.hasAttribute("data-pedido")) abrirPedido(linha.getAttribute("data-pedido"));
+  else if (linha.hasAttribute("data-vela")) abrirVela(linha.getAttribute("data-vela"));
+  else if (linha.hasAttribute("data-cliente")) abrirCliente(linha.getAttribute("data-cliente"));
+  else if (linha.hasAttribute("data-dia")) {
+    const dia = linha.getAttribute("data-dia");
+    graficoDia = graficoDia === dia ? "" : dia;
+    pintarRegiaoInicio();
   }
 });
 
@@ -1334,7 +1990,32 @@ app.addEventListener("submit", (event) => {
   if (form.id === "filtros-pedidos") {
     event.preventDefault();
     lerFiltrosDoForm(form);
+    return;
   }
+  if (form.id === "periodo-grafico") {
+    event.preventDefault();
+    aplicarPeriodo(form);
+    return;
+  }
+  if (form.id === "form-entrada") {
+    event.preventDefault();
+    registrarEntrada(form);
+    return;
+  }
+  if (form.id === "form-ajuste") {
+    event.preventDefault();
+    enviarAjuste(form);
+    return;
+  }
+  if (form.id === "busca-clientes") {
+    event.preventDefault();
+    buscaCliente = form.busca.value;
+    pintarRegiaoClientes();
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (caminhoAgora() === "/" && inicioTipo === "pronto") pintarRegiaoInicio();
 });
 
 window.addEventListener("popstate", () => {

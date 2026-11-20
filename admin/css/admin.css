@@ -359,6 +359,7 @@ input[type="password"],
 input[type="text"],
 input[type="search"],
 input[type="date"],
+input[type="number"],
 select,
 textarea {
   width: 100%;
@@ -731,6 +732,11 @@ td[data-campo="entrega"] {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: 0.75rem;
+  background: var(--ink);
 }
 
 .detalhe-topo h2 {
@@ -1244,5 +1250,442 @@ td[data-campo="total"] {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Etapa 3: início, estoque e clientes. Fios, sem sombra. */
+
+.pagina-inicio h2,
+.pagina-estoque h2,
+.bloco h2 {
+  margin-top: 2.25rem;
+  font-size: 1.25rem;
+}
+
+.bloco {
+  margin-top: 0.25rem;
+}
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.numero {
+  min-width: 0;
+  padding: 0.95rem 0.85rem 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.numero-rotulo {
+  display: block;
+  color: var(--paper-dim);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.numero-valor {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.numero-nota {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--paper-dim);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.colecao-nome {
+  margin: 1.15rem 0 0;
+  color: var(--paper-dim);
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.velas-resumo {
+  margin-top: 0.35rem;
+}
+
+.vela-resumo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.vela-resumo.baixo {
+  margin: 0 -0.45rem;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
+  background: rgba(204, 100, 86, 0.12);
+}
+
+.vela-nome {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.vela-qtd,
+.estoque-saldos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.vela-reserva,
+.marca-baixo {
+  color: var(--paper-dim);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.marca-baixo {
+  margin-left: 0.35rem;
+}
+
+.grafico-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.mes-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.mes-titulo {
+  min-width: 9.5rem;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.seta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--paper);
+  cursor: pointer;
+}
+
+.seta:hover {
+  border-color: var(--copper);
+  color: var(--copper);
+}
+
+.seta:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.segmento {
+  display: flex;
+  border: 1px solid var(--line);
+}
+
+.segmento button {
+  appearance: none;
+  min-width: 4.5rem;
+  min-height: 44px;
+  padding: 0.4rem 0.85rem;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--paper-dim);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.segmento button:last-child {
+  border-right: 0;
+}
+
+.segmento button[aria-pressed="true"] {
+  background: var(--copper);
+  color: var(--ink);
+}
+
+.segmento button:hover:not([aria-pressed="true"]) {
+  color: var(--paper);
+}
+
+.periodo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 1rem;
+}
+
+.periodo-acoes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.periodo .botao {
+  margin-top: 0;
+}
+
+.grafico-caixa {
+  margin-top: 0.85rem;
+}
+
+.grafico {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--sans);
+}
+
+.grafico-fio {
+  stroke: rgba(237, 230, 217, 0.2);
+  stroke-width: 1;
+}
+
+.grafico-eixo,
+.grafico-dia-rotulo {
+  fill: var(--paper-dim);
+  font-size: 12px;
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.grafico-alvo {
+  fill: transparent;
+}
+
+.grafico-barra {
+  fill: var(--paper);
+}
+
+.grafico-dia.ativo .grafico-barra,
+.grafico-dia:hover .grafico-barra,
+.grafico-dia:focus-visible .grafico-barra {
+  fill: var(--copper);
+}
+
+.grafico-dia:focus {
+  outline: none;
+}
+
+.grafico-dia:focus-visible .grafico-alvo {
+  stroke: var(--copper);
+  stroke-width: 1.5;
+}
+
+.grafico-linha {
+  fill: none;
+  stroke: var(--copper);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.grafico-ponto {
+  fill: var(--copper);
+}
+
+.grafico-leitura {
+  margin-top: 0.65rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.grafico-nota {
+  margin-top: 0.4rem;
+  color: var(--paper-dim);
+}
+
+.nota-ok {
+  margin-top: 0.85rem;
+  color: var(--paper);
+}
+
+.form-estoque {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.form-estoque h3 {
+  margin: 0 0 0.75rem;
+  color: var(--paper-dim);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.form-estoque label {
+  display: block;
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.form-estoque .botao {
+  margin-top: 1rem;
+}
+
+.estoque-saldos {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.45rem;
+  text-align: left;
+}
+
+.tabela-historico {
+  font-size: 0.75rem;
+}
+
+.tabela-historico th,
+.tabela-historico td {
+  padding-right: 0.45rem;
+  padding-left: 0;
+}
+
+.tabela-historico td[data-campo="obs"] {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+td[data-campo="disponivel"],
+td[data-campo="reservado"],
+td[data-campo="qtd"],
+td[data-campo="tipo"],
+td[data-campo="saldo"],
+td[data-campo="data"] {
+  white-space: nowrap;
+}
+
+.lista-clientes td[data-campo="cliente"],
+td[data-campo="vela"],
+td[data-campo="obs"] {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.detalhe-estoque {
+  width: min(36rem, 100%);
+}
+
+.compras {
+  display: grid;
+  gap: 0;
+}
+
+.compra {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.85rem 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.compra:hover {
+  color: var(--copper);
+}
+
+.compra-codigo,
+.compra-total,
+.compra time {
+  font-variant-numeric: tabular-nums;
+}
+
+.compra-velas,
+.compra-total,
+.compra .status {
+  grid-column: 1 / -1;
+}
+
+.camada-pedido {
+  z-index: 14;
+}
+
+@media (min-width: 45rem) {
+  .periodo {
+    grid-template-columns: minmax(0, 10rem) minmax(0, 10rem) auto;
+  }
+
+  .periodo-acoes {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 60rem) {
+  .pagina-inicio,
+  .pagina-estoque,
+  .pagina-clientes {
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+  }
+
+  .detalhe.detalhe-estoque {
+    width: 36rem;
+    max-width: min(36rem, 100%);
+  }
+
+  td[data-campo="disponivel"],
+  td[data-campo="reservado"],
+  td[data-campo="qtd"],
+  td[data-campo="total"] {
+    text-align: right;
   }
 }

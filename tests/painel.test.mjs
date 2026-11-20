@@ -35,6 +35,28 @@ import {
   RAIL_AUTO,
   RAIL_RECOLHIDO,
   sessaoPrecisaRenovar,
+  METRICA_PEDIDOS,
+  METRICA_REAIS,
+  METRICA_VELAS,
+  agruparClientes,
+  agruparEstoque,
+  ajusteEstoque,
+  deslocarMes,
+  entradaProducao,
+  filtrarClientes,
+  juntarEstoque,
+  listarDias,
+  mesAtualSp,
+  pedidoContaVenda,
+  periodoMes,
+  podeAvancarMes,
+  resumoInicio,
+  rotuloMovimento,
+  semanaQueContem,
+  serieVendas,
+  validarAjuste,
+  validarEntrada,
+  validarPeriodo,
 } from "../admin/js/painel.mjs";
 
 test("só o e-mail do ateliê administra", () => {
@@ -430,6 +452,308 @@ test("o menu lateral no computador recolhe e fixa o estado", async () => {
   assert.match(app, /Abrir WhatsApp de/);
   assert.match(app, /viewBox:\s*"142 85 796 910"/);
   assert.match(app, /fill:\s*"currentColor"/);
+});
+
+test("início ignora teste e separa envio, pagamento, semana, mês e liberação", () => {
+  const agora = new Date("2026-11-20T15:00:00.000Z");
+  assert.deepEqual(mesAtualSp(agora), { ano: 2026, mes: 11 });
+  assert.deepEqual(semanaQueContem("2026-11-20"), { de: "2026-11-16", ate: "2026-11-22" });
+  assert.equal(podeAvancarMes(2026, 11, agora), false);
+  assert.equal(podeAvancarMes(2026, 10, agora), true);
+  assert.deepEqual(deslocarMes(2026, 1, -1), { ano: 2025, mes: 12 });
+
+  const pedidos = [
+    pedidoFixture({
+      id: "envio",
+      status: "pago",
+      total_centavos: 8900,
+      mp_liquido_centavos: 8500,
+      mp_liberacao_em: "2026-12-05T12:00:00.000Z",
+      pago_em: "2026-11-18T15:00:00.000Z",
+      created_at: "2026-11-18T14:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "etiqueta",
+      status: "etiqueta_gerada",
+      total_centavos: 17800,
+      mp_liquido_centavos: 17000,
+      mp_liberacao_em: "2026-11-10T12:00:00.000Z",
+      pago_em: "2026-11-20T18:00:00.000Z",
+      created_at: "2026-11-20T17:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "retirada",
+      status: "pronto_retirada",
+      entrega_tipo: "retirada",
+      total_centavos: 8900,
+      pago_em: "2026-11-02T15:00:00.000Z",
+      created_at: "2026-11-02T14:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "pendente",
+      status: "pendente",
+      total_centavos: 8900,
+      created_at: "2026-11-19T15:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "enviado",
+      status: "enviado",
+      total_centavos: 6000,
+      pago_em: "2026-10-28T15:00:00.000Z",
+      created_at: "2026-10-28T14:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "teste",
+      status: "pago",
+      teste: true,
+      total_centavos: 50000,
+      mp_liquido_centavos: 48000,
+      mp_liberacao_em: "2026-12-01T12:00:00.000Z",
+      pago_em: "2026-11-19T15:00:00.000Z",
+      created_at: "2026-11-19T14:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "reembolso",
+      status: "reembolsado",
+      total_centavos: 8900,
+      pago_em: "2026-11-17T15:00:00.000Z",
+      created_at: "2026-11-17T14:00:00.000Z",
+    }),
+  ];
+
+  const resumo = resumoInicio(pedidos, agora);
+  assert.equal(resumo.aguardandoEnvio, 3);
+  assert.equal(resumo.aguardandoPagamento, 1);
+  assert.equal(resumo.vendasSemanaCentavos, 8900 + 17800);
+  assert.equal(resumo.vendasMesCentavos, 8900 + 17800 + 8900);
+  assert.equal(resumo.aLiberarCentavos, 8500);
+  assert.equal(pedidoContaVenda(pedidos[5]), false);
+  assert.equal(pedidoContaVenda(pedidos[6]), false);
+});
+
+test("gráfico do mês soma reais, pedidos e velas, e o acumulado ignora teste", () => {
+  const agora = new Date("2026-11-20T15:00:00.000Z");
+  const mes = periodoMes(2026, 11);
+  assert.equal(mes.de, "2026-11-01");
+  assert.equal(mes.ate, "2026-11-30");
+  assert.equal(listarDias("2026-11-01", "2026-11-30").length, 30);
+  assert.equal(validarPeriodo("2026-11-20", "2026-11-01"), "A data inicial precisa ser antes da final.");
+  assert.match(validarPeriodo("2026-01-01", "2026-06-01"), /120/);
+
+  const pedidos = [
+    pedidoFixture({
+      status: "pago",
+      total_centavos: 8900,
+      pago_em: "2026-11-18T15:00:00.000Z",
+      created_at: "2026-11-18T14:00:00.000Z",
+      itens: [
+        { produto_id: "acolher", nome: "Acolher", qtd: 1, preco_unitario_centavos: 8900 },
+        { produto_id: "permanecer", nome: "Permanecer", qtd: 1, preco_unitario_centavos: 8900 },
+      ],
+    }),
+    pedidoFixture({
+      id: "b",
+      status: "entregue",
+      total_centavos: 17800,
+      pago_em: "2026-11-18T18:00:00.000Z",
+      created_at: "2026-11-18T17:00:00.000Z",
+      itens: [{ produto_id: "despertar", nome: "Despertar", qtd: 2, preco_unitario_centavos: 8900 }],
+    }),
+    pedidoFixture({
+      id: "teste",
+      status: "pago",
+      teste: true,
+      total_centavos: 99900,
+      pago_em: "2026-11-18T19:00:00.000Z",
+      created_at: "2026-11-18T19:00:00.000Z",
+    }),
+  ];
+
+  const reais = serieVendas(pedidos, mes.de, mes.ate, METRICA_REAIS);
+  const dia = reais.pontos.find((ponto) => ponto.dia === "2026-11-18");
+  assert.equal(dia.valor, 8900 + 17800);
+  assert.equal(dia.reais, 8900 + 17800);
+  assert.equal(reais.totalReais, 8900 + 17800);
+  assert.equal(reais.pontos.at(-1).acumulado, reais.totalReais);
+  assert.equal(reais.pontos[0].dia, "2026-11-01");
+
+  const contagem = serieVendas(pedidos, mes.de, mes.ate, METRICA_PEDIDOS);
+  assert.equal(contagem.pontos.find((ponto) => ponto.dia === "2026-11-18").valor, 2);
+  const velas = serieVendas(pedidos, mes.de, mes.ate, METRICA_VELAS);
+  assert.equal(velas.pontos.find((ponto) => ponto.dia === "2026-11-18").valor, 4);
+  assert.equal(reais.metrica, METRICA_REAIS);
+});
+
+test("estoque agrupa a coleção e marca menos de 3 como baixo", () => {
+  const velas = juntarEstoque(
+    [
+      { id: "permanecer", nome: "Permanecer", colecao: "Coleção 2026", ordem: 3, ativo: true },
+      { id: "acolher", nome: "Acolher", colecao: "Coleção 2026", ordem: 1, ativo: true },
+      { id: "despertar", nome: "Despertar", ordem: 2, ativo: true },
+    ],
+    [
+      { produto_id: "acolher", disponivel: 2, reservado: 1 },
+      { produto_id: "despertar", disponivel: 3, reservado: 0 },
+      { produto_id: "permanecer", disponivel: 1, reservado: 0 },
+    ],
+  );
+  const grupos = agruparEstoque(velas);
+  assert.equal(grupos.length, 1);
+  assert.equal(grupos[0].colecao, "Coleção 2026");
+  assert.deepEqual(grupos[0].itens.map((vela) => vela.id), ["acolher", "despertar", "permanecer"]);
+  assert.equal(grupos[0].itens[0].baixo, true);
+  assert.equal(grupos[0].itens[1].baixo, false);
+  assert.equal(grupos[0].itens[2].baixo, true);
+  assert.equal(grupos[0].itens[0].reservado, 1);
+  assert.equal(rotuloMovimento("ajuste"), "Ajuste manual");
+  assert.equal(rotuloMovimento("producao"), "Entrada de produção");
+  assert.equal(validarEntrada("10"), "");
+  assert.match(validarEntrada("0"), /maior que zero/);
+  assert.match(validarAjuste("-1"), /zero/);
+  assert.equal(validarAjuste("0"), "");
+});
+
+test("clientes agrupam por CPF, senão por e-mail, e o total deixa teste e reembolso de fora", () => {
+  const pedidos = [
+    pedidoFixture({
+      id: "1",
+      codigo: "261118001",
+      cliente_nome: "Marina Alves",
+      cliente_email: "marina@exemplo.com",
+      cliente_telefone: "31988887777",
+      cliente_cpf: "12345678909",
+      status: "entregue",
+      total_centavos: 17800,
+      created_at: "2026-11-08T15:00:00.000Z",
+      pago_em: "2026-11-08T15:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "2",
+      codigo: "261120004",
+      cliente_nome: "Marina A.",
+      cliente_email: "marina.nova@exemplo.com",
+      cliente_telefone: "31988887777",
+      cliente_cpf: "123.456.789-09",
+      status: "pago",
+      total_centavos: 8900,
+      created_at: "2026-11-20T15:00:00.000Z",
+      pago_em: "2026-11-20T15:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "3",
+      codigo: "261119002",
+      cliente_nome: "Marina Alves",
+      cliente_email: "marina@exemplo.com",
+      cliente_cpf: "12345678909",
+      status: "reembolsado",
+      total_centavos: 8900,
+      created_at: "2026-11-12T15:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "4",
+      codigo: "261119009",
+      cliente_nome: "Marina Alves",
+      cliente_email: "marina@exemplo.com",
+      cliente_cpf: "12345678909",
+      status: "pago",
+      teste: true,
+      total_centavos: 50000,
+      created_at: "2026-11-19T15:00:00.000Z",
+    }),
+    pedidoFixture({
+      id: "5",
+      codigo: "261116003",
+      cliente_nome: "Helena Duarte",
+      cliente_email: "helena@exemplo.com",
+      cliente_telefone: "31977776666",
+      cliente_cpf: "",
+      status: "retirado",
+      entrega_tipo: "retirada",
+      total_centavos: 8900,
+      created_at: "2026-11-16T18:00:00.000Z",
+      pago_em: "2026-11-16T18:00:00.000Z",
+    }),
+  ];
+  // CPF com máscara não passa no normalizar (só dígitos). O fixture usa normalizarPedido.
+  pedidos[1] = pedidoFixture({
+    id: "2",
+    codigo: "261120004",
+    cliente_nome: "Marina A.",
+    cliente_email: "marina.nova@exemplo.com",
+    cliente_telefone: "31988887777",
+    cliente_cpf: "12345678909",
+    status: "pago",
+    total_centavos: 8900,
+    created_at: "2026-11-20T15:00:00.000Z",
+    pago_em: "2026-11-20T15:00:00.000Z",
+  });
+
+  const clientes = agruparClientes(pedidos);
+  assert.equal(clientes.length, 2);
+  assert.equal(clientes[0].nome, "Marina A.");
+  assert.equal(clientes[0].quantidade, 3);
+  assert.equal(clientes[0].totalCentavos, 17800 + 8900);
+  assert.equal(clientes[1].nome, "Helena Duarte");
+  assert.equal(clientes[1].chave.startsWith("email:"), true);
+  assert.equal(filtrarClientes(clientes, "helena@").length, 1);
+  assert.equal(filtrarClientes(clientes, "123.456.789-09").length, 1);
+  assert.equal(filtrarClientes(clientes, "ninguém").length, 0);
+});
+
+test("entrada e ajuste chamam as funções admin, sem update direto", async () => {
+  const urls = [];
+  const fetchSpy = async (url, init) => {
+    urls.push({ url: String(url), body: init.body });
+    return resposta(200, { ok: true, disponivel: 12, reservado: 1 });
+  };
+  const cfg = { url: "https://exemplo", anonKey: "chave" };
+  const entrada = await entradaProducao(cfg, "tok", "acolher", 10, "Fiz 10 Acolher", fetchSpy);
+  assert.equal(entrada.ok, true);
+  assert.match(urls[0].url, /rpc\/admin_entrada_producao$/);
+  assert.match(urls[0].body, /"p_quantidade":10/);
+  const ajuste = await ajusteEstoque(cfg, "tok", "permanecer", 4, "Contagem da prateleira", fetchSpy);
+  assert.equal(ajuste.ok, true);
+  assert.match(urls[1].url, /rpc\/admin_ajuste_estoque$/);
+  assert.match(urls[1].body, /"p_disponivel":4/);
+});
+
+test("a migration da etapa 3 não abre escrita nem o anon", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261120120000_admin_etapa3.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = sql.replace(/--.*$/gm, "");
+  assert.match(sql, /colecao/);
+  assert.match(sql, /Coleção 2026/);
+  assert.match(sql, /estoque_movimentos/);
+  assert.match(sql, /admin_entrada_producao/);
+  assert.match(sql, /admin_ajuste_estoque/);
+  assert.match(sql, /SET search_path = pg_catalog/);
+  assert.match(sql, /public\.is_admin\(\)/);
+  assert.match(sql, /estoque_disponivel_nao_negativo/);
+  assert.match(sql, /estoque_registra_movimento/);
+  assert.match(sql, /REVOKE INSERT, UPDATE, DELETE ON TABLE public\.estoque FROM authenticated/);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.estoque_movimentos TO authenticated/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+  assert.doesNotMatch(semComentario, /GRANT INSERT[^;]*estoque/i);
+  assert.doesNotMatch(semComentario, /GRANT UPDATE[^;]*estoque/i);
+  assert.doesNotMatch(semComentario, /GRANT DELETE[^;]*estoque/i);
+});
+
+test("as telas novas cabem no computador sem cortar coluna", async () => {
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  const telas = await readFile(new URL("../admin/js/telas.mjs", import.meta.url), "utf8");
+  assert.match(telas, /Aguardando envio/);
+  assert.match(telas, /Entrada de produção/);
+  assert.match(telas, /Ajuste rápido/);
+  assert.match(telas, /Saldo depois/);
+  assert.match(telas, /Última compra/);
+  assert.match(telas, /data-abrir-pedido/);
+  assert.doesNotMatch(telas, /Foveo(?!ō)/);
+  assert.match(css, /td\[data-campo="obs"\][\s\S]*white-space:\s*normal/);
+  assert.match(css, /word-break:\s*normal/);
+  assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(css, /word-break:\s*break-all/);
 });
 
 function pedidoFixture(extra) {

@@ -47,6 +47,29 @@ export const STATUS_RETIRADA = [
 
 export const STATUS_FORA = ["cancelado", "reembolsado", "expirado", "recusado"];
 
+/** Pago e ainda não reembolsado nem cancelado. Etiqueta e retirada pronta contam: o dinheiro já entrou. */
+export const STATUS_VENDA = [
+  "pago",
+  "etiqueta_gerada",
+  "enviado",
+  "entregue",
+  "pronto_retirada",
+  "retirado",
+];
+
+/** Pago, e o envio ou a retirada ainda não aconteceu. */
+export const STATUS_AGUARDANDO_SAIDA = ["pago", "etiqueta_gerada", "pronto_retirada"];
+
+export const METRICA_REAIS = "reais";
+export const METRICA_PEDIDOS = "pedidos";
+export const METRICA_VELAS = "velas";
+export const LIMITE_DIAS_GRAFICO = 120;
+export const ESTOQUE_BAIXO = 3;
+export const COLECAO_PADRAO = "Coleção 2026";
+
+const FUSO = "America/Sao_Paulo";
+const DIAS_SEMANA = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 const FOLGA_MS = 60_000;
 
 export const SELECT_PEDIDOS = [
@@ -431,15 +454,386 @@ export function rotuloRail(estado) {
   return "Fixar menu";
 }
 
-function diaEmBrasilia(iso) {
-  const data = new Date(iso);
+export function diaSp(valor) {
+  const data = valor instanceof Date ? valor : new Date(valor);
   if (Number.isNaN(data.getTime())) return "";
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: FUSO,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(data);
+}
+
+function diaEmBrasilia(iso) {
+  return diaSp(iso);
+}
+
+export function somarDias(iso, n) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, dia + n));
+  const yy = data.getUTCFullYear();
+  const mm = String(data.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(data.getUTCDate()).padStart(2, "0");
+  return yy + "-" + mm + "-" + dd;
+}
+
+function indiceSemana(iso) {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, dia, 15, 0, 0));
+  const nome = new Intl.DateTimeFormat("en-US", {
+    timeZone: FUSO,
+    weekday: "short",
+  }).format(data);
+  const indice = DIAS_SEMANA.indexOf(nome);
+  return indice < 0 ? 0 : indice;
+}
+
+export function mesAtualSp(agora) {
+  const dia = diaSp(agora instanceof Date ? agora : new Date(agora));
+  const [ano, mes] = dia.split("-").map(Number);
+  return { ano, mes };
+}
+
+export function periodoMes(ano, mes) {
+  const mm = String(mes).padStart(2, "0");
+  const ultimo = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  return {
+    de: ano + "-" + mm + "-01",
+    ate: ano + "-" + mm + "-" + String(ultimo).padStart(2, "0"),
+  };
+}
+
+export function deslocarMes(ano, mes, delta) {
+  const data = new Date(Date.UTC(ano, mes - 1 + delta, 1));
+  return { ano: data.getUTCFullYear(), mes: data.getUTCMonth() + 1 };
+}
+
+export function podeAvancarMes(ano, mes, agora) {
+  const atual = mesAtualSp(agora);
+  if (ano > atual.ano) return false;
+  if (ano === atual.ano && mes >= atual.mes) return false;
+  return true;
+}
+
+export function semanaQueContem(diaIso) {
+  const de = somarDias(diaIso, -indiceSemana(diaIso));
+  return { de, ate: somarDias(de, 6) };
+}
+
+export function listarDias(de, ate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(de) || !/^\d{4}-\d{2}-\d{2}$/.test(ate)) return [];
+  if (de > ate) return [];
+  const dias = [];
+  let cursor = de;
+  while (cursor && cursor <= ate) {
+    if (dias.length >= LIMITE_DIAS_GRAFICO) return [];
+    dias.push(cursor);
+    cursor = somarDias(cursor, 1);
+  }
+  return dias;
+}
+
+export function validarPeriodo(de, ate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(de || "") || !/^\d{4}-\d{2}-\d{2}$/.test(ate || "")) {
+    return "Informe o começo e o fim do período.";
+  }
+  if (de > ate) return "A data inicial precisa ser antes da final.";
+  const dias = listarDias(de, ate);
+  if (!dias.length) return "Escolha no máximo " + LIMITE_DIAS_GRAFICO + " dias.";
+  return "";
+}
+
+export function rotuloMes(ano, mes) {
+  const data = new Date(Date.UTC(ano, mes - 1, 1, 15, 0, 0));
+  const texto = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO,
+    month: "long",
+    year: "numeric",
+  }).format(data);
+  return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : "";
+}
+
+export function rotuloDia(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || "")) return "";
+  const [ano, mes, dia] = iso.split("-");
+  return dia + "/" + mes + (ano ? "/" + ano : "");
+}
+
+export function pedidoContaVenda(pedido) {
+  if (!pedido || pedido.teste) return false;
+  return STATUS_VENDA.includes(pedido.status);
+}
+
+function dataVenda(pedido) {
+  if (pedido.pago_em && diaSp(pedido.pago_em)) return pedido.pago_em;
+  return pedido.created_at;
+}
+
+function qtdVelasPedido(pedido) {
+  return (pedido.itens || []).reduce((soma, item) => soma + (item.qtd || 0), 0);
+}
+
+export function resumoInicio(pedidos, agora) {
+  const agoraData = agora instanceof Date ? agora : new Date(agora);
+  const hoje = diaSp(agoraData);
+  const atual = mesAtualSp(agoraData);
+  const mes = periodoMes(atual.ano, atual.mes);
+  const semana = semanaQueContem(hoje);
+  const agoraMs = agoraData.getTime();
+  const resumo = {
+    aguardandoEnvio: 0,
+    aguardandoPagamento: 0,
+    vendasSemanaCentavos: 0,
+    vendasMesCentavos: 0,
+    aLiberarCentavos: 0,
+    pagosSemLiquido: 0,
+  };
+  for (const pedido of pedidos || []) {
+    if (!pedido || pedido.teste) continue;
+    if (pedido.status === "pendente") resumo.aguardandoPagamento += 1;
+    if (STATUS_AGUARDANDO_SAIDA.includes(pedido.status)) resumo.aguardandoEnvio += 1;
+    if (!pedidoContaVenda(pedido)) continue;
+    const dia = diaSp(dataVenda(pedido));
+    const total = pedido.total_centavos || 0;
+    if (dia >= semana.de && dia <= semana.ate) resumo.vendasSemanaCentavos += total;
+    if (dia >= mes.de && dia <= mes.ate) resumo.vendasMesCentavos += total;
+    if (!pedido.mp_liberacao_em) continue;
+    const liberacao = new Date(pedido.mp_liberacao_em).getTime();
+    if (Number.isNaN(liberacao) || liberacao <= agoraMs) continue;
+    if (pedido.mp_liquido_centavos == null) resumo.pagosSemLiquido += 1;
+    else resumo.aLiberarCentavos += pedido.mp_liquido_centavos;
+  }
+  return resumo;
+}
+
+export function serieVendas(pedidos, de, ate, metrica) {
+  const dias = listarDias(de, ate);
+  const valores = new Map(dias.map((dia) => [dia, 0]));
+  const reais = new Map(dias.map((dia) => [dia, 0]));
+  const modo = metrica === METRICA_PEDIDOS || metrica === METRICA_VELAS ? metrica : METRICA_REAIS;
+  for (const pedido of pedidos || []) {
+    if (!pedidoContaVenda(pedido)) continue;
+    const dia = diaSp(dataVenda(pedido));
+    if (!valores.has(dia)) continue;
+    reais.set(dia, reais.get(dia) + (pedido.total_centavos || 0));
+    let parcela = pedido.total_centavos || 0;
+    if (modo === METRICA_PEDIDOS) parcela = 1;
+    if (modo === METRICA_VELAS) parcela = qtdVelasPedido(pedido);
+    valores.set(dia, valores.get(dia) + parcela);
+  }
+  let acumulado = 0;
+  const pontos = dias.map((dia) => {
+    const doDia = reais.get(dia);
+    acumulado += doDia;
+    return {
+      dia,
+      valor: valores.get(dia),
+      reais: doDia,
+      acumulado,
+    };
+  });
+  return { de, ate, metrica: modo, pontos, totalReais: acumulado };
+}
+
+export function descreverPonto(ponto, metrica) {
+  if (!ponto) return "";
+  const dia = rotuloDia(ponto.dia);
+  if (metrica === METRICA_PEDIDOS) {
+    const n = ponto.valor || 0;
+    return dia + " · " + n + (n === 1 ? " pedido" : " pedidos");
+  }
+  if (metrica === METRICA_VELAS) {
+    const n = ponto.valor || 0;
+    return dia + " · " + n + (n === 1 ? " vela" : " velas");
+  }
+  return dia + " · " + formatarPreco(ponto.valor || 0);
+}
+
+export function juntarEstoque(produtos, linhas) {
+  const porId = new Map();
+  for (const linha of linhas || []) {
+    if (linha && linha.produto_id) porId.set(linha.produto_id, linha);
+  }
+  return (produtos || []).map((produto) => {
+    const estoque = porId.get(produto && produto.id) || {};
+    const disponivel = centavosOuNulo(estoque.disponivel);
+    const reservado = centavosOuNulo(estoque.reservado);
+    const ordem = centavosOuNulo(produto && produto.ordem);
+    return {
+      id: produto && typeof produto.id === "string" ? produto.id : "",
+      nome: textoOuVazio(produto && produto.nome) || (produto && produto.id) || "Vela",
+      colecao: textoOuVazio(produto && produto.colecao) || COLECAO_PADRAO,
+      ordem: ordem == null ? 0 : ordem,
+      ativo: !produto || produto.ativo !== false,
+      disponivel: disponivel == null ? 0 : disponivel,
+      reservado: reservado == null ? 0 : reservado,
+      temLinha: Boolean(estoque && estoque.produto_id),
+    };
+  }).filter((vela) => vela.id);
+}
+
+export function agruparEstoque(velas) {
+  const ordenadas = (velas || []).slice().sort((a, b) => {
+    const colecao = a.colecao.localeCompare(b.colecao, "pt-BR");
+    if (colecao) return colecao;
+    if (a.ordem !== b.ordem) return a.ordem - b.ordem;
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
+  const grupos = [];
+  for (const vela of ordenadas) {
+    const ultimo = grupos[grupos.length - 1];
+    const item = { ...vela, baixo: vela.disponivel < ESTOQUE_BAIXO };
+    if (!ultimo || ultimo.colecao !== vela.colecao) {
+      grupos.push({ colecao: vela.colecao, itens: [item] });
+    } else {
+      ultimo.itens.push(item);
+    }
+  }
+  return grupos;
+}
+
+export function rotuloDisponivel(n) {
+  const qtd = Number(n) || 0;
+  return qtd === 1 ? "1 disponível" : qtd + " disponíveis";
+}
+
+export function rotuloReservado(n) {
+  const qtd = Number(n) || 0;
+  if (qtd === 1) return "1 reservada";
+  return qtd + " reservadas";
+}
+
+const TIPOS_MOVIMENTO = {
+  producao: "Entrada de produção",
+  ajuste: "Ajuste manual",
+  venda: "Venda",
+  devolucao: "Devolução",
+  reserva: "Reserva",
+  liberacao: "Liberação",
+};
+
+export function rotuloMovimento(tipo) {
+  if (typeof tipo !== "string") return "—";
+  return TIPOS_MOVIMENTO[tipo.trim().toLowerCase()] || "—";
+}
+
+export function normalizarMovimento(row) {
+  if (!row || typeof row !== "object") return null;
+  const quantidade = centavosOuNulo(row.quantidade);
+  const saldo = centavosOuNulo(row.saldo_disponivel);
+  if (quantidade == null || saldo == null) return null;
+  return {
+    id: typeof row.id === "string" ? row.id : "",
+    produto_id: textoOuVazio(row.produto_id),
+    tipo: textoOuVazio(row.tipo),
+    quantidade,
+    saldo_disponivel: saldo,
+    saldo_reservado: centavosOuNulo(row.saldo_reservado),
+    observacao: textoOuVazio(row.observacao),
+    pedido_id: textoOuVazio(row.pedido_id),
+    created_at: typeof row.created_at === "string" ? row.created_at : "",
+  };
+}
+
+export function formatarQuantidadeMovimento(qtd) {
+  if (typeof qtd !== "number" || !Number.isFinite(qtd)) return "—";
+  if (qtd > 0) return "+" + qtd;
+  return String(qtd);
+}
+
+export function validarEntrada(valor) {
+  if (valor == null || String(valor).trim() === "") {
+    return "Informe quantas velas entraram.";
+  }
+  if (!/^\d+$/.test(String(valor).trim())) {
+    return "Informe uma quantidade inteira maior que zero.";
+  }
+  const n = Number(valor);
+  if (n < 1 || n > 100000) return "Informe uma quantidade inteira maior que zero.";
+  return "";
+}
+
+export function validarAjuste(valor) {
+  if (valor == null || String(valor).trim() === "") {
+    return "Informe o disponível correto.";
+  }
+  if (!/^\d+$/.test(String(valor).trim())) {
+    return "O disponível correto é um inteiro a partir de zero.";
+  }
+  const n = Number(valor);
+  if (n < 0 || n > 100000) return "O disponível correto é um inteiro a partir de zero.";
+  return "";
+}
+
+export function validarMotivo(valor) {
+  if (valor == null) return "";
+  if (String(valor).trim().length > 400) return "O motivo passou de 400 caracteres.";
+  return "";
+}
+
+function chaveCliente(pedido) {
+  const cpf = String(pedido.cliente_cpf || "").replace(/\D/g, "");
+  if (cpf.length === 11) return "cpf:" + cpf;
+  const email = String(pedido.cliente_email || "").trim().toLowerCase();
+  if (email) return "email:" + email;
+  const tel = String(pedido.cliente_telefone || "").replace(/\D/g, "");
+  if (tel) return "tel:" + tel;
+  return "pedido:" + (pedido.id || "");
+}
+
+export function agruparClientes(pedidos) {
+  const map = new Map();
+  for (const pedido of pedidos || []) {
+    if (!pedido || pedido.teste) continue;
+    const chave = chaveCliente(pedido);
+    let grupo = map.get(chave);
+    if (!grupo) {
+      grupo = { chave, pedidos: [] };
+      map.set(chave, grupo);
+    }
+    grupo.pedidos.push(pedido);
+  }
+  const lista = [];
+  for (const grupo of map.values()) {
+    const ordenados = grupo.pedidos.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    const comNome = ordenados.find((p) => p.cliente_nome);
+    const comTel = ordenados.find((p) => p.cliente_telefone);
+    const comEmail = ordenados.find((p) => p.cliente_email);
+    const cpf = String((ordenados.find((p) => p.cliente_cpf) || {}).cliente_cpf || "").replace(/\D/g, "");
+    const gastos = ordenados.filter((p) => pedidoContaVenda(p));
+    const ultima = gastos.slice().sort((a, b) => String(dataVenda(b)).localeCompare(String(dataVenda(a))))[0];
+    lista.push({
+      chave: grupo.chave,
+      cpf: cpf.length === 11 ? cpf : "",
+      nome: comNome ? comNome.cliente_nome : "Sem nome",
+      email: comEmail ? comEmail.cliente_email : "",
+      telefone: comTel ? comTel.cliente_telefone : "",
+      pedidos: ordenados,
+      quantidade: ordenados.length,
+      totalCentavos: gastos.reduce((soma, p) => soma + (p.total_centavos || 0), 0),
+      ultimaCompra: ultima ? dataVenda(ultima) : "",
+    });
+  }
+  lista.sort((a, b) => {
+    if (a.ultimaCompra !== b.ultimaCompra) return (b.ultimaCompra || "").localeCompare(a.ultimaCompra || "");
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
+  return lista;
+}
+
+export function filtrarClientes(clientes, busca) {
+  const texto = String(busca || "").trim().toLowerCase();
+  if (!texto) return clientes || [];
+  const digitos = texto.replace(/\D/g, "");
+  return (clientes || []).filter((cliente) => {
+    if (cliente.nome.toLowerCase().includes(texto)) return true;
+    if (cliente.email.toLowerCase().includes(texto)) return true;
+    if (digitos && cliente.cpf.includes(digitos)) return true;
+    if (cliente.cpf && formatarCpf(cliente.cpf).includes(texto)) return true;
+    return false;
+  });
 }
 
 function textoBusca(pedido) {
@@ -523,6 +917,11 @@ export function mensagemDeAcao(corpo, fallback) {
   const erro = corpo && typeof corpo.erro === "string" ? corpo.erro : "";
   if (erro === "nao_autorizado" || erro === "sessao") return "A sessão expirou. Entre de novo.";
   if (erro === "nao_encontrado") return "Não achei esse pedido.";
+  if (erro === "produto_ausente") return "Não achei essa vela no estoque.";
+  if (erro === "produto_invalido") return "Essa vela não serve para o ajuste.";
+  if (erro === "quantidade_invalida") return "Informe uma quantidade inteira maior que zero.";
+  if (erro === "ficaria_negativo") return "O disponível não pode ficar negativo.";
+  if (erro === "motivo_longo") return "O motivo passou de 400 caracteres.";
   if (erro === "nao_teste") return "Pedido real não pode ser apagado.";
   if (erro === "use_reembolso") return "Reembolso passa pelo Mercado Pago, não pela troca de status.";
   if (erro === "status_invalido") return "Esse status não é aceito.";
@@ -736,6 +1135,85 @@ export async function salvarNotasPedido(config, accessToken, pedidoId, notas, fe
 export async function apagarPedidoTeste(config, accessToken, pedidoId, fetchImpl) {
   return chamarRpc(config, accessToken, "admin_apagar_pedido_teste", {
     p_pedido_id: pedidoId,
+  }, fetchImpl);
+}
+
+async function lerTabela(config, accessToken, caminho, fetchImpl, signal) {
+  let res;
+  try {
+    res = await fetchImpl(config.url + caminho, {
+      headers: cabecalhos(config, accessToken),
+      signal,
+    });
+  } catch (err) {
+    if (err && err.name === "AbortError") return { ok: false, abortado: true };
+    return { ok: false, rede: true };
+  }
+  const corpo = await lerCorpo(res);
+  if (!res.ok) return { ok: false, status: res.status, body: corpo };
+  if (!Array.isArray(corpo)) return { ok: false, status: res.status, body: corpo };
+  return { ok: true, linhas: corpo };
+}
+
+export function mensagemDeLeitura(status, body, recurso) {
+  const codigo = body && body.code;
+  if (status === 401 && codigo === "42501") {
+    return "A leitura " + recurso + " foi recusada. A migration do painel precisa estar aplicada.";
+  }
+  if (status === 401 || status === 403) return "A sessão expirou. Entre de novo.";
+  return "Não foi possível carregar " + recurso + ".";
+}
+
+export async function listarProdutos(config, accessToken, fetchImpl, signal) {
+  return lerTabela(
+    config,
+    accessToken,
+    "/rest/v1/produtos?select=id,nome,colecao,ordem,ativo&order=ordem.asc",
+    fetchImpl,
+    signal,
+  );
+}
+
+export async function listarLinhasEstoque(config, accessToken, fetchImpl, signal) {
+  return lerTabela(
+    config,
+    accessToken,
+    "/rest/v1/estoque?select=produto_id,disponivel,reservado,updated_at",
+    fetchImpl,
+    signal,
+  );
+}
+
+export async function listarMovimentos(config, accessToken, produtoId, fetchImpl, signal) {
+  const query = new URLSearchParams({
+    select: "id,produto_id,tipo,quantidade,saldo_disponivel,saldo_reservado,observacao,pedido_id,created_at",
+    produto_id: "eq." + produtoId,
+    order: "created_at.desc",
+  });
+  const resposta = await lerTabela(
+    config,
+    accessToken,
+    "/rest/v1/estoque_movimentos?" + query.toString(),
+    fetchImpl,
+    signal,
+  );
+  if (!resposta.ok) return resposta;
+  return { ok: true, linhas: resposta.linhas.map(normalizarMovimento).filter(Boolean) };
+}
+
+export async function entradaProducao(config, accessToken, produtoId, quantidade, observacao, fetchImpl) {
+  return chamarRpc(config, accessToken, "admin_entrada_producao", {
+    p_produto_id: produtoId,
+    p_quantidade: quantidade,
+    p_observacao: observacao || "",
+  }, fetchImpl);
+}
+
+export async function ajusteEstoque(config, accessToken, produtoId, disponivel, observacao, fetchImpl) {
+  return chamarRpc(config, accessToken, "admin_ajuste_estoque", {
+    p_produto_id: produtoId,
+    p_disponivel: disponivel,
+    p_observacao: observacao || "",
   }, fetchImpl);
 }
 
