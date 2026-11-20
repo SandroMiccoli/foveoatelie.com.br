@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Foveō — fixture confirmação já reembolsado</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    /* Fixture: painel de detalhe aberto, sem login real. */
+    body.fixture {
+      min-height: 100dvh;
+      background:
+        radial-gradient(ellipse at 20% 0%, rgba(200, 116, 49, 0.08), transparent 50%),
+        var(--ink);
+    }
+    body.fixture .detalhe-camada {
+      position: fixed;
+      inset: 0;
+    }
+  </style>
+</head>
+<body class="fixture detalhe-aberto">
+  <div class="detalhe-camada" aria-hidden="false">
+    <aside class="detalhe" id="painel-detalhe" role="dialog" aria-modal="true" aria-labelledby="detalhe-titulo">
+      <div class="detalhe-topo">
+        <h2 id="detalhe-titulo">
+          <span class="codigo">#261119012</span>
+        </h2>
+        <button type="button" class="fechar" aria-label="Fechar detalhe">Fechar</button>
+      </div>
+      <p class="detalhe-meta">19/11/2026 · 14:00</p>
+      <div class="confirmacao" role="alertdialog" aria-labelledby="confirm-titulo">
+        <p id="confirm-titulo">O Mercado Pago informa que esse pagamento já foi reembolsado. Deseja marcar o pedido como reembolsado mesmo assim?</p>
+        <div class="confirmacao-acoes">
+          <button type="button" class="botao botao-perigoso">Confirmar</button>
+          <button type="button" class="botao-texto">Cancelar</button>
+        </div>
+      </div>
+      <div class="detalhe-lista">
+        <div class="detalhe-campo">
+          <span class="detalhe-rotulo">Cliente</span>
+          <div class="detalhe-valor"><span>Sandro Miccoli</span></div>
+        </div>
+        <div class="detalhe-campo">
+          <span class="detalhe-rotulo">Total</span>
+          <div class="detalhe-valor"><span>R$ 60,00</span></div>
+        </div>
+        <div class="detalhe-campo">
+          <span class="detalhe-rotulo">Status</span>
+          <div class="detalhe-valor">
+            <span class="status">
+              <span class="ponto" data-nivel="ok" aria-hidden="true"></span>
+              Pago
+            </span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

@@ -15,11 +15,13 @@ import {
   lerSessao,
   linkWhatsApp,
   listarPedidos,
+  confirmarReembolso,
   mensagemApagarTeste,
   mensagemCancelar,
   mensagemDeAcao,
   mensagemDeEntrada,
   mensagemDePedidos,
+  mensagemJaReembolsado,
   mensagemReembolsar,
   montarSessao,
   normalizarPedido,
@@ -209,6 +211,8 @@ test("confirmações de cancelar, reembolsar e apagar teste", () => {
   assert.match(mensagemReembolsar(pago), /Mercado Pago/);
   assert.match(mensagemReembolsar(pago), /Pix/);
   assert.match(mensagemReembolsar(pago), /desfazer/);
+  assert.match(mensagemJaReembolsado(), /já foi reembolsado/);
+  assert.match(mensagemJaReembolsado(), /marcar o pedido como reembolsado/);
   assert.match(mensagemApagarTeste(pago), /teste/);
   assert.match(mensagemApagarTeste(pago), /#261119012/);
 });
@@ -312,7 +316,7 @@ test("reembolso recusado pelo Mercado Pago não inventa sucesso", async () => {
   const fetchMp = async () => resposta(409, {
     ok: false,
     erro: "mp_recusou",
-    mensagem: "O Mercado Pago diz que esse pagamento já foi devolvido.",
+    mensagem: "Sem saldo na conta do Mercado Pago para devolver esse valor.",
   });
   const resultado = await reembolsarPedido(
     { url: "https://exemplo", anonKey: "k" },
@@ -321,10 +325,43 @@ test("reembolso recusado pelo Mercado Pago não inventa sucesso", async () => {
     fetchMp,
   );
   assert.equal(resultado.ok, false);
+  assert.equal(resultado.ja_reembolsado, undefined);
   assert.equal(
     mensagemDeAcao(resultado.body, "falhou"),
-    "O Mercado Pago diz que esse pagamento já foi devolvido.",
+    "Sem saldo na conta do Mercado Pago para devolver esse valor.",
   );
+});
+
+test("pagamento já reembolsado no Mercado Pago pede sincronização", async () => {
+  const fetchJa = async () => resposta(409, {
+    ok: false,
+    ja_reembolsado: true,
+    erro: "ja_reembolsado",
+  });
+  const resultado = await reembolsarPedido(
+    { url: "https://exemplo", anonKey: "k" },
+    "tok",
+    "11111111-1111-1111-1111-111111111111",
+    fetchJa,
+  );
+  assert.equal(resultado.ok, false);
+  assert.equal(resultado.ja_reembolsado, true);
+
+  const urls = [];
+  const fetchSync = async (url, init) => {
+    urls.push({ url: String(url), body: init.body });
+    return resposta(200, { ok: true, status: "reembolsado" });
+  };
+  const sync = await confirmarReembolso(
+    { url: "https://exemplo", anonKey: "k" },
+    "tok",
+    "11111111-1111-1111-1111-111111111111",
+    "mp_ja_reembolsado",
+    fetchSync,
+  );
+  assert.equal(sync.ok, true);
+  assert.match(urls[0].url, /rpc\/admin_confirmar_reembolso$/);
+  assert.match(urls[0].body, /"p_origem":"mp_ja_reembolsado"/);
 });
 
 test("mensagens não repetem o texto cru do servidor", () => {
@@ -379,8 +416,24 @@ test("a Edge Function de reembolso não expõe o token e exige o admin", async (
   assert.match(src, /contato@foveoatelie\.com\.br/);
   assert.match(src, /\/v1\/orders\/.*\/refund/);
   assert.match(src, /admin_confirmar_reembolso/);
+  assert.match(src, /ja_reembolsado:\s*true/);
+  assert.match(src, /refund_amount_exceeds/);
+  assert.match(src, /charged_back/);
   assert.doesNotMatch(src, /jsonPainel\([^)]*tokenMp/);
   assert.doesNotMatch(src, /mensagem:.*tokenMp/);
+});
+
+test("a migration de reembolso já feito amplia a origem do histórico", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261120140000_reembolso_ja_feito.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(sql, /mp_ja_reembolsado/);
+  assert.match(sql, /admin_confirmar_reembolso/);
+  assert.match(sql, /p_origem/);
+  assert.match(sql, /SET search_path = pg_catalog/);
+  assert.match(sql, /is_admin\(\)/);
+  assert.doesNotMatch(sql.replace(/--.*$/gm, ""), /GRANT[^;]*TO anon/i);
 });
 
 test("a tela de login mostra só a marca e o formulário", async () => {
@@ -403,6 +456,9 @@ test("o detalhe e as confirmações existem na interface", async () => {
   assert.match(app, /notas-pedido/);
   assert.match(app, /data-apagar-teste/);
   assert.match(app, /data-confirmar-sim/);
+  assert.match(app, /sincronizar_reembolso/);
+  assert.match(app, /mensagemJaReembolsado/);
+  assert.match(app, /naoLabel/);
   assert.match(app, /filtros-pedidos/);
   assert.match(app, /data-toggle-testes/);
 });
@@ -414,6 +470,7 @@ test("origem do histórico fica em português", () => {
   assert.equal(rotuloOrigem("manual"), "Ajuste manual");
   assert.equal(rotuloOrigem("webhook"), "Mercado Pago");
   assert.equal(rotuloOrigem("reembolso"), "Reembolso");
+  assert.equal(rotuloOrigem("mp_ja_reembolsado"), "Mercado Pago (já reembolsado)");
   assert.equal(rotuloOrigem("sistema"), "Sistema");
   assert.equal(rotuloOrigem("melhor_envio"), "Melhor Envio");
   assert.equal(rotuloOrigem("fonte_desconhecida"), "Fonte Desconhecida");

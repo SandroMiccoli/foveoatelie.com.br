@@ -10,6 +10,7 @@ import {
   alterarStatusPedido,
   apagarPedidoTeste,
   caminhoDepois,
+  confirmarReembolso,
   emailEhAdmin,
   entrar,
   filtrarPedidos,
@@ -33,6 +34,7 @@ import {
   mensagemCancelar,
   mensagemDeAcao,
   mensagemDePedidos,
+  mensagemJaReembolsado,
   mensagemReembolsar,
   nivelStatus,
   normalizarCaminho,
@@ -696,7 +698,7 @@ function painelDetalhe(pedido) {
           type: "button",
           class: "botao-texto",
           "data-confirmar-nao": "1",
-          text: "Voltar",
+          text: confirmacao.naoLabel || "Voltar",
         }),
       ]),
     ])
@@ -1669,10 +1671,46 @@ async function aplicarReembolso(pedidoId) {
   confirmacao = null;
   pintarRegiao();
   const resultado = await reembolsarPedido(config, sessao.access_token, pedidoId, fetch);
+  if (resultado.ja_reembolsado) {
+    confirmacao = {
+      tipo: "sincronizar_reembolso",
+      pedidoId,
+      texto: mensagemJaReembolsado(),
+      simLabel: "Confirmar",
+      naoLabel: "Cancelar",
+    };
+    pintarRegiao();
+    return;
+  }
   if (!resultado.ok) {
     avisoPedido = resultado.rede
       ? "Não consegui falar com o servidor. Tente de novo."
       : mensagemDeAcao(resultado.body, "O reembolso não foi concluído.");
+    pintarRegiao();
+    return;
+  }
+  const pedido = pedidosBrutos.find((p) => p.id === pedidoId);
+  if (pedido) pedido.status = "reembolsado";
+  const hist = await listarHistorico(config, sessao.access_token, pedidoId, fetch);
+  if (hist.ok) historicoAberto = hist.linhas;
+  pintarRegiao();
+}
+
+async function sincronizarReembolso(pedidoId) {
+  avisoPedido = "";
+  confirmacao = null;
+  pintarRegiao();
+  const resultado = await confirmarReembolso(
+    config,
+    sessao.access_token,
+    pedidoId,
+    "mp_ja_reembolsado",
+    fetch,
+  );
+  if (!resultado.ok) {
+    avisoPedido = resultado.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeAcao(resultado.body, "Não foi possível marcar o pedido como reembolsado.");
     pintarRegiao();
     return;
   }
@@ -1838,6 +1876,10 @@ app.addEventListener("click", (event) => {
     }
     if (tipo === "reembolsar") {
       aplicarReembolso(pedidoId);
+      return;
+    }
+    if (tipo === "sincronizar_reembolso") {
+      sincronizarReembolso(pedidoId);
       return;
     }
     if (tipo === "apagar") {
