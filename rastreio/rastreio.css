@@ -6,6 +6,10 @@
   --copper-press: #b86a2c;
   --line: rgba(237, 230, 217, 0.2);
   --erro: #cc6456;
+  --stock-green: #7fac62;
+  --stock-amber: #d1a24a;
+  --stock-orange: #c87431;
+  --stock-red: #cc6456;
   --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --serif: "EB Garamond", "Iowan Old Style", Palatino, Georgia, serif;
 }
@@ -50,23 +54,28 @@ body {
   padding: 1.25rem 1.25rem 0;
 }
 
-.marca {
-  margin: 0;
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 2rem;
-  line-height: 1;
-  color: var(--paper);
-}
-
-.marca a {
-  color: inherit;
+.topo .brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   text-decoration: none;
 }
 
-.marca a:hover {
-  color: var(--copper);
+.topo .logo-crop {
+  display: block;
+  width: 6.6rem;
+  aspect-ratio: 1014 / 392;
+  overflow: hidden;
+  position: relative;
+}
+
+.topo .logo-crop img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .miolo {
@@ -106,6 +115,14 @@ label {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--paper-dim);
+}
+
+.opcional {
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--paper-dim);
+  opacity: 0.85;
 }
 
 input {
@@ -170,10 +187,111 @@ input[aria-invalid="true"] {
   outline-offset: 3px;
 }
 
+/* Mesmo ponto pulsante do estoque na vitrine (main.css .stock / .stock-dot). */
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75em;
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+.stock[data-stock-level="critico"] {
+  color: var(--stock-red);
+}
+
+.stock[data-stock-level="baixo"] {
+  color: var(--stock-amber);
+}
+
+.stock[data-stock-level="processo"] {
+  color: var(--stock-orange);
+}
+
+.stock[data-stock-level="disponivel"] {
+  color: var(--stock-green);
+}
+
+.stock-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  top: 0.05em;
+}
+
+.stock-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stock[data-stock-level="critico"] .stock-dot,
+  .stock[data-stock-level="baixo"] .stock-dot,
+  .stock[data-stock-level="processo"] .stock-dot,
+  .stock[data-stock-level="disponivel"] .stock-dot {
+    animation: stock-dot-glow 2.3s ease-in-out infinite;
+  }
+
+  .stock[data-stock-level="critico"] .stock-dot::after,
+  .stock[data-stock-level="baixo"] .stock-dot::after,
+  .stock[data-stock-level="processo"] .stock-dot::after,
+  .stock[data-stock-level="disponivel"] .stock-dot::after {
+    animation: stock-dot-ping 2.3s cubic-bezier(0.22, 0.7, 0.3, 1) infinite;
+  }
+}
+
+@keyframes stock-dot-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  40% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes stock-dot-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
 .resultado {
   margin-top: 1.75rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--line);
+}
+
+.resultado-contexto {
+  margin: 0 0 1rem;
+  color: var(--paper-dim);
+  line-height: 1.55;
+}
+
+.resultado .stock {
+  margin: 0 0 0.55rem;
 }
 
 .resultado h2 {
@@ -252,6 +370,13 @@ input[aria-invalid="true"] {
 
 .resultado a:hover {
   text-decoration: underline;
+}
+
+.resultado-whats {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  min-height: 44px;
+  align-items: center;
 }
 
 @media (min-width: 45rem) {

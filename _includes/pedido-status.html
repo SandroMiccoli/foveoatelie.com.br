@@ -26,6 +26,7 @@
       data-supabase-key="{{ site.supabase.anon_key }}"
       data-whatsapp="{{ c.whatsapp }}"
       data-home="{{ '/' | relative_url }}"
+      data-rastreio="{{ '/rastreio/' | relative_url }}"
     >
       <img
         class="seal obrigado-seal"
@@ -35,6 +36,10 @@
         height="1080"
         decoding="async"
       >
+      <p class="stock pedido-status" id="pedido-status" hidden>
+        <span class="stock-dot" aria-hidden="true"></span>
+        <span id="pedido-status-rotulo"></span>
+      </p>
       <p class="obrigado-msg" id="pedido-titulo" aria-live="polite">Conferindo o pagamento.</p>
       <p class="pedido-nota" id="pedido-nota" hidden></p>
       <div class="pedido-resumo" id="pedido-resumo" hidden></div>
@@ -45,8 +50,9 @@
         <a class="cta" id="pedido-acao" hidden></a>
         <a class="cta" id="pedido-whatsapp" hidden>Falar com a Foveō</a>
       </div>
-      <p class="pedido-rastreio-link">
-        <a href="{{ '/rastreio/' | relative_url }}">Acompanhar pedido</a>
+      <p class="pedido-rastreio-link" id="pedido-secundario" hidden>
+        <a id="pedido-secundario-link" href="{{ '/rastreio/' | relative_url }}">Acompanhar pedido</a>
+        <button type="button" id="pedido-tentar-de-novo" hidden>Tentar de novo</button>
       </p>
       <noscript><p class="pedido-nota">Ative o JavaScript para ver o pedido.</p></noscript>
     </div>
@@ -54,4 +60,5 @@
 </main>
 
 {% include footer.html %}
+<script src="{{ '/assets/js/pedido-status-lib.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/pedido.js' | relative_url }}"></script>
