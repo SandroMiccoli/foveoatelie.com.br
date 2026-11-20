@@ -16,6 +16,7 @@ import {
   rotuloMovimento,
   rotuloReservado,
   rotuloStatus,
+  rotuloTipoAviso,
 } from "./painel.mjs";
 
 function el(tag, attrs, children) {
@@ -984,5 +985,91 @@ export function paginaClientes(estado) {
   return el("div", { class: "pagina pagina-clientes" }, [
     titulo("Clientes"),
     el("div", { id: "regiao-clientes" }, [mioloClientes(estado)]),
+  ]);
+}
+
+function resumoAvisos(lista) {
+  const abertos = lista.filter((aviso) => !aviso.resolvido).length;
+  if (!lista.length) return "";
+  if (!abertos) return "Nada em aberto.";
+  return abertos + (abertos === 1 ? " em aberto." : " em aberto.");
+}
+
+function linhaAviso(aviso, salvandoId) {
+  const data = formatarData(aviso.created_at);
+  const tempo = el("time", { text: data ? data.texto : "—" });
+  if (data) tempo.setAttribute("datetime", data.iso);
+  const resolvido = aviso.resolvido === true;
+  const ocupado = salvandoId === aviso.id;
+  const botao = el("button", {
+    type: "button",
+    class: "botao-texto aviso-acao",
+    "data-resolver-aviso": aviso.id,
+    "data-resolvido": resolvido ? "true" : "false",
+    "aria-pressed": resolvido ? "true" : "false",
+    text: resolvido ? "Reabrir" : "Resolver",
+  });
+  if (ocupado) botao.setAttribute("disabled", "disabled");
+  return { tempo, botao, resolvido };
+}
+
+function tabelaAvisos(avisos, salvandoId) {
+  const corpo = avisos.map((aviso) => {
+    const { tempo, botao, resolvido } = linhaAviso(aviso, salvandoId);
+    return el("tr", { class: resolvido ? "aviso-linha resolvido" : "aviso-linha" }, [
+      el("td", { "data-campo": "data" }, [tempo]),
+      el("td", { "data-campo": "tipo", text: rotuloTipoAviso(aviso.tipo) }),
+      el("td", { "data-campo": "mensagem", text: aviso.mensagem }),
+      el("td", { "data-campo": "acao" }, [botao]),
+    ]);
+  });
+  const cards = avisos.map((aviso) => {
+    const { tempo, botao, resolvido } = linhaAviso(aviso, salvandoId);
+    return el("li", {}, [
+      el("article", { class: resolvido ? "pedido aviso-card resolvido" : "pedido aviso-card" }, [
+        el("p", { class: "aviso-meta" }, [
+          tempo,
+          el("span", { class: "aviso-tipo", text: rotuloTipoAviso(aviso.tipo) }),
+        ]),
+        el("p", { class: "aviso-mensagem", text: aviso.mensagem }),
+        botao,
+      ]),
+    ]);
+  });
+  return el("div", { class: "lista-avisos" }, [
+    el("div", { class: "rolagem so-larga" }, [
+      el("table", {}, [
+        el("caption", { class: "sr-only", text: "Avisos recentes." }),
+        el("thead", {}, [
+          el("tr", {}, [
+            el("th", { scope: "col", text: "Data" }),
+            el("th", { scope: "col", text: "Tipo" }),
+            el("th", { scope: "col", text: "Mensagem" }),
+            el("th", { scope: "col", class: "th-acao", text: "Situação" }),
+          ]),
+        ]),
+        el("tbody", {}, corpo),
+      ]),
+    ]),
+    el("ol", { class: "pedidos-pilha so-estreita" }, cards),
+  ]);
+}
+
+export function mioloAvisos(estado) {
+  if (estado.tipo === "carregando") return esqueleto("Carregando os avisos.");
+  if (estado.tipo === "erro") return avisoErro(estado.mensagem, "avisos");
+  const lista = estado.avisos || [];
+  if (!lista.length) return el("p", { class: "vazio", text: "Nenhum aviso por aqui." });
+  return el("div", {}, [
+    el("p", { class: "resumo", text: resumoAvisos(lista) }),
+    tabelaAvisos(lista, estado.salvandoId || ""),
+    estado.aviso ? el("p", { class: "aviso", role: "alert", text: estado.aviso }) : null,
+  ]);
+}
+
+export function paginaAvisos(estado) {
+  return el("div", { class: "pagina pagina-avisos" }, [
+    titulo("Avisos"),
+    el("div", { id: "regiao-avisos" }, [mioloAvisos(estado)]),
   ]);
 }

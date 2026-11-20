@@ -57,9 +57,12 @@ import {
   entradaProducao,
   filtrarClientes,
   juntarEstoque,
+  listarAvisos,
   listarLinhasEstoque,
   listarMovimentos,
   listarProdutos,
+  dispararAvisos,
+  resolverAviso,
   mensagemDeLeitura,
   mesAtualSp,
   periodoMes,
@@ -83,7 +86,7 @@ import {
   validarMotivo,
   validarPeriodo,
 } from "./painel.mjs";
-import { mioloClientes, mioloEstoque, mioloInicio, paginaClientes, paginaEstoque, paginaInicio } from "./telas.mjs";
+import { mioloAvisos, mioloClientes, mioloEstoque, mioloInicio, paginaAvisos, paginaClientes, paginaEstoque, paginaInicio } from "./telas.mjs";
 
 const config = { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
 const app = document.querySelector("#app");
@@ -108,6 +111,7 @@ const RAIL_HOVER_MS = 300;
 let cargaInicio = 0;
 let cargaEstoque = 0;
 let cargaClientes = 0;
+let cargaAvisos = 0;
 let pedidosInicio = [];
 let velasBrutas = [];
 let inicioTipo = "carregando";
@@ -117,6 +121,11 @@ let estoqueTipo = "carregando";
 let estoqueMensagem = "";
 let clientesTipo = "carregando";
 let clientesMensagem = "";
+let avisosTipo = "carregando";
+let avisosMensagem = "";
+let avisosLista = [];
+let avisoAvisos = "";
+let avisoSalvandoId = "";
 let velaAbertaId = "";
 let movimentosAbertos = [];
 let historicoEstoqueCarregando = false;
@@ -266,6 +275,7 @@ const ICONES = {
   pedidos: ["M7 4h10a1 1 0 0 1 1 1v15l-3.5-2-3.5 2-3.5-2L4 20V5a1 1 0 0 1 1-1z", "M8 9h8", "M8 13h6"],
   estoque: ["M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5z", "M12 12v8", "M3.5 8.5 12 12l8.5-3.5"],
   clientes: ["M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z", "M5 20a7 7 0 0 1 14 0"],
+  avisos: ["M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9", "M10 21a2 2 0 0 0 4 0"],
   sair: ["M10 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4", "M14 12H8", "M14 12l3-3", "M14 12l3 3"],
   fixar: ["M12 3v7", "M8.5 7.5h7", "M9 10.5 12 21l3-10.5"],
 };
@@ -371,6 +381,7 @@ function casca() {
     ["/pedidos", "Pedidos", "pedidos"],
     ["/estoque", "Estoque", "estoque"],
     ["/clientes", "Clientes", "clientes"],
+    ["/avisos", "Avisos", "avisos"],
   ].map(([href, nome, chave]) => {
     const a = el("a", {
       href,
@@ -1127,6 +1138,7 @@ function pintarRegiao() {
   else if (caminho === "/") pintarRegiaoInicio();
   else if (caminho === "/estoque") pintarRegiaoEstoque();
   else if (caminho === "/clientes") pintarRegiaoClientes();
+  else if (caminho === "/avisos") pintarRegiaoAvisos();
 }
 
 function renderPedidos() {
@@ -1431,6 +1443,75 @@ async function carregarClientes() {
   pintarRegiaoClientes();
 }
 
+function estadoAvisos() {
+  return {
+    tipo: avisosTipo,
+    mensagem: avisosMensagem,
+    avisos: avisosLista,
+    aviso: avisoAvisos,
+    salvandoId: avisoSalvandoId,
+  };
+}
+
+function pintarRegiaoAvisos() {
+  const regiao = document.getElementById("regiao-avisos");
+  if (!regiao) return;
+  regiao.replaceChildren(mioloAvisos(estadoAvisos()));
+}
+
+async function carregarAvisos() {
+  const id = ++cargaAvisos;
+  avisosTipo = "carregando";
+  dispararAvisos(config, sessao.access_token, fetch);
+  let resposta = await listarAvisos(config, sessao.access_token, fetch);
+  if (id !== cargaAvisos || caminhoAgora() !== "/avisos") return;
+  const seguiu = await renovarSePreciso(resposta);
+  if (seguiu === "saiu" || id !== cargaAvisos || caminhoAgora() !== "/avisos") return;
+  if (seguiu === "renovou") {
+    resposta = await listarAvisos(config, sessao.access_token, fetch);
+    if (id !== cargaAvisos || caminhoAgora() !== "/avisos") return;
+  }
+  if (!resposta.ok) {
+    avisosTipo = "erro";
+    avisosMensagem = resposta.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeLeitura(resposta.status, resposta.body, "dos avisos");
+    pintarRegiaoAvisos();
+    const alerta = document.querySelector("#regiao-avisos [role=alert]");
+    if (alerta) alerta.focus();
+    return;
+  }
+  avisosLista = resposta.linhas;
+  avisosTipo = "pronto";
+  pintarRegiaoAvisos();
+}
+
+async function alternarAviso(id, resolvidoAgora) {
+  if (!id || avisoSalvandoId) return;
+  avisoSalvandoId = id;
+  avisoAvisos = "";
+  pintarRegiaoAvisos();
+  const resultado = await resolverAviso(config, sessao.access_token, id, !resolvidoAgora, fetch);
+  avisoSalvandoId = "";
+  if (!resultado.ok) {
+    avisoAvisos = resultado.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : mensagemDeAcao(resultado.body, "Não foi possível atualizar o aviso.");
+    pintarRegiaoAvisos();
+    return;
+  }
+  const aviso = avisosLista.find((item) => item.id === id);
+  if (aviso) aviso.resolvido = !resolvidoAgora;
+  avisosLista = [...avisosLista].sort((a, b) => {
+    if (a.resolvido !== b.resolvido) return a.resolvido ? 1 : -1;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+  pintarRegiaoAvisos();
+  const botoes = document.querySelectorAll('[data-resolver-aviso="' + id + '"]');
+  const visivel = [...botoes].find((botao) => botao.offsetParent !== null);
+  if (visivel) visivel.focus();
+}
+
 function fecharVela() {
   velaAbertaId = "";
   movimentosAbertos = [];
@@ -1540,6 +1621,7 @@ async function registrarEntrada(form) {
   rascunhoQuantidade = "";
   rascunhoObs = "";
   notaEstoque = "Entrada registrada.";
+  dispararAvisos(config, sessao.access_token, fetch);
   await carregarEstoque();
   if (velaAbertaId === produtoId) {
     historicoEstoqueCarregando = true;
@@ -1587,6 +1669,7 @@ async function enviarAjuste(form) {
   rascunhoAjuste = null;
   rascunhoMotivo = "";
   notaEstoque = resultado.body && resultado.body.ja ? "O disponível já estava nesse número." : "Ajuste registrado.";
+  if (!(resultado.body && resultado.body.ja)) dispararAvisos(config, sessao.access_token, fetch);
   await carregarEstoque();
   if (velaAbertaId === produtoId) {
     const movs = await listarMovimentos(config, sessao.access_token, produtoId, fetch);
@@ -1708,6 +1791,18 @@ function pintar() {
       clientesTipo = "carregando";
       pintarConteudo(paginaClientes(estadoClientes()), true);
       carregarClientes();
+    }
+    return;
+  }
+
+  if (caminho === "/avisos") {
+    const regiao = document.getElementById("regiao-avisos");
+    if (!regiao || mudou) {
+      limparSobrepostos();
+      avisosTipo = "carregando";
+      avisoAvisos = "";
+      pintarConteudo(paginaAvisos(estadoAvisos()), true);
+      carregarAvisos();
     }
   }
 }
@@ -2102,6 +2197,14 @@ app.addEventListener("click", (event) => {
     encerrar();
     return;
   }
+  const resolver = event.target.closest("[data-resolver-aviso]");
+  if (resolver) {
+    event.preventDefault();
+    const id = resolver.getAttribute("data-resolver-aviso");
+    const resolvido = resolver.getAttribute("data-resolvido") === "true";
+    alternarAviso(id, resolvido);
+    return;
+  }
   const recarregar = event.target.closest("[data-recarregar]");
   if (recarregar) {
     const qual = recarregar.getAttribute("data-recarregar");
@@ -2121,6 +2224,13 @@ app.addEventListener("click", (event) => {
       clientesTipo = "carregando";
       pintarRegiaoClientes();
       carregarClientes();
+      return;
+    }
+    if (qual === "avisos") {
+      avisosTipo = "carregando";
+      avisoAvisos = "";
+      pintarRegiaoAvisos();
+      carregarAvisos();
       return;
     }
     const regiao = document.getElementById("regiao-pedidos");

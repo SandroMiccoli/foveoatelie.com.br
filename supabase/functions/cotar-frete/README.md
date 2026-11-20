@@ -8,7 +8,7 @@ O navegador manda `{ cep_destino, itens: [{ produto_id, qtd }] }`. A função co
 
 ## Secrets
 
-- `MELHOR_ENVIO_TOKEN` — token da API
+- `MELHOR_ENVIO_TOKEN` — token pessoal de longa duração (Permissões de acesso), não o access token do aplicativo. A função pede o par em `_shared/token-me.ts`. Este secret é a reserva. O passo está em `supabase/functions/README.md`, na etapa 5.
 - `MELHOR_ENVIO_BASE_URL` — opcional. Sem este secret a função usa `https://melhorenvio.com.br`. Sandbox: `https://sandbox.melhorenvio.com.br`
 
 ## Deploy

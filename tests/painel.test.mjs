@@ -65,6 +65,9 @@ import {
   validarAjuste,
   validarEntrada,
   validarPeriodo,
+  ROTAS,
+  normalizarAviso,
+  rotuloTipoAviso,
 } from "../admin/js/painel.mjs";
 
 test("só o e-mail do ateliê administra", () => {
@@ -907,6 +910,46 @@ test("a etapa 4 não abre pedidos nem e-mails para anon", async () => {
   const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
   assert.match(css, /\.detalhe-topo[\s\S]*position:\s*sticky/);
   assert.match(css, /scroll-margin-top:\s*5\.5rem/);
+});
+
+test("a etapa 5 guarda o token e os avisos fora do anon", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261120220000_admin_etapa5_avisos.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = sql.replace(/--.*$/gm, "");
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql, /REVOKE ALL ON TABLE private\.melhor_envio_oauth FROM PUBLIC, anon, authenticated, service_role/);
+  assert.match(sql, /FOR UPDATE/);
+  assert.match(sql, /avisos_dedupe/);
+  assert.match(sql, /p_depois >= 3/);
+  assert.match(sql, /foveo_manutencao_diaria/);
+  assert.match(sql, /30 11 \* \* \*/);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.avisos TO authenticated/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+  assert.doesNotMatch(semComentario, /INSERT INTO private\.melhor_envio_oauth/);
+  assert.match(sql, /access_token, refresh_token, expires_at/);
+  assert.match(sql, /timestamptz '2026-12-20/);
+
+  const telas = await readFile(new URL("../admin/js/telas.mjs", import.meta.url), "utf8");
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.equal(ROTAS["/avisos"], "avisos");
+  assert.match(telas, /Avisos/);
+  assert.match(telas, /Resolver/);
+  assert.match(telas, /Nenhum aviso por aqui/);
+  assert.doesNotMatch(telas, /Foveo(?!ō)/);
+  assert.match(css, /grid-template-columns:\s*repeat\(5,/);
+  assert.equal(rotuloTipoAviso("estoque_baixo"), "Estoque baixo");
+  assert.equal(rotuloTipoAviso("saldo_baixo"), "Saldo do frete");
+  const aviso = normalizarAviso({
+    id: "9b1c2d3e-4f50-6789-abcd-ef0123456789",
+    tipo: "token_melhor_envio",
+    mensagem: "Não consegui renovar o token do Melhor Envio.",
+    resolvido: false,
+    created_at: "2026-11-20T14:00:00.000Z",
+  });
+  assert.equal(aviso.tipo, "token_melhor_envio");
+  assert.equal(normalizarAviso({ ...aviso, tipo: "outro" }), null);
 });
 
 function pedidoFixture(extra) {
