@@ -19,6 +19,7 @@ import {
   formatarData,
   formatarEnderecoCompleto,
   formatarPreco,
+  formatarTelefone,
   formatarVelas,
   chamarEtiquetas,
   linkRastreio,
@@ -472,6 +473,7 @@ function seloTeste() {
 
 function vista(linha) {
   const data = formatarData(linha.created_at);
+  const telefone = formatarTelefone(linha.cliente_telefone);
   const wa = linkWhatsApp(linha.cliente_telefone);
   return {
     id: linha.id,
@@ -485,16 +487,21 @@ function vista(linha) {
     total: formatarPreco(linha.total_centavos),
     status: rotuloStatus(linha.status),
     nivel: nivelStatus(linha.status),
+    telefone,
     wa,
   };
 }
 
-function botaoWa(wa, nome) {
-  if (!wa) return null;
+function rotuloWa(nome) {
   const pessoa = typeof nome === "string" ? nome.trim() : "";
-  const rotulo = pessoa && pessoa !== "—"
+  return pessoa && pessoa !== "—"
     ? `Abrir WhatsApp de ${pessoa}`
     : "Abrir WhatsApp";
+}
+
+function botaoWa(wa, nome) {
+  if (!wa) return null;
+  const rotulo = rotuloWa(nome);
   const a = el("a", {
     class: "wa",
     href: wa,
@@ -504,6 +511,21 @@ function botaoWa(wa, nome) {
     title: rotulo,
   });
   a.append(iconeWhatsApp());
+  return a;
+}
+
+function linkWaComNumero(wa, nome, telefone) {
+  if (!wa || !telefone) return null;
+  const rotulo = rotuloWa(nome);
+  const a = el("a", {
+    class: "wa wa-com-numero",
+    href: wa,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    "aria-label": rotulo,
+    title: rotulo,
+  });
+  a.append(document.createTextNode(telefone), iconeWhatsApp());
   return a;
 }
 
@@ -654,10 +676,13 @@ function pilha(linhas) {
               document.createTextNode(item.status),
             ]),
           ]),
+          ...(item.wa && item.telefone
+            ? [
+              el("dt", { text: "WhatsApp" }),
+              el("dd", {}, [linkWaComNumero(item.wa, item.cliente, item.telefone)]),
+            ]
+            : []),
         ]),
-        item.wa
-          ? el("p", { class: "pedido-wa" }, [botaoWa(item.wa, item.cliente)])
-          : null,
       ]),
     ]);
   });
@@ -677,7 +702,9 @@ function tracoOu(texto) {
 
 function painelDetalhe(pedido) {
   if (!pedido) return null;
+  const telefoneFmt = formatarTelefone(pedido.cliente_telefone);
   const wa = linkWhatsApp(pedido.cliente_telefone);
+  const waValor = linkWaComNumero(wa, pedido.cliente_nome, telefoneFmt) || tracoOu("");
   const data = formatarData(pedido.created_at);
   const liberacao = pedido.mp_liberacao_em ? formatarData(pedido.mp_liberacao_em) : null;
   const frete = pedido.frete || {};
@@ -749,12 +776,7 @@ function painelDetalhe(pedido) {
     confirmBox,
     el("div", { class: "detalhe-lista" }, [
       campoDetalhe("Cliente", tracoOu(pedido.cliente_nome)),
-      campoDetalhe(
-        "WhatsApp",
-        wa
-          ? el("a", { href: wa, target: "_blank", rel: "noopener noreferrer", text: pedido.cliente_telefone || "Abrir" })
-          : tracoOu(""),
-      ),
+      campoDetalhe("WhatsApp", waValor),
       campoDetalhe("E-mail", tracoOu(pedido.cliente_email)),
       campoDetalhe("CPF", tracoOu(pedido.cliente_cpf ? formatarCpf(pedido.cliente_cpf) : "")),
       campoDetalhe(

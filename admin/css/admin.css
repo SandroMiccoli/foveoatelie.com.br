@@ -614,12 +614,32 @@ td[data-campo="entrega"] {
   color: var(--copper);
 }
 
+.wa-com-numero {
+  justify-content: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.15rem 0;
+  color: var(--copper);
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-com-numero:hover {
+  color: var(--copper-press);
+  text-decoration: underline;
+}
+
 .wa-icone {
   display: block;
+  flex-shrink: 0;
 }
 
 .pedido-wa {
   margin-top: 0.75rem;
+}
+
+.detalhe-valor .wa-com-numero {
+  min-height: 44px;
 }
 
 .filtros {
@@ -1310,6 +1330,11 @@ td[data-campo="total"] {
   .wa {
     min-width: 2.25rem;
     min-height: 2.25rem;
+  }
+
+  .wa-com-numero {
+    min-width: 0;
+    min-height: 44px;
   }
 
   td[data-campo="velas"],
