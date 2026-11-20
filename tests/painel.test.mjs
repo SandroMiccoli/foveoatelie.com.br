@@ -928,6 +928,8 @@ test("a etapa 5 guarda o token e os avisos fora do anon", async () => {
   assert.match(sql, /GRANT SELECT ON TABLE public\.avisos TO authenticated/);
   assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
   assert.doesNotMatch(semComentario, /INSERT INTO private\.melhor_envio_oauth/);
+  assert.match(sql, /access_token, refresh_token, expires_at/);
+  assert.match(sql, /timestamptz '2026-12-20/);
 
   const telas = await readFile(new URL("../admin/js/telas.mjs", import.meta.url), "utf8");
   const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");

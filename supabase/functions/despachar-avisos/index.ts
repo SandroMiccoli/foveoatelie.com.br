@@ -1,6 +1,7 @@
 // Envia avisos pendentes ao chat do ateliê. O painel chama com o JWT do
 // admin depois de mexer no estoque. O cron e o pg_net chamam com a service
-// role. O POST ao bot tem timeout e não muda pedido nem estoque.
+// role. verify_jwt tem de ficar true: papelDoJwt só lê o papel, não confere
+// a assinatura. O POST ao bot tem timeout e não muda pedido nem estoque.
 
 import { despacharAvisosPendentes, papelDoJwt } from "../_shared/avisos.ts";
 import { conferirAdminPainel, jsonPainel, origemPainel } from "../_shared/painel.ts";

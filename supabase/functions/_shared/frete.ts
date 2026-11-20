@@ -201,7 +201,6 @@ export async function cotarMelhorEnvio(cepDestino: string, pacotes: Pacote[]): P
         volumes: pacotes,
         options: { receipt: false, own_hand: false },
       }),
-      signal: AbortSignal.timeout(12000),
     });
   } catch (err) {
     console.error("frete: falha ao chamar o Melhor Envio", err instanceof Error ? err.message : err);

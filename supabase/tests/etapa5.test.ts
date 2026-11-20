@@ -23,6 +23,8 @@ import {
   decidirRenovacao,
   lerRespostaOauth,
   precisaRenovar,
+  opcoesDaTentativa,
+  reservaDepoisDo401,
   resolverToken,
   type DepsToken,
   type EstadoToken,
@@ -72,6 +74,14 @@ test("a decisão não gira um token fresco nem um que está sendo renovado", () 
   assert.deepEqual(
     decidirRenovacao(estado({ vazio: true, accessToken: "", temRefresh: false, expiresAt: null }), "", false, AGORA),
     { tipo: "ausente" },
+  );
+  assert.deepEqual(
+    decidirRenovacao(estado({ expiresAt: null }), ACCESS, false, AGORA),
+    { tipo: "usar", token: ACCESS },
+  );
+  assert.equal(
+    decidirRenovacao(estado({ expiresAt: null }), "", false, AGORA, true).tipo,
+    "renovar",
   );
 });
 
@@ -140,10 +150,6 @@ function loja(inicial: Linha) {
       const url = String(input);
       if (url.endsWith("/oauth/token")) {
         oauth.push(String(init?.headers && new Headers(init.headers).get("User-Agent")));
-        linha.access_token = NOVO_ACCESS;
-        linha.refresh_token = NOVO_REFRESH;
-        linha.expires_at = iso(AGORA + 2_592_000_000);
-        linha.renovando = false;
         return Response.json({
           access_token: NOVO_ACCESS,
           refresh_token: NOVO_REFRESH,
@@ -238,6 +244,91 @@ test("falha na renovação avisa e devolve o token antigo, ou nada se foi um 401
   };
   assert.equal(await resolverToken(caixa.deps, { forcar: true }), null);
   assert.deepEqual(caixa.alertas, ["recusado"]);
+});
+
+test("validade nula só renova na manutenção, não no checkout", async () => {
+  const caixa = loja({
+    access_token: ACCESS,
+    refresh_token: REFRESH,
+    expires_at: null,
+    renovando: false,
+  });
+  assert.equal(await resolverToken(caixa.deps), ACCESS);
+  assert.deepEqual(caixa.oauth, []);
+  assert.equal(await resolverToken(caixa.deps, { agendado: true }), NOVO_ACCESS);
+  assert.equal(caixa.oauth.length, 1);
+  assert.equal(caixa.linha.refresh_token, NOVO_REFRESH);
+});
+
+test("gravar que falha depois da rotação tenta de novo e não solta a trava", async () => {
+  const caixa = loja({
+    access_token: ACCESS,
+    refresh_token: REFRESH,
+    expires_at: iso(AGORA + 2 * 86_400_000),
+    renovando: false,
+  });
+  let gravadas = 0;
+  let soltas = 0;
+  const original = caixa.deps.fetch;
+  caixa.deps.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("gravar_oauth_melhor_envio")) {
+      gravadas += 1;
+      if (gravadas < 3) return new Response("nao", { status: 500 });
+    }
+    if (url.includes("soltar_oauth_melhor_envio")) soltas += 1;
+    return original(input, init);
+  };
+  assert.equal(await resolverToken(caixa.deps), NOVO_ACCESS);
+  assert.equal(gravadas, 3);
+  assert.equal(soltas, 0);
+  assert.deepEqual(caixa.alertas, []);
+  assert.equal(caixa.linha.refresh_token, NOVO_REFRESH);
+});
+
+test("par novo que não entra na tabela pede nova autorização e não solta", async () => {
+  const caixa = loja({
+    access_token: ACCESS,
+    refresh_token: REFRESH,
+    expires_at: iso(AGORA + 2 * 86_400_000),
+    renovando: false,
+  });
+  let gravadas = 0;
+  let soltas = 0;
+  const original = caixa.deps.fetch;
+  caixa.deps.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("gravar_oauth_melhor_envio")) {
+      gravadas += 1;
+      return new Response("nao", { status: 500 });
+    }
+    if (url.includes("soltar_oauth_melhor_envio")) soltas += 1;
+    return original(input, init);
+  };
+  assert.equal(await resolverToken(caixa.deps), NOVO_ACCESS);
+  assert.equal(gravadas, 3);
+  assert.equal(soltas, 0);
+  assert.deepEqual(caixa.alertas, ["reautorizar"]);
+  assert.equal(caixa.linha.refresh_token, REFRESH);
+  assert.match(mensagemToken("reautorizar"), /autorizar o aplicativo de novo/);
+});
+
+test("reserva pessoal só entra quando a renovação forçada não devolve token", () => {
+  const pessoal = "p".repeat(40);
+  assert.equal(reservaDepoisDo401(pessoal, ACCESS, null), pessoal);
+  assert.equal(reservaDepoisDo401(pessoal, ACCESS, NOVO_ACCESS), null);
+  assert.equal(reservaDepoisDo401(ACCESS, ACCESS, null), null);
+  assert.equal(reservaDepoisDo401("", ACCESS, null), null);
+});
+
+test("cada tentativa do Melhor Envio ganha um AbortSignal novo", () => {
+  const vencido = AbortSignal.timeout(1);
+  const uma = opcoesDaTentativa({ method: "POST", body: "{}", signal: vencido });
+  const outra = opcoesDaTentativa({ method: "POST", body: "{}", signal: vencido });
+  assert.notEqual(uma.signal, vencido);
+  assert.notEqual(uma.signal, outra.signal);
+  assert.equal(uma.signal?.aborted, false);
+  assert.equal(outra.signal?.aborted, false);
 });
 
 test("estoque alerta só na descida abaixo de 3, e a recuperação rearma", () => {

@@ -34,9 +34,12 @@ verify_jwt = false
 verify_jwt = false
 
 # O painel manda o JWT do admin. O cron manda a service role.
+# verify_jwt TEM de ficar true. papelDoJwt só lê o papel do payload;
+# a assinatura é do gateway. Sem isso, qualquer um forja service_role.
 [functions.despachar-avisos]
 verify_jwt = true
 
 # pg_cron chama com a service role do vault.
+# verify_jwt TEM de ficar true, pelo mesmo motivo de despachar-avisos.
 [functions.manutencao-diaria]
 verify_jwt = true

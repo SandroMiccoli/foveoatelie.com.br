@@ -259,7 +259,7 @@ async function listarPedidos(
 }
 
 async function meFetch(base: string, _token: string, caminho: string, init: RequestInit): Promise<Response> {
-  const res = await chamarMelhorEnvio(base + caminho, { ...init, signal: AbortSignal.timeout(20000) });
+  const res = await chamarMelhorEnvio(base + caminho, init);
   if (!res) return new Response(null, { status: 503 });
   return res;
 }

@@ -65,6 +65,7 @@ const FRASE_TOKEN: Record<string, string> = {
   sem_resposta: "O Melhor Envio não respondeu.",
   resposta_invalida: "A resposta veio sem o par de tokens.",
   banco: "Não consegui ler o token guardado.",
+  reautorizar: "O par novo não ficou gravado. O refresh antigo já não vale. Precisa autorizar o aplicativo de novo.",
 };
 
 export type AcaoEstoque = "alertar" | "rearmar" | "nada";

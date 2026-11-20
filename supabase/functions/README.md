@@ -203,15 +203,23 @@ supabase secrets set GROKBOT_AVISOS_WEBHOOK_URL=<url https do bot> --project-ref
 supabase secrets set GROKBOT_AVISOS_WEBHOOK_KEY=<chave> --project-ref bbksditqlgdjftwowtje
 ```
 
-`MELHOR_ENVIO_TOKEN` continua. Enquanto a tabela estiver vazia, ou com `expires_at` nulo, as funções usam esse secret. Um 401 é que dispara a troca.
+`MELHOR_ENVIO_TOKEN` continua, com outro papel. É um token pessoal de longa duração, gerado em Permissões de acesso no Melhor Envio. Não é o access token do aplicativo. A loja usa o par da tabela. Este secret entra em dois casos: a tabela ainda está vazia, ou uma renovação forçada (depois de um 401) não responde. Aí a chamada tenta o pessoal uma vez, se ele for diferente do token da tabela.
 
-Seed do `refresh_token`, uma vez, no SQL editor. Não grave o valor no repositório. Com `expires_at` nulo, a loja segue no secret até um 401 (ou até a manutenção diária, que só renova se faltar menos de 7 dias). Para trocar na hora, use `expires_at = pg_catalog.now()` no lugar do nulo implícito: o próximo pedido de token, ou o cron, faz a troca.
+Seed do par, uma vez, no SQL editor. Não grave os valores no repositório. Os três campos entram juntos: o access token atual do aplicativo, o refresh token e a validade real. Se o access saiu por volta de 2026-11-20, a validade é 2026-12-20. A manutenção das 08:30 renova quando falta menos de 7 dias, antes de um checkout precisar girar o par.
+
+`expires_at` nulo não renova no meio de uma compra. A manutenção diária trata nulo como "renovar nesta rodada", às 08:30, para a data não ficar esquecida. O seed com a data real evita esse caminho.
 
 ```sql
-INSERT INTO private.melhor_envio_oauth (refresh_token)
-VALUES ('<refresh_token do aplicativo>')
+INSERT INTO private.melhor_envio_oauth (access_token, refresh_token, expires_at)
+VALUES (
+  '<access_token atual do aplicativo>',
+  '<refresh_token do aplicativo>',
+  timestamptz '2026-12-20 00:00:00-03'
+)
 ON CONFLICT (id) DO UPDATE
-SET refresh_token = EXCLUDED.refresh_token,
+SET access_token = EXCLUDED.access_token,
+    refresh_token = EXCLUDED.refresh_token,
+    expires_at = EXCLUDED.expires_at,
     renovando_ate = NULL,
     atualizado_em = pg_catalog.now();
 ```
@@ -223,7 +231,7 @@ SELECT vault.create_secret('https://bbksditqlgdjftwowtje.supabase.co', 'foveo_su
 SELECT vault.create_secret('<service_role>', 'foveo_service_role_key');
 ```
 
-O horário é `30 11 * * *` UTC, 08:30 em São Paulo. A função renova o token se faltar menos de 7 dias, lê `GET /api/v2/me/balance` e, se o saldo estiver abaixo de R$ 50, grava o aviso do dia. Em seguida manda o que ainda não saiu.
+O horário é `30 11 * * *` UTC, 08:30 em São Paulo. A função renova o token se faltar menos de 7 dias, ou se `expires_at` estiver nulo. Lê `GET /api/v2/me/balance` e, se o saldo estiver abaixo de R$ 50, grava o aviso do dia. Em seguida manda o que ainda não saiu.
 
 Avisos: estoque abaixo de 3 (uma vez por cruzamento, em venda, produção ou ajuste; voltar a 3 libera a próxima), saldo abaixo de R$ 50 (uma vez por dia), problema de entrega no webhook (cancelada, não entregue, pausada, suspensa, devolução) e falha ao renovar o token (uma vez por dia). O POST ao bot usa `Authorization: Bearer` e `X-Automation-Key`, com timeout de 8 segundos, e não segura pagamento, etiqueta nem webhook. O painel lista em `/avisos`.
 
@@ -240,15 +248,15 @@ supabase functions deploy despachar-avisos --project-ref bbksditqlgdjftwowtje
 supabase functions deploy manutencao-diaria --project-ref bbksditqlgdjftwowtje
 ```
 
-`verify_jwt` está em `supabase/config.toml`. `despachar-avisos` e `manutencao-diaria` ficam com JWT. A diária só aceita papel `service_role`. A de avisos aceita esse papel ou o admin do painel.
+`verify_jwt` está em `supabase/config.toml`. `despachar-avisos` e `manutencao-diaria` têm de ficar com `verify_jwt = true`. `papelDoJwt` só lê o papel do payload e não confere a assinatura. Quem confere é o gateway. Sem isso, qualquer um manda um JWT com `role` `service_role`. A diária só aceita esse papel. A de avisos aceita esse papel ou o admin do painel.
 
-Arquivos de cada deploy:
+Arquivos de cada deploy, pelo `deno info` de cada `index.ts` (só arquivos deste repositório, sem repetir):
 
-- `cotar-frete` (`verify_jwt` false): `index.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, e o que `index.ts` já importava.
-- `criar-pedido` (`verify_jwt` false): `index.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, e o que `index.ts` já importava.
-- `etiquetas-melhor-envio` (`verify_jwt` true): `index.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/painel.ts`.
-- `webhook-melhor-envio` (`verify_jwt` false): `index.ts`, `_shared/avisos.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/segundo-plano.ts`, `_shared/enviar-cliente.ts`, `_shared/correio.ts`.
-- `webhook-mercado-pago` (`verify_jwt` false): `index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`.
-- `consultar-pedido` (`verify_jwt` false): `index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/etiquetas.ts`, `_shared/segundo-plano.ts`.
-- `despachar-avisos` (`verify_jwt` true): `index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/painel.ts`.
-- `manutencao-diaria` (`verify_jwt` true): `index.ts`, `_shared/avisos.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/segundo-plano.ts`.
+- `cotar-frete` (`verify_jwt` false): `cotar-frete/index.ts`, `_shared/http.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`.
+- `criar-pedido` (`verify_jwt` false): `criar-pedido/index.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/http.ts`, `_shared/pedido.ts`.
+- `etiquetas-melhor-envio` (`verify_jwt` true): `etiquetas-melhor-envio/index.ts`, `_shared/painel.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/pedido.ts`.
+- `webhook-melhor-envio` (`verify_jwt` false): `webhook-melhor-envio/index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/pedido.ts`, `_shared/enviar-cliente.ts`, `_shared/correio.ts`, `_shared/smtp.ts`.
+- `webhook-mercado-pago` (`verify_jwt` false): `webhook-mercado-pago/index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/enviar-cliente.ts`, `_shared/correio.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/pedido.ts`, `_shared/smtp.ts`.
+- `consultar-pedido` (`verify_jwt` false): `consultar-pedido/index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/enviar-cliente.ts`, `_shared/correio.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/pedido.ts`, `_shared/smtp.ts`, `_shared/http.ts`.
+- `despachar-avisos` (`verify_jwt` true): `despachar-avisos/index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/painel.ts`.
+- `manutencao-diaria` (`verify_jwt` true): `manutencao-diaria/index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/pedido.ts`.

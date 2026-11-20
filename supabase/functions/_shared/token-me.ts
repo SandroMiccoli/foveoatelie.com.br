@@ -1,6 +1,9 @@
 // Token OAuth do Melhor Envio. Quem chama a API pede um access token aqui.
-// A tabela private.melhor_envio_oauth guarda o par. Se estiver vazia, vale
-// o secret MELHOR_ENVIO_TOKEN. expires_at nulo só renova depois de um 401.
+// A tabela private.melhor_envio_oauth guarda o par do aplicativo.
+// MELHOR_ENVIO_TOKEN é outro token, pessoal e de longa duração
+// ("Permissões de acesso"): reserva quando a tabela está vazia e quando
+// a renovação forçada não responde. expires_at nulo não gira no checkout.
+// A manutenção diária trata nulo como "renovar nesta rodada".
 // A renovação trava a linha para duas chamadas não girarem o refresh juntas.
 
 import { registrarFalhaToken } from "./avisos.ts";
@@ -11,6 +14,9 @@ export const ANTECEDENCIA_MS = 7 * 24 * 60 * 60 * 1000;
 const EXPIRA_PADRAO_S = 2592000;
 const ESPERA_MS = 400;
 const TENTATIVAS_ESPERA = 12;
+const TENTATIVAS_GRAVAR = 3;
+const ESPERA_GRAVAR_MS = 400;
+const TIMEOUT_CHAMADA_MS = 20000;
 
 export type FetchOauth = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -49,13 +55,26 @@ export function decidirRenovacao(
   segredo: string,
   forcar: boolean,
   agora: number,
+  agendado = false,
 ): DecisaoToken {
   if (estado.renovando) return { tipo: "esperar" };
   const atual = estado.accessToken || segredo;
-  const precisa = forcar || precisaRenovar(estado.expiresAt, agora);
+  const semData = agendado && !estado.vazio && !estado.expiresAt;
+  const precisa = forcar || semData || precisaRenovar(estado.expiresAt, agora);
   if (!precisa) return atual ? { tipo: "usar", token: atual } : { tipo: "ausente" };
   if (!estado.temRefresh) return { tipo: "sem_refresh", token: atual };
   return { tipo: "renovar" };
+}
+
+export function reservaDepoisDo401(
+  segredo: string,
+  tokenUsado: string,
+  tokenRenovado: string | null,
+): string | null {
+  if (tokenRenovado) return null;
+  const reserva = segredo.trim();
+  if (!reserva || reserva === tokenUsado) return null;
+  return reserva;
 }
 
 export function urlOauth(baseUrl: string | null): string {
@@ -253,18 +272,48 @@ async function soltar(deps: DepsToken, refreshUsado: string): Promise<void> {
   await rpcToken(deps, "soltar_oauth_melhor_envio", { p_refresh_usado: refreshUsado });
 }
 
+type GravarResultado = "ok" | "conflito" | "falha";
+
 async function gravar(
   deps: DepsToken,
   novo: { accessToken: string; refreshToken: string; expiresAt: string },
   refreshUsado: string,
-): Promise<boolean> {
+): Promise<GravarResultado> {
   const data = await rpcToken(deps, "gravar_oauth_melhor_envio", {
     p_access_token: novo.accessToken,
     p_refresh_token: novo.refreshToken,
     p_expires_at: novo.expiresAt,
     p_refresh_usado: refreshUsado,
   });
-  return Boolean(data && data !== "falha" && typeof data === "object" && (data as { ok?: unknown }).ok === true);
+  if (data === "falha") return "falha";
+  if (!data || typeof data !== "object") return "falha";
+  const row = data as { ok?: unknown; erro?: unknown };
+  if (row.ok === true) return "ok";
+  if (row.erro === "conflito") return "conflito";
+  return "falha";
+}
+
+async function parJaGravado(
+  deps: DepsToken,
+  accessToken: string,
+): Promise<boolean> {
+  const estado = await lerEstado(deps);
+  return estado !== "falha" && estado.accessToken === accessToken;
+}
+
+async function persistirPar(
+  deps: DepsToken,
+  novo: { accessToken: string; refreshToken: string; expiresAt: string },
+  refreshUsado: string,
+): Promise<boolean> {
+  for (let i = 0; i < TENTATIVAS_GRAVAR; i++) {
+    if (i > 0) await deps.esperar(ESPERA_GRAVAR_MS * i);
+    const resultado = await gravar(deps, novo, refreshUsado);
+    if (resultado === "ok") return true;
+    if (resultado === "conflito") return await parJaGravado(deps, novo.accessToken);
+    console.error("token me: gravar", i + 1);
+  }
+  return await parJaGravado(deps, novo.accessToken);
 }
 
 function tokenAtual(estado: EstadoToken, segredo: string): string {
@@ -273,10 +322,11 @@ function tokenAtual(estado: EstadoToken, segredo: string): string {
 
 export async function resolverToken(
   deps: DepsToken,
-  opcoes?: { forcar?: boolean },
+  opcoes?: { forcar?: boolean; agendado?: boolean },
   tentativa = 0,
 ): Promise<string | null> {
   const forcar = opcoes?.forcar === true;
+  const agendado = opcoes?.agendado === true;
   const segredo = (deps.env("MELHOR_ENVIO_TOKEN") ?? "").trim();
   const estado = await lerEstado(deps);
   if (estado === "falha") {
@@ -285,7 +335,7 @@ export async function resolverToken(
     return forcar ? null : (segredo || null);
   }
 
-  const decisao = decidirRenovacao(estado, segredo, forcar, deps.agora());
+  const decisao = decidirRenovacao(estado, segredo, forcar, deps.agora(), agendado);
   if (decisao.tipo === "usar") return decisao.token;
   if (decisao.tipo === "ausente") return null;
   if (decisao.tipo === "esperar") {
@@ -308,7 +358,8 @@ export async function resolverToken(
     return forcar ? null : (tokenAtual(estado, segredo) || null);
   }
 
-  const cru = await rpcToken(deps, "reivindicar_oauth_melhor_envio", { p_forcar: forcar });
+  const forcarSql = forcar || (agendado && !estado.expiresAt);
+  const cru = await rpcToken(deps, "reivindicar_oauth_melhor_envio", { p_forcar: forcarSql });
   const claim = cru === "falha" ? { tipo: "falha" as const } : claimDe(cru);
   if (claim.tipo === "falha") {
     await alertar(deps, "banco");
@@ -335,11 +386,10 @@ export async function resolverToken(
     if (forcar) return null;
     return claim.accessToken || segredo || null;
   }
-  const gravou = await gravar(deps, novo, claim.refreshToken);
+  const gravou = await persistirPar(deps, novo, claim.refreshToken);
   if (!gravou) {
-    await soltar(deps, claim.refreshToken);
-    const deNovo = await lerEstado(deps);
-    if (deNovo !== "falha" && deNovo.accessToken) return deNovo.accessToken;
+    console.error("token me: par novo nao gravado");
+    await alertar(deps, "reautorizar");
     return novo.accessToken;
   }
   return novo.accessToken;
@@ -347,12 +397,13 @@ export async function resolverToken(
 
 let cache: { token: string; expira: number } | null = null;
 
-export async function tokenMelhorEnvio(opcoes?: { forcar?: boolean }): Promise<string | null> {
+export async function tokenMelhorEnvio(opcoes?: { forcar?: boolean; agendado?: boolean }): Promise<string | null> {
   const forcar = opcoes?.forcar === true;
-  if (!forcar && cache && cache.expira > Date.now()) return cache.token;
+  const agendado = opcoes?.agendado === true;
+  if (!forcar && !agendado && cache && cache.expira > Date.now()) return cache.token;
   let token: string | null = null;
   try {
-    token = await resolverToken(depsPadrao(), { forcar });
+    token = await resolverToken(depsPadrao(), { forcar, agendado });
   } catch (err) {
     console.error("token me", err instanceof Error ? err.name : "erro");
     token = null;
@@ -362,13 +413,24 @@ export async function tokenMelhorEnvio(opcoes?: { forcar?: boolean }): Promise<s
   return token;
 }
 
-async function executar(url: string, token: string, init: RequestInit): Promise<Response> {
+export function opcoesDaTentativa(init: RequestInit, timeoutMs = TIMEOUT_CHAMADA_MS): RequestInit {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
-  headers.set("Authorization", "Bearer " + token);
   headers.set("User-Agent", USER_AGENT_OAUTH);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  return await fetch(url, { ...init, headers });
+  const { signal: _sinal, ...resto } = init;
+  return {
+    ...resto,
+    headers,
+    signal: AbortSignal.timeout(timeoutMs),
+  };
+}
+
+async function executar(url: string, token: string, init: RequestInit): Promise<Response> {
+  const opcoes = opcoesDaTentativa(init);
+  const headers = new Headers(opcoes.headers);
+  headers.set("Authorization", "Bearer " + token);
+  return await fetch(url, { ...opcoes, headers });
 }
 
 export async function chamarMelhorEnvio(url: string, init: RequestInit = {}): Promise<Response | null> {
@@ -377,7 +439,12 @@ export async function chamarMelhorEnvio(url: string, init: RequestInit = {}): Pr
   const primeira = await executar(url, token, init);
   if (primeira.status !== 401) return primeira;
   const novo = await tokenMelhorEnvio({ forcar: true });
-  if (!novo || novo === token) return primeira;
+  if (novo && novo !== token) {
+    await primeira.body?.cancel().catch(() => {});
+    return await executar(url, novo, init);
+  }
+  const reserva = reservaDepoisDo401(Deno.env.get("MELHOR_ENVIO_TOKEN") ?? "", token, novo);
+  if (!reserva) return primeira;
   await primeira.body?.cancel().catch(() => {});
-  return await executar(url, novo, init);
+  return await executar(url, reserva, init);
 }

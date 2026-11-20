@@ -8,8 +8,10 @@
 --     expires_at. RLS ligada, sem policy e sem GRANT. anon e authenticated
 --     não leem. O par só sai por RPC de service_role.
 --   * A tabela começa vazia. Enquanto estiver vazia, a função usa o secret
---     MELHOR_ENVIO_TOKEN. expires_at nulo não renova sozinho: só depois de
---     um 401, ou quando a data estiver a menos de 7 dias.
+--     MELHOR_ENVIO_TOKEN (token pessoal, não o access token do app).
+--     expires_at preenchido renova quando falta menos de 7 dias.
+--     expires_at nulo não gira no checkout. A manutenção diária trata nulo
+--     como "renovar nesta rodada", às 08:30, para a data não ficar esquecida.
 --   * A renovação faz FOR UPDATE e marca renovando_ate, para duas chamadas
 --     não girarem o refresh_token ao mesmo tempo.
 --   * public.avisos lista o que o painel mostra. private.avisos_dedupe
@@ -21,13 +23,21 @@
 --   * pg_cron chama a função manutencao-diaria todo dia às 08:30 em São
 --     Paulo (11:30 UTC), se os secrets do vault existirem.
 --
--- Seed do refresh_token, uma vez, no SQL editor. Troque o valor na hora.
--- Não cole o token neste arquivo nem no git.
+-- Seed do par, uma vez, no SQL editor. Troque os três valores na hora.
+-- Não cole token neste arquivo nem no git. expires_at é a validade real
+-- do access token (cerca de 30 dias; se saiu em 2026-11-20, 2026-12-20).
+-- A diária renova uns 7 dias antes, de manhã, e o checkout não gira o par.
 --
---   INSERT INTO private.melhor_envio_oauth (refresh_token)
---   VALUES ('<refresh_token do aplicativo>')
+--   INSERT INTO private.melhor_envio_oauth (access_token, refresh_token, expires_at)
+--   VALUES (
+--     '<access_token atual do aplicativo>',
+--     '<refresh_token do aplicativo>',
+--     timestamptz '2026-12-20 00:00:00-03'
+--   )
 --   ON CONFLICT (id) DO UPDATE
---   SET refresh_token = EXCLUDED.refresh_token,
+--   SET access_token = EXCLUDED.access_token,
+--       refresh_token = EXCLUDED.refresh_token,
+--       expires_at = EXCLUDED.expires_at,
 --       renovando_ate = NULL,
 --       atualizado_em = pg_catalog.now();
 --
@@ -281,6 +291,8 @@ BEGIN
     );
   END IF;
 
+  -- Nulo não entra na janela de 7 dias. Checkout não manda p_forcar.
+  -- A manutenção diária manda p_forcar quando a data falta, às 08:30.
   precisa := COALESCE(p_forcar, false)
     OR (
       linha.expires_at IS NOT NULL
