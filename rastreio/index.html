@@ -1,10 +1,11 @@
 ---
 layout: null
 title: "Rastreio — Foveō Ateliê"
-description: "Acompanhe o pedido da Foveō com o código e o e-mail ou o CPF da compra."
+description: "Acompanhe o pedido da Foveō com o código e o e-mail da compra."
 noindex: true
 sitemap: false
 ---
+{%- assign c = site.data.colecao -%}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -24,11 +25,21 @@ sitemap: false
 <body>
   <a class="pular" href="#conteudo">Ir para o conteúdo</a>
   <header class="topo">
-    <p class="marca"><a href="{{ '/' | relative_url }}">Foveō</a></p>
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="logo-crop">
+        <img
+          src="{{ '/assets/logo-claro.svg' | relative_url }}"
+          alt="Foveō Ateliê"
+          width="1014"
+          height="586"
+          decoding="async"
+        >
+      </span>
+    </a>
   </header>
   <main id="conteudo" class="miolo">
     <h1>Onde está o pedido</h1>
-    <p class="lede">O código tem nove números, no formato do dia da compra. Junto, o e-mail ou o CPF usados no pagamento.</p>
+    <p class="lede">O código tem nove números, no formato do dia da compra. Informe também o e-mail usado no pagamento. Se preferir, pode usar o CPF no lugar do e-mail — ele é opcional.</p>
     <form id="form-rastreio" novalidate>
       <div class="campo">
         <label for="codigo">Código do pedido</label>
@@ -38,8 +49,8 @@ sitemap: false
         <label for="email">E-mail da compra</label>
         <input id="email" name="email" type="email" autocomplete="email" inputmode="email">
       </div>
-      <div class="campo">
-        <label for="cpf">Ou o CPF</label>
+      <div class="campo campo--opcional">
+        <label for="cpf">CPF <span class="opcional">(opcional, se não tiver o e-mail)</span></label>
         <input id="cpf" name="cpf" inputmode="numeric" autocomplete="off" maxlength="14">
       </div>
       <p id="erro" class="erro" role="alert" hidden></p>
@@ -47,10 +58,12 @@ sitemap: false
     </form>
     <section id="resultado" class="resultado" hidden aria-live="polite"></section>
   </main>
+  <script src="{{ '/assets/js/pedido-status-lib.js' | relative_url }}"></script>
   <script
     src="{{ '/rastreio/rastreio.js' | relative_url }}"
     data-supabase-url="{{ site.supabase.url }}"
     data-supabase-key="{{ site.supabase.anon_key }}"
+    data-whatsapp="{{ c.whatsapp }}"
   ></script>
 </body>
 </html>

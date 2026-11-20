@@ -8,9 +8,11 @@
   --line-dark: rgba(237, 230, 217, 0.2);
   --line-light: rgba(13, 9, 8, 0.16);
   /* Sinalizadores de estoque: tons abafados, pensados para a pontinha de
-     cor ao lado do rótulo — não para texto grande nem preenchimento. */
+     cor ao lado do rótulo — não para texto grande nem preenchimento.
+     --stock-orange também pinta status “em processo” no pedido/rastreio. */
   --stock-green: #7fac62;
   --stock-amber: #d1a24a;
+  --stock-orange: #c87431;
   --stock-red: #cc6456;
   --serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -679,6 +681,10 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   color: var(--stock-amber);
 }
 
+.stock[data-stock-level="processo"] {
+  color: var(--stock-orange);
+}
+
 .stock[data-stock-level="disponivel"] {
   color: var(--stock-green);
 }
@@ -721,12 +727,14 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
 @media (prefers-reduced-motion: no-preference) {
   .stock[data-stock-level="critico"] .stock-dot,
   .stock[data-stock-level="baixo"] .stock-dot,
+  .stock[data-stock-level="processo"] .stock-dot,
   .stock[data-stock-level="disponivel"] .stock-dot {
     animation: stock-dot-glow 2.3s ease-in-out infinite;
   }
 
   .stock[data-stock-level="critico"] .stock-dot::after,
   .stock[data-stock-level="baixo"] .stock-dot::after,
+  .stock[data-stock-level="processo"] .stock-dot::after,
   .stock[data-stock-level="disponivel"] .stock-dot::after {
     animation: stock-dot-ping 2.3s cubic-bezier(0.22, 0.7, 0.3, 1) infinite;
   }
@@ -2090,6 +2098,13 @@ button.cta {
   justify-items: center;
 }
 
+.pedido-status {
+  margin: 0;
+  justify-content: center;
+  text-align: left;
+  letter-spacing: 0.06em;
+}
+
 .pedido-rastreio-link {
   margin: 0.35rem 0 0;
   font-size: 0.8125rem;
@@ -2097,13 +2112,25 @@ button.cta {
   color: var(--paper-dim);
 }
 
-.pedido-rastreio-link a {
+.pedido-rastreio-link[hidden] {
+  display: none;
+}
+
+.pedido-rastreio-link a,
+.pedido-rastreio-link button {
   color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.pedido-rastreio-link a:hover {
+.pedido-rastreio-link a:hover,
+.pedido-rastreio-link button:hover {
   color: var(--paper);
 }
 
@@ -2130,6 +2157,7 @@ button.cta {
 }
 
 .pedido-resumo[hidden],
+#pedido-titulo[hidden],
 #pedido-nota[hidden],
 #pedido-prazo[hidden],
 .pedido-acoes[hidden],

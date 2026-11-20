@@ -3,27 +3,13 @@
 (function () {
   "use strict";
 
+  var lib = window.FoveoPedidoStatus;
+  if (!lib) return;
+
   var STORAGE_KEY = "foveo-carrinho-v1";
   var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   var INTERVALO = 3000;
   var LIMITE = 60000;
-  var PAGOS = {
-    pago: true,
-    etiqueta_gerada: true,
-    enviado: true,
-    entregue: true,
-    pronto_retirada: true,
-    retirado: true
-  };
-
-  var TITULOS = {
-    pago: "Pagamento aprovado",
-    etiqueta_gerada: "Etiqueta gerada",
-    enviado: "Pedido enviado",
-    entregue: "Pedido entregue",
-    pronto_retirada: "Pronto pra retirada",
-    retirado: "Pedido retirado"
-  };
 
   var raiz = document.getElementById("pedido-pagina");
   if (!raiz) return;
@@ -37,6 +23,11 @@
   var whats = document.getElementById("pedido-whatsapp");
   var conferir = document.getElementById("pedido-conferir");
   var retentar = document.getElementById("pedido-retentar");
+  var statusEl = document.getElementById("pedido-status");
+  var statusRotulo = document.getElementById("pedido-status-rotulo");
+  var secundario = document.getElementById("pedido-secundario");
+  var secundarioLink = document.getElementById("pedido-secundario-link");
+  var tentarDeNovo = document.getElementById("pedido-tentar-de-novo");
   var inicio = Date.now();
   var pedidoId = "";
   var esvaziou = false;
@@ -62,16 +53,44 @@
     return "R$ " + reais.toFixed(2).replace(".", ",");
   }
 
-  function formatarDia(iso) {
-    var p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
-    if (!p) return "";
-    return p[3] + "/" + p[2];
-  }
-
   function mostrarNota(texto) {
     if (!nota) return;
     nota.hidden = !texto;
     nota.textContent = texto || "";
+  }
+
+  function definirTitulo(texto) {
+    if (!titulo) return;
+    if (!texto) {
+      titulo.hidden = true;
+      titulo.textContent = "";
+      return;
+    }
+    titulo.hidden = false;
+    titulo.textContent = texto;
+  }
+
+  function mostrarContexto(texto) {
+    if (!prazo) return;
+    prazo.hidden = !texto;
+    prazo.textContent = texto || "";
+  }
+
+  function pintarStatus(status, opcoes) {
+    if (!statusEl || !statusRotulo) return;
+    var tom = lib.tomDoStatus(status, opcoes);
+    var nivel = lib.nivelEstoqueDoTom(tom);
+    var rotulo = lib.rotuloStatus(status, opcoes);
+    statusEl.hidden = !rotulo;
+    statusEl.setAttribute("data-stock-level", nivel);
+    statusRotulo.textContent = rotulo;
+  }
+
+  function limparStatus() {
+    if (!statusEl || !statusRotulo) return;
+    statusEl.hidden = true;
+    statusEl.removeAttribute("data-stock-level");
+    statusRotulo.textContent = "";
   }
 
   function definirAcao(rotulo, href) {
@@ -150,13 +169,8 @@
   }
 
   function textoPrazo(dados) {
-    var dia = formatarDia(dados.data_postagem);
-    if (!dia) return "";
-    if (dados.entrega_tipo === "retirada") {
-      return "Suas velas ficam prontas a partir de quarta\u2011feira, " + dia + ". Chama a gente no WhatsApp pra combinar a retirada.";
-    }
-    if (dados.rastreio) return "Seu pedido foi postado na quarta\u2011feira, " + dia + ".";
-    return "Seu pedido será postado na quarta\u2011feira, " + dia + ". O código de rastreio chega neste e-mail e nesta página.";
+    var hrefWhats = linkWhatsapp(dados, "");
+    return lib.mensagemContexto(dados, hrefWhats);
   }
 
   function linkWhatsapp(dados, extra) {
@@ -187,6 +201,43 @@
       retentar.removeAttribute("href");
     }
     if (acoes) acoes.hidden = true;
+    esconderSecundario();
+  }
+
+  function esconderSecundario() {
+    if (secundario) secundario.hidden = true;
+    if (secundarioLink) {
+      secundarioLink.hidden = true;
+      secundarioLink.removeAttribute("href");
+      secundarioLink.textContent = "";
+    }
+    if (tentarDeNovo) tentarDeNovo.hidden = true;
+  }
+
+  function mostrarSecundarioLink(rotulo, href) {
+    if (!secundario || !secundarioLink) return;
+    if (tentarDeNovo) tentarDeNovo.hidden = true;
+    secundario.hidden = false;
+    secundarioLink.hidden = false;
+    secundarioLink.href = href;
+    secundarioLink.textContent = rotulo;
+  }
+
+  function mostrarTentarDeNovo() {
+    if (!secundario || !tentarDeNovo) return;
+    if (secundarioLink) {
+      secundarioLink.hidden = true;
+      secundarioLink.removeAttribute("href");
+      secundarioLink.textContent = "";
+    }
+    secundario.hidden = false;
+    tentarDeNovo.hidden = false;
+  }
+
+  function linkAcompanhar() {
+    var base = raiz.getAttribute("data-rastreio") || "/rastreio/";
+    var sep = base.indexOf("?") === -1 ? "?" : "&";
+    return base + sep + "pedido=" + encodeURIComponent(pedidoId);
   }
 
   function mostrarAcoes() {
@@ -232,42 +283,42 @@
     var bloco = document.createElement("div");
     bloco.id = "pedido-rastreio";
     bloco.className = "pedido-rastreio";
-    var rotulo = document.createElement("p");
-    rotulo.className = "pedido-nota";
-    rotulo.textContent = "Rastreio " + dados.rastreio;
-    bloco.appendChild(rotulo);
+    var linha = document.createElement("p");
+    linha.className = "pedido-nota";
+    linha.appendChild(document.createTextNode("Rastreio " + dados.rastreio));
     if (dados.rastreio_url) {
+      linha.appendChild(document.createTextNode(" · "));
       var link = document.createElement("a");
-      link.className = "cta";
       link.href = dados.rastreio_url;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = "Acompanhar na transportadora";
-      bloco.appendChild(link);
+      link.textContent = "ver na transportadora";
+      linha.appendChild(link);
     }
+    bloco.appendChild(linha);
     prazo.parentNode.insertBefore(bloco, prazo.nextSibling);
   }
 
   function desenhar(dados) {
     if (!dados || !titulo) return;
     if (resumo) resumo.hidden = true;
-    if (prazo) prazo.hidden = true;
+    mostrarContexto("");
     esconderAcoes();
     document.title = "Pedido — Foveō Ateliê";
+    var opts = { retentativa: !!dados.retentativa };
+    var rotulo = lib.rotuloStatus(dados.status, opts);
+    pintarStatus(dados.status, opts);
 
-    if (PAGOS[dados.status]) {
-      var tituloPago = TITULOS[dados.status] || "Pagamento aprovado";
-      titulo.textContent = tituloPago;
-      document.title = tituloPago + " — Foveō Ateliê";
-      mostrarNota(dados.primeiro_nome ? "Obrigado, " + dados.primeiro_nome + "!" : "Obrigado!");
+    if (lib.pagoOuDepois(dados.status)) {
+      var obrigado = dados.primeiro_nome ? "Obrigado, " + dados.primeiro_nome + "!" : "Obrigado!";
+      definirTitulo(obrigado);
+      document.title = rotulo + " — Foveō Ateliê";
+      mostrarNota("");
       desenharResumo(dados);
-      if (prazo) {
-        var frase = textoPrazo(dados);
-        prazo.hidden = !frase;
-        prazo.textContent = frase;
-      }
+      mostrarContexto(textoPrazo(dados));
       blocoRastreio(dados);
       ligarWhatsapp(dados, "");
+      mostrarSecundarioLink("Acompanhar pedido", linkAcompanhar());
       mostrarAcoes();
       esvaziarSacola();
       return;
@@ -276,11 +327,11 @@
     if (velho) velho.remove();
 
     if (dados.status === "pendente" && dados.retentativa) {
-      titulo.textContent = "Pagamento não aprovado";
-      document.title = "Pagamento não aprovado — Foveō Ateliê";
+      definirTitulo("");
+      document.title = rotulo + " — Foveō Ateliê";
       mostrarNota(dados.checkout_url
-        ? "O pagamento não foi aprovado. Tente de novo com outro cartão ou com Pix. As velas seguem reservadas por enquanto."
-        : "O pagamento não foi aprovado. A reserva já acabou.");
+        ? "Tente de novo com outro cartão ou com Pix. As velas seguem reservadas por enquanto."
+        : "A reserva já acabou. Monte de novo na sacola quando quiser.");
       desenharResumo(dados);
       ligarRetentar(dados.checkout_url);
       if (acao) {
@@ -294,28 +345,32 @@
     }
 
     if (dados.status === "pendente") {
-      titulo.textContent = "Pagamento em análise";
-      document.title = "Pagamento em análise — Foveō Ateliê";
-      mostrarNota("Pix e cartão podem levar alguns minutos. A página atualiza sozinha.");
+      definirTitulo("");
+      document.title = rotulo + " — Foveō Ateliê";
+      mostrarNota(textoPrazo(dados));
       desenharResumo(dados);
       if (conferir) conferir.hidden = false;
+      if (acao) {
+        acao.target = "";
+        acao.rel = "";
+      }
+      if (dados.checkout_url && checkoutConfiavel(dados.checkout_url)) {
+        ligarRetentar(dados.checkout_url);
+      } else {
+        definirAcao("Voltar à sacola", homeSacola());
+      }
       ligarWhatsapp(dados, "Pagamento em análise.");
       mostrarAcoes();
       return;
     }
 
     var extraWhats = "Pagamento não aprovado.";
-    if (dados.status === "expirado") {
-      titulo.textContent = "O tempo pra pagar acabou";
-      extraWhats = "O tempo pra pagar acabou.";
-    } else if (dados.status === "cancelado") {
-      titulo.textContent = "Esse pedido foi cancelado";
-      extraWhats = "Pedido cancelado.";
-    } else {
-      titulo.textContent = "Pagamento não aprovado";
-    }
-    document.title = titulo.textContent + " — Foveō Ateliê";
-    mostrarNota("A sacola continua aqui.");
+    if (dados.status === "expirado") extraWhats = "O tempo pra pagar acabou.";
+    else if (dados.status === "cancelado") extraWhats = "Pedido cancelado.";
+    else if (dados.status === "reembolsado") extraWhats = "Pedido reembolsado.";
+    definirTitulo("");
+    document.title = rotulo + " — Foveō Ateliê";
+    mostrarNota(textoPrazo(dados) || "A sacola continua aqui.");
     if (acao) {
       acao.target = "";
       acao.rel = "";
@@ -325,18 +380,33 @@
     mostrarAcoes();
   }
 
+  function falhaConsulta(mensagem) {
+    limparStatus();
+    definirTitulo(mensagem || "Não conseguimos consultar o pedido agora.");
+    mostrarNota("Tente de novo em instantes.");
+    if (resumo) resumo.hidden = true;
+    mostrarContexto("");
+    var velho = document.getElementById("pedido-rastreio");
+    if (velho) velho.remove();
+    esconderAcoes();
+    mostrarTentarDeNovo();
+  }
+
   function consultar(manual) {
     var url = (raiz.getAttribute("data-supabase-url") || "").replace(/\/$/, "");
     var key = raiz.getAttribute("data-supabase-key") || "";
     if (!url || !key || typeof fetch !== "function") {
-      if (titulo) titulo.textContent = "Não conseguimos consultar o pedido agora.";
-      mostrarNota("Atualize a página em instantes.");
+      falhaConsulta("Não conseguimos consultar o pedido agora.");
       return;
     }
     if (manual && conferir) {
       conferir.disabled = true;
       conferir.textContent = "Conferindo…";
       conferir.setAttribute("aria-busy", "true");
+    }
+    if (manual && tentarDeNovo && !tentarDeNovo.hidden) {
+      tentarDeNovo.disabled = true;
+      tentarDeNovo.textContent = "Consultando…";
     }
 
     fetch(url + "/functions/v1/consultar-pedido", {
@@ -350,10 +420,16 @@
         });
       })
       .then(function (resultado) {
+        if (tentarDeNovo) {
+          tentarDeNovo.disabled = false;
+          tentarDeNovo.textContent = "Tentar de novo";
+        }
         if (resultado.status === 404) {
-          if (titulo) titulo.textContent = "Não achamos esse pedido.";
+          limparStatus();
+          definirTitulo("Não achamos esse pedido.");
           mostrarNota("");
           esconderAcoes();
+          mostrarTentarDeNovo();
           return;
         }
         if (!resultado.ok || !resultado.dados.status) throw new Error("consulta");
@@ -368,23 +444,38 @@
           conferir.textContent = "Conferir pagamento de novo";
           conferir.removeAttribute("aria-busy");
         }
-        if (titulo && titulo.textContent === "Conferindo o pagamento.") {
-          titulo.textContent = "Não conseguimos consultar o pedido agora.";
-          mostrarNota("Atualize a página em instantes.");
+        if (tentarDeNovo) {
+          tentarDeNovo.disabled = false;
+          tentarDeNovo.textContent = "Tentar de novo";
+        }
+        if (titulo && !titulo.hidden && titulo.textContent === "Conferindo o pagamento.") {
+          falhaConsulta("Não conseguimos consultar o pedido agora.");
         } else if (!manual && Date.now() - inicio < LIMITE) {
           window.setTimeout(function () { consultar(false); }, INTERVALO);
+        } else {
+          falhaConsulta("Não conseguimos consultar o pedido agora.");
         }
       });
   }
 
   pedidoId = idDoLink();
   if (!pedidoId) {
-    if (titulo) titulo.textContent = "Não achamos esse pedido.";
+    limparStatus();
+    definirTitulo("Não achamos esse pedido.");
+    mostrarTentarDeNovo();
     return;
   }
   if (conferir) {
     conferir.addEventListener("click", function () {
       if (conferir.disabled) return;
+      consultar(true);
+    });
+  }
+  if (tentarDeNovo) {
+    tentarDeNovo.addEventListener("click", function () {
+      if (tentarDeNovo.disabled) return;
+      definirTitulo("Conferindo o pagamento.");
+      mostrarNota("");
       consultar(true);
     });
   }
