@@ -15,6 +15,7 @@ import {
   montarCarrinho,
   planoDepoisDoCheckout,
   situacaoCompraMe,
+  responderPedidoAusente,
   tentarSoltarCarrinho,
   planoFolha,
   planoImpressao,
@@ -864,16 +865,15 @@ async function reconciliar(
     const visto = await lerPedidoNaMe(base, token, pedido.me_order_id);
     const plano = planoDepoisDoCheckout(visto.situacao);
     if (visto.ausente) {
-      const soltou = await soltarCompra(url, anonKey, jwt, pedido.id, null, true);
-      if (soltou) {
-        falhas.push({ codigo: pedido.codigo, motivo: "O Melhor Envio não cobrou. Soltei o pedido para uma compra nova." });
-      } else {
+      const resposta = await responderPedidoAusente(pedido.me_order_id, (id) =>
+        confirmarRemocao(url, anonKey, jwt, base, token, pedido.id, null, id));
+      if (!resposta.soltou) {
         await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
           p_pedido_id: pedido.id,
           p_me_order_id: pedido.me_order_id,
         });
-        falhas.push({ codigo: pedido.codigo, motivo: "A etiqueta não está no Melhor Envio, mas o painel não soltou. Não compre outra." });
       }
+      falhas.push({ codigo: pedido.codigo, motivo: resposta.mensagem });
       continue;
     }
     if (plano === "remover") {

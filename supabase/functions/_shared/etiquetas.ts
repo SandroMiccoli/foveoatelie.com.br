@@ -259,6 +259,31 @@ export async function tentarSoltarCarrinho(
   return podeSoltarDepoisDoDelete(apagou, depois) ? "soltar" : "conferir";
 }
 
+export const MENSAGEM_ETIQUETA_SUMIU =
+  "O Melhor Envio não encontrou essa etiqueta. Confira no site do Melhor Envio antes de comprar outra.";
+
+// Um 404 do GET /orders/{id} não prova que a etiqueta está sem pagamento.
+// Só solta se confirmar (DELETE 2xx e uma leitura nova) devolver "removido".
+export async function responderPedidoAusente(
+  meId: string,
+  confirmar: (id: string) => Promise<"removido" | "conferir">,
+): Promise<{ soltou: boolean; mensagem: string }> {
+  let destino: "removido" | "conferir" = "conferir";
+  try {
+    const resultado = await confirmar(meId);
+    if (resultado === "removido") destino = "removido";
+  } catch (_err) {
+    destino = "conferir";
+  }
+  if (destino === "removido") {
+    return {
+      soltou: true,
+      mensagem: "O Melhor Envio não cobrou. Soltei o pedido para uma compra nova.",
+    };
+  }
+  return { soltou: false, mensagem: MENSAGEM_ETIQUETA_SUMIU };
+}
+
 function ipUtil(bruto: string): string | null {
   const ip = bruto.trim().replace(/^\[|\]$/g, "");
   if (!ip || ip.length > 64 || ip.toLowerCase() === "unknown") return null;

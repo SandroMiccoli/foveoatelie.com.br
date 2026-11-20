@@ -24,8 +24,10 @@ import {
   ipClienteRastreio,
   planoDepoisDoCheckout,
   planoImpressao,
+  MENSAGEM_ETIQUETA_SUMIU,
   podeSoltarDepoisDoDelete,
   precoCotado,
+  responderPedidoAusente,
   situacaoCompraMe,
   tentarSoltarCarrinho,
   urlMelhorEnvioConfiavel,
@@ -193,6 +195,40 @@ test("só solta a compra se o DELETE deu certo e a etiqueta segue sem pagamento"
     await tentarSoltarCarrinho(meId, async () => true, async () => ({ situacao: "incerto", ausente: true })),
     "soltar",
   );
+});
+
+test("404 no conferir não solta a compra sem o DELETE confirmado", async () => {
+  let confirmou = false;
+  const parado = await responderPedidoAusente("abc12345-6789-aaaa", async () => "conferir");
+  assert.equal(parado.soltou, false);
+  assert.equal(parado.mensagem, MENSAGEM_ETIQUETA_SUMIU);
+  assert.doesNotMatch(parado.mensagem, /Soltei/);
+
+  const sumiu = await responderPedidoAusente("abc12345-6789-aaaa", async () => {
+    throw new Error("rede");
+  });
+  assert.equal(sumiu.soltou, false);
+  assert.equal(sumiu.mensagem, MENSAGEM_ETIQUETA_SUMIU);
+
+  const semDelete = await tentarSoltarCarrinho(
+    "abc12345-6789-aaaa",
+    async () => false,
+    async () => ({ situacao: "incerto", ausente: true }),
+  );
+  assert.equal(semDelete, "conferir");
+
+  const solto = await responderPedidoAusente("abc12345-6789-aaaa", async (id) => {
+    confirmou = id === "abc12345-6789-aaaa";
+    const plano = await tentarSoltarCarrinho(
+      id,
+      async () => true,
+      async () => ({ situacao: "nao_pago", ausente: false }),
+    );
+    return plano === "soltar" ? "removido" : "conferir";
+  });
+  assert.equal(confirmou, true);
+  assert.equal(solto.soltou, true);
+  assert.match(solto.mensagem, /Soltei/);
 });
 
 test("o IP do rastreio não usa o primeiro salto forjado", () => {
@@ -461,7 +497,13 @@ test("webhook e rastreio público não exigem JWT, e o e-mail não repete", asyn
   assert.ok(reserva > 0 && reserva < carrinho && carrinho < checkout);
   assert.match(compra, /admin_gravar_carrinho_etiqueta/);
   assert.match(compra, /planoDepoisDoCheckout/);
+  assert.match(compra, /responderPedidoAusente/);
   assert.doesNotMatch(compra, /Não compre de novo/);
+  const ausente = compra.indexOf("if (visto.ausente)");
+  assert.ok(ausente > 0);
+  const trechoAusente = compra.slice(ausente, compra.indexOf("if (plano === \"remover\")", ausente));
+  assert.match(trechoAusente, /confirmarRemocao/);
+  assert.doesNotMatch(trechoAusente, /soltarCompra/);
 
   const webhook = await lerTexto("../functions/webhook-melhor-envio/index.ts");
   assert.match(webhook, /emSegundoPlano\(enviarEmailCliente/);
