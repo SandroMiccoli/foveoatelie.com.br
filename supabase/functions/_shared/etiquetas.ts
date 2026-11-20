@@ -177,6 +177,9 @@ export function classificarPedido(pedido: PedidoEtiqueta): ClasseEtiqueta {
     return { tipo: "imprimir", me_order_id: pedido.me_order_id };
   }
   if (pedido.status !== "pago") return { tipo: "fora", motivo: "status" };
+  if (pedido.me_order_id && STATUS_LIVRE_ME.has(fase)) {
+    return { tipo: "conferir", me_order_id: pedido.me_order_id };
+  }
   if (pedido.me_order_id) return { tipo: "gerar", me_order_id: pedido.me_order_id };
   const servico = idServico(pedido.frete?.id ?? "");
   const custo = pedido.frete_centavos;
@@ -225,6 +228,58 @@ export function planoDepoisDoCheckout(situacao: SituacaoCompra): PlanoCompra {
   if (situacao === "pago") return "seguir";
   if (situacao === "nao_pago") return "remover";
   return "conferir";
+}
+
+export function podeSoltarDepoisDoDelete(
+  deleteOk: boolean,
+  depois: { situacao: SituacaoCompra; ausente: boolean },
+): boolean {
+  if (!deleteOk) return false;
+  if (depois.ausente) return true;
+  return depois.situacao === "nao_pago";
+}
+
+export async function tentarSoltarCarrinho(
+  meId: string,
+  apagar: (id: string) => Promise<boolean>,
+  ler: (id: string) => Promise<{ situacao: SituacaoCompra; ausente: boolean }>,
+): Promise<"soltar" | "conferir"> {
+  let apagou = false;
+  try {
+    apagou = await apagar(meId);
+  } catch (_err) {
+    apagou = false;
+  }
+  let depois: { situacao: SituacaoCompra; ausente: boolean } = { situacao: "incerto", ausente: false };
+  try {
+    depois = await ler(meId);
+  } catch (_err) {
+    depois = { situacao: "incerto", ausente: false };
+  }
+  return podeSoltarDepoisDoDelete(apagou, depois) ? "soltar" : "conferir";
+}
+
+function ipUtil(bruto: string): string | null {
+  const ip = bruto.trim().replace(/^\[|\]$/g, "");
+  if (!ip || ip.length > 64 || ip.toLowerCase() === "unknown") return null;
+  if (!/^[A-Za-z0-9.:_-]+$/.test(ip)) return null;
+  return ip;
+}
+
+// O primeiro valor de x-forwarded-for é do cliente e pode ser forjado.
+// cf-connecting-ip e x-real-ip vêm do proxy (Cloudflare / gateway do Supabase).
+// Na cadeia, o último salto é o que o proxy acrescentou.
+export function ipClienteRastreio(headers: { get(nome: string): string | null }): string {
+  const cf = ipUtil(headers.get("cf-connecting-ip") ?? "");
+  if (cf) return cf;
+  const real = ipUtil(headers.get("x-real-ip") ?? "");
+  if (real) return real;
+  const cadeia = (headers.get("x-forwarded-for") ?? "").split(",");
+  for (let i = cadeia.length - 1; i >= 0; i--) {
+    const ip = ipUtil(cadeia[i] ?? "");
+    if (ip) return ip;
+  }
+  return "sem-ip";
 }
 
 export function lerPedidoMe(body: unknown): {

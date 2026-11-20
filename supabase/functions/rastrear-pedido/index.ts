@@ -7,6 +7,7 @@ import {
   combinaRastreio,
   credencialRastreio,
   linhaDoTempo,
+  ipClienteRastreio,
   linkRastreio,
   statusPublico,
 } from "../_shared/etiquetas.ts";
@@ -17,7 +18,7 @@ Deno.serve(async (req) => {
   if (origin && !origemPermitida(origin)) return json(origin, 403, { erro: "origem" });
   if (req.method !== "POST") return json(origin, 405, { erro: "metodo" });
 
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "sem-ip";
+  const ip = ipClienteRastreio(req.headers);
 
   const url = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/+$/, "");
   const key = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();

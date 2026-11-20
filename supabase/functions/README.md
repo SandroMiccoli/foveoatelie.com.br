@@ -135,7 +135,7 @@ Duas migrations, nesta ordem, no SQL editor, cada arquivo inteiro, uma vez. Não
 1. `supabase/migrations/20261120180000_admin_etapa4_envio.sql`
 2. `supabase/migrations/20261120200000_admin_etapa4_conferencia.sql`
 
-O painel compra a etiqueta só depois da confirmação na tela. O resumo pede a cotação atual no Melhor Envio (não gasta saldo) e compara com o saldo. A compra trava os pedidos (`admin_reservar_compra_etiqueta`), põe no carrinho, grava o id como `pendente` e só então faz o checkout se o preço do carrinho couber no saldo. Se o checkout não responder, a função pergunta o status ao Melhor Envio: pago segue para gerar; não pago sai do carrinho; incerto fica `precisa_conferir` e o botão "Conferir etiqueta" tenta de novo. Não compre outra etiqueta nesse estado.
+O painel compra a etiqueta só depois da confirmação na tela. O resumo pede a cotação atual no Melhor Envio (não gasta saldo) e compara com o saldo. A compra trava os pedidos (`admin_reservar_compra_etiqueta`), põe no carrinho, grava o id como `pendente` e só então faz o checkout se o preço do carrinho couber no saldo. Se o checkout não responder, a função pergunta o status ao Melhor Envio: pago segue para gerar; não pago só sai do carrinho se o DELETE voltar 2xx e o status continuar sem pagamento. Caso contrário fica `precisa_conferir` e o botão "Conferir etiqueta" tenta de novo. Não compre outra etiqueta nesse estado. O webhook não troca `comprando`, `pendente` nem `precisa_conferir` enquanto o evento não provar o pagamento. Antes de gravar "released", a função confere de novo se a etiqueta foi paga.
 
 Remetente (origem 31030-285, Foveō Ateliê) sai de secret. Nada de endereço pessoal no código. Informe CPF **ou** CNPJ.
 

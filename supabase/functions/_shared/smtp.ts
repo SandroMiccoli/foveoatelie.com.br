@@ -21,12 +21,6 @@ export function lerSmtp(env: Record<string, string | undefined>): SmtpConfig | n
   return { host, port: porta, user, pass };
 }
 
-type Socket = {
-  read: (p: Uint8Array) => Promise<number | null>;
-  write: (p: Uint8Array) => Promise<number>;
-  close: () => void;
-};
-
 export const SMTP_IO_MS = 8000;
 
 export function ioComPrazo<T>(trabalho: Promise<T>, ms: number, fechar: () => void): Promise<T> {
@@ -56,9 +50,9 @@ export function ioComPrazo<T>(trabalho: Promise<T>, ms: number, fechar: () => vo
   });
 }
 
-export function abrirComPrazo(abrir: Promise<Socket>, ms: number): Promise<Socket> {
+export function abrirComPrazo<T extends { close: () => void }>(abrir: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    let socket: Socket | undefined;
+    let socket: T | undefined;
     let terminou = false;
     const timer = setTimeout(() => {
       if (terminou) return;
@@ -92,14 +86,28 @@ export function abrirComPrazo(abrir: Promise<Socket>, ms: number): Promise<Socke
   });
 }
 
-async function conectar(cfg: SmtpConfig): Promise<Socket> {
-  const abrir = cfg.port === 465
-    ? Deno.connectTls({ hostname: cfg.host, port: cfg.port })
-    : Deno.connect({ hostname: cfg.host, port: cfg.port });
-  return await abrirComPrazo(abrir, SMTP_IO_MS);
+async function conectarTls(cfg: SmtpConfig): Promise<Deno.TlsConn> {
+  return await abrirComPrazo(Deno.connectTls({ hostname: cfg.host, port: cfg.port }), SMTP_IO_MS);
 }
 
-function criarLeitor(socket: Socket) {
+async function conectarTcp(cfg: SmtpConfig): Promise<Deno.TcpConn> {
+  return await abrirComPrazo(Deno.connect({ hostname: cfg.host, port: cfg.port }), SMTP_IO_MS);
+}
+
+async function escreverTudo(socket: Deno.Conn, dados: Uint8Array): Promise<void> {
+  let offset = 0;
+  while (offset < dados.byteLength) {
+    const n = await ioComPrazo(
+      socket.write(dados.subarray(offset)),
+      SMTP_IO_MS,
+      () => socket.close(),
+    );
+    if (!Number.isInteger(n) || n <= 0) throw new Error("smtp_timeout");
+    offset += n;
+  }
+}
+
+function criarLeitor(socket: Deno.Conn) {
   const decoder = new TextDecoder();
   let resto = "";
   return async function ler(): Promise<string> {
@@ -119,13 +127,9 @@ function criarLeitor(socket: Socket) {
   };
 }
 
-async function comando(ler: () => Promise<string>, socket: Socket, linha: string | null): Promise<string> {
+async function comando(ler: () => Promise<string>, socket: Deno.Conn, linha: string | null): Promise<string> {
   if (linha != null) {
-    await ioComPrazo(
-      socket.write(new TextEncoder().encode(linha + "\r\n")),
-      SMTP_IO_MS,
-      () => socket.close(),
-    );
+    await escreverTudo(socket, new TextEncoder().encode(linha + "\r\n"));
   }
   let ultima = "";
   for (let i = 0; i < 40; i++) {
@@ -144,22 +148,29 @@ export async function enviarSmtp(
   cfg: SmtpConfig,
   mensagem: { from: string; to: string; data: string },
 ): Promise<void> {
-  let socket = await conectar(cfg);
-  let ler = criarLeitor(socket);
+  let socket: Deno.Conn | null = null;
   try {
-    const saudacao = await comando(ler, socket, null);
-    if (codigo(saudacao) !== 220) throw new Error("smtp_saudacao");
-    let ehlo = await comando(ler, socket, "EHLO foveoatelie.com.br");
-    if (codigo(ehlo) !== 250) throw new Error("smtp_ehlo");
-    if (cfg.port !== 465) {
-      const start = await comando(ler, socket, "STARTTLS");
+    let ler: () => Promise<string>;
+    if (cfg.port === 465) {
+      socket = await conectarTls(cfg);
+      ler = criarLeitor(socket);
+      const saudacao = await comando(ler, socket, null);
+      if (codigo(saudacao) !== 220) throw new Error("smtp_saudacao");
+    } else {
+      const cru = await conectarTcp(cfg);
+      socket = cru;
+      ler = criarLeitor(cru);
+      const saudacao = await comando(ler, cru, null);
+      if (codigo(saudacao) !== 220) throw new Error("smtp_saudacao");
+      const ehloTcp = await comando(ler, cru, "EHLO foveoatelie.com.br");
+      if (codigo(ehloTcp) !== 250) throw new Error("smtp_ehlo");
+      const start = await comando(ler, cru, "STARTTLS");
       if (codigo(start) !== 220) throw new Error("smtp_starttls");
-      const cru = socket as Deno.Conn;
       socket = await Deno.startTls(cru, { hostname: cfg.host });
       ler = criarLeitor(socket);
-      ehlo = await comando(ler, socket, "EHLO foveoatelie.com.br");
-      if (codigo(ehlo) !== 250) throw new Error("smtp_ehlo");
     }
+    const ehlo = await comando(ler, socket, "EHLO foveoatelie.com.br");
+    if (codigo(ehlo) !== 250) throw new Error("smtp_ehlo");
     const auth = await comando(ler, socket, "AUTH LOGIN");
     if (codigo(auth) !== 334) throw new Error("smtp_auth");
     const user = await comando(ler, socket, btoa(cfg.user));
@@ -172,17 +183,13 @@ export async function enviarSmtp(
     if (codigo(rcpt) !== 250 && codigo(rcpt) !== 251) throw new Error("smtp_rcpt");
     const data = await comando(ler, socket, "DATA");
     if (codigo(data) !== 354) throw new Error("smtp_data");
-    await ioComPrazo(
-      socket.write(new TextEncoder().encode(mensagem.data + "\r\n.\r\n")),
-      SMTP_IO_MS,
-      () => socket.close(),
-    );
+    await escreverTudo(socket, new TextEncoder().encode(mensagem.data + "\r\n.\r\n"));
     const fim = await comando(ler, socket, null);
     if (codigo(fim) !== 250) throw new Error("smtp_envio");
     await comando(ler, socket, "QUIT");
   } finally {
     try {
-      socket.close();
+      socket?.close();
     } catch (_err) {
       // Já fechou.
     }

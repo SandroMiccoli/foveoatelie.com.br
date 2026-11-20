@@ -15,6 +15,7 @@ import {
   montarCarrinho,
   planoDepoisDoCheckout,
   situacaoCompraMe,
+  tentarSoltarCarrinho,
   planoFolha,
   planoImpressao,
   precoCotado,
@@ -424,20 +425,24 @@ async function lerPedidoNaMe(
   base: string,
   token: string,
   meId: string,
-): Promise<{ situacao: "pago" | "nao_pago" | "incerto"; preco_centavos: number | null; rastreio: string; protocolo: string }> {
+): Promise<{ situacao: "pago" | "nao_pago" | "incerto"; ausente: boolean; preco_centavos: number | null; rastreio: string; protocolo: string }> {
   try {
     const res = await meFetch(base, token, "/api/v2/me/orders/" + encodeURIComponent(meId), { method: "GET" });
-    if (!res.ok) return { situacao: "incerto", preco_centavos: null, rastreio: "", protocolo: "" };
+    if (res.status === 404) {
+      return { situacao: "incerto", ausente: true, preco_centavos: null, rastreio: "", protocolo: "" };
+    }
+    if (!res.ok) return { situacao: "incerto", ausente: false, preco_centavos: null, rastreio: "", protocolo: "" };
     const lido = lerPedidoMe(await res.json());
-    if (!lido) return { situacao: "incerto", preco_centavos: null, rastreio: "", protocolo: "" };
+    if (!lido) return { situacao: "incerto", ausente: false, preco_centavos: null, rastreio: "", protocolo: "" };
     return {
       situacao: situacaoCompraMe(lido.status),
+      ausente: false,
       preco_centavos: lido.preco_centavos,
       rastreio: lido.rastreio,
       protocolo: lido.protocolo,
     };
   } catch (_err) {
-    return { situacao: "incerto", preco_centavos: null, rastreio: "", protocolo: "" };
+    return { situacao: "incerto", ausente: false, preco_centavos: null, rastreio: "", protocolo: "" };
   }
 }
 
@@ -472,8 +477,18 @@ async function comprar(
 
   const pedidos = await listarPedidos(url, anonKey, jwt, ids, "pagos");
   if (pedidos === "rede") {
-    for (const id of reservados) await soltarCompra(url, anonKey, jwt, id, tentativa, true);
-    return jsonPainel(origin, 503, { ok: false, erro: "indisponivel", mensagem: "Não consegui ler os pedidos. Soltei a reserva." });
+    let soltas = true;
+    for (const id of reservados) {
+      const soltou = await soltarCompra(url, anonKey, jwt, id, tentativa, true);
+      if (!soltou) soltas = false;
+    }
+    return jsonPainel(origin, 503, {
+      ok: false,
+      erro: "indisponivel",
+      mensagem: soltas
+        ? "Não consegui ler os pedidos. Soltei a reserva."
+        : "Não consegui ler os pedidos. A reserva pode continuar. Não compre outra agora.",
+    });
   }
   const novos: PedidoEtiqueta[] = [];
   const gerar: PedidoEtiqueta[] = [];
@@ -546,6 +561,7 @@ async function comprar(
     carrinho.push({ pedido, meId: lido.id, protocolo: lido.protocolo, preco: lido.preco_centavos });
   }
 
+  let checkoutConfirmado = false;
   if (carrinho.length) {
     const saldo = await lerSaldo(base, token);
     const total = carrinho.reduce((soma, item) => soma + (item.preco ?? 0), 0);
@@ -589,9 +605,14 @@ async function comprar(
         const plano = planoDepoisDoCheckout(visto.situacao);
         if (plano === "seguir") pagos.push(item);
         else if (plano === "remover") {
-          await apagarSeLivre(base, token, item.meId);
-          await soltarCompra(url, anonKey, jwt, item.pedido.id, tentativa, true);
-          falhas.push({ codigo: item.pedido.codigo, motivo: "O checkout não pagou. Tirei do carrinho." });
+          const destino = await confirmarRemocao(url, anonKey, jwt, base, token, item.pedido.id, tentativa, item.meId);
+          falhas.push(destino === "removido"
+            ? { codigo: item.pedido.codigo, motivo: "O checkout não pagou. Tirei do carrinho." }
+            : {
+              codigo: item.pedido.codigo,
+              motivo: "O checkout não pagou, mas não deu para tirar do carrinho. Não compre outra. Use Conferir etiqueta.",
+              conferir: true,
+            });
         } else {
           await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
             p_pedido_id: item.pedido.id,
@@ -606,13 +627,43 @@ async function comprar(
       }
       carrinho.length = 0;
       carrinho.push(...pagos);
+    } else {
+      checkoutConfirmado = true;
     }
   }
 
-  const paraGerar = [
-    ...carrinho.map((item) => ({ pedido: item.pedido, meId: item.meId })),
-    ...gerar.map((pedido) => ({ pedido, meId: pedido.me_order_id })),
+  const candidatos = [
+    ...carrinho.map((item) => ({ pedido: item.pedido, meId: item.meId, recemPago: checkoutConfirmado })),
+    ...gerar.map((pedido) => ({ pedido, meId: pedido.me_order_id, recemPago: false })),
   ];
+  const paraGerar: { pedido: PedidoEtiqueta; meId: string }[] = [];
+  for (const item of candidatos) {
+    const visto = await lerPedidoNaMe(base, token, item.meId);
+    if (planoDepoisDoCheckout(visto.situacao) !== "seguir") {
+      if (planoDepoisDoCheckout(visto.situacao) === "remover" && !item.recemPago) {
+        const destino = await confirmarRemocao(url, anonKey, jwt, base, token, item.pedido.id, tentativa, item.meId);
+        falhas.push(destino === "removido"
+          ? { codigo: item.pedido.codigo, motivo: "A etiqueta não está paga. Tirei do carrinho." }
+          : {
+            codigo: item.pedido.codigo,
+            motivo: "Não confirmei o pagamento e não tirei do carrinho. Não compre outra. Use Conferir etiqueta.",
+            conferir: true,
+          });
+      } else {
+        await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+          p_pedido_id: item.pedido.id,
+          p_me_order_id: item.meId,
+        });
+        falhas.push({
+          codigo: item.pedido.codigo,
+          motivo: "Não confirmei que a etiqueta foi paga. Não compre outra. Use Conferir etiqueta.",
+          conferir: true,
+        });
+      }
+      continue;
+    }
+    paraGerar.push(item);
+  }
   const rastros = await gerarRastreios(base, token, paraGerar.map((item) => item.meId));
   const geradas: { id: string; codigo: string; me_order_id: string; rastreio: string; status: string }[] = [];
   for (const item of paraGerar) {
@@ -667,12 +718,13 @@ async function soltarCompra(
   pedidoId: string,
   tentativa: string | null,
   nadaComprado: boolean,
-): Promise<void> {
-  await rpcAdmin(url, anonKey, jwt, "admin_liberar_compra_etiqueta", {
+): Promise<boolean> {
+  const gravado = await rpcAdmin(url, anonKey, jwt, "admin_liberar_compra_etiqueta", {
     p_pedido_id: pedidoId,
     p_tentativa: tentativa,
     p_nada_comprado: nadaComprado,
   });
+  return gravado?.ok === true;
 }
 
 async function gravarPendente(
@@ -696,12 +748,44 @@ async function gravarPendente(
   return false;
 }
 
-async function apagarSeLivre(base: string, token: string, meId: string): Promise<void> {
+async function apagarSeLivre(base: string, token: string, meId: string): Promise<boolean> {
   try {
-    await meFetch(base, token, "/api/v2/me/cart/" + encodeURIComponent(meId), { method: "DELETE" });
+    const res = await meFetch(base, token, "/api/v2/me/cart/" + encodeURIComponent(meId), { method: "DELETE" });
+    if (!res.ok) console.error("etiquetas: não saiu do carrinho", res.status);
+    return res.ok;
   } catch (_err) {
     console.error("etiquetas: não saiu do carrinho");
+    return false;
   }
+}
+
+async function confirmarRemocao(
+  url: string,
+  anonKey: string,
+  jwt: string,
+  base: string,
+  token: string,
+  pedidoId: string,
+  tentativa: string | null,
+  meId: string,
+): Promise<"removido" | "conferir"> {
+  const plano = await tentarSoltarCarrinho(
+    meId,
+    (id) => apagarSeLivre(base, token, id),
+    async (id) => {
+      const lido = await lerPedidoNaMe(base, token, id);
+      return { situacao: lido.situacao, ausente: lido.ausente };
+    },
+  );
+  if (plano === "soltar") {
+    const soltou = await soltarCompra(url, anonKey, jwt, pedidoId, tentativa, true);
+    if (soltou) return "removido";
+  }
+  await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+    p_pedido_id: pedidoId,
+    p_me_order_id: meId,
+  });
+  return "conferir";
 }
 
 async function decidirCarrinho(
@@ -715,16 +799,14 @@ async function decidirCarrinho(
   meId: string,
 ): Promise<"removido" | "conferir"> {
   const visto = await lerPedidoNaMe(base, token, meId);
-  if (planoDepoisDoCheckout(visto.situacao) === "remover") {
-    await apagarSeLivre(base, token, meId);
-    await soltarCompra(url, anonKey, jwt, pedidoId, tentativa, true);
-    return "removido";
+  if (planoDepoisDoCheckout(visto.situacao) !== "remover") {
+    await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+      p_pedido_id: pedidoId,
+      p_me_order_id: meId,
+    });
+    return "conferir";
   }
-  await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
-    p_pedido_id: pedidoId,
-    p_me_order_id: meId,
-  });
-  return "conferir";
+  return confirmarRemocao(url, anonKey, jwt, base, token, pedidoId, tentativa, meId);
 }
 
 async function gerarRastreios(base: string, token: string, meIds: string[]): Promise<Map<string, string>> {
@@ -781,10 +863,24 @@ async function reconciliar(
     }
     const visto = await lerPedidoNaMe(base, token, pedido.me_order_id);
     const plano = planoDepoisDoCheckout(visto.situacao);
+    if (visto.ausente) {
+      const soltou = await soltarCompra(url, anonKey, jwt, pedido.id, null, true);
+      if (soltou) {
+        falhas.push({ codigo: pedido.codigo, motivo: "O Melhor Envio não cobrou. Soltei o pedido para uma compra nova." });
+      } else {
+        await rpcAdmin(url, anonKey, jwt, "admin_marcar_conferencia_etiqueta", {
+          p_pedido_id: pedido.id,
+          p_me_order_id: pedido.me_order_id,
+        });
+        falhas.push({ codigo: pedido.codigo, motivo: "A etiqueta não está no Melhor Envio, mas o painel não soltou. Não compre outra." });
+      }
+      continue;
+    }
     if (plano === "remover") {
-      await apagarSeLivre(base, token, pedido.me_order_id);
-      await soltarCompra(url, anonKey, jwt, pedido.id, null, true);
-      falhas.push({ codigo: pedido.codigo, motivo: "O Melhor Envio não cobrou. Soltei o pedido para uma compra nova." });
+      const destino = await confirmarRemocao(url, anonKey, jwt, base, token, pedido.id, null, pedido.me_order_id);
+      falhas.push(destino === "removido"
+        ? { codigo: pedido.codigo, motivo: "O Melhor Envio não cobrou. Soltei o pedido para uma compra nova." }
+        : { codigo: pedido.codigo, motivo: "Não deu para tirar do carrinho. Não compre outra. Use Conferir etiqueta." });
       continue;
     }
     if (plano === "conferir") {

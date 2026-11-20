@@ -2,6 +2,8 @@
 // Um evento por pedido: pagamento confirmado, enviado, entregue, pronto para retirada.
 
 import { linkRastreio, type EventoEmail } from "./etiquetas.ts";
+
+export type { EventoEmail };
 import { centavosParaReais } from "./pedido.ts";
 
 export type ItemEmail = { nome: string; qtd: number; preco_unitario_centavos: number };

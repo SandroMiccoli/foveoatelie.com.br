@@ -16,6 +16,8 @@
 --     é considerada abandonada depois de 15 minutos.
 --   * rastreio_falhas limita consulta errada: 5 por código por hora e 20
 --     por IP por hora. anon e authenticated não leem a tabela.
+--   * aplicar_evento_melhor_envio não troca comprando, pendente nem
+--     precisa_conferir, a menos que o evento prove o pagamento.
 
 -- ── trava da compra ────────────────────────────────────────────────────
 
@@ -540,3 +542,133 @@ REVOKE ALL ON FUNCTION public.bloqueio_rastreio(text, text) FROM PUBLIC, anon, a
 REVOKE ALL ON FUNCTION public.anotar_falha_rastreio(text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.bloqueio_rastreio(text, text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.anotar_falha_rastreio(text, text) TO service_role;
+
+-- ── webhook não apaga o estado interno da compra ──────────────────────
+
+CREATE OR REPLACE FUNCTION public.aplicar_evento_melhor_envio(
+  p_me_order_id text,
+  p_evento text,
+  p_rastreio text,
+  p_me_status text,
+  p_protocolo text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $fn$
+DECLARE
+  ped public.pedidos%ROWTYPE;
+  evento text;
+  v_rastreio text;
+  alvo text;
+  v_email text;
+  v_me_status text;
+  v_protocolo text;
+  v_prova boolean;
+  v_me_gravar text;
+BEGIN
+  IF p_me_order_id IS NULL OR p_me_order_id !~ '^[A-Za-z0-9-]{8,64}$' THEN
+    RETURN pg_catalog.jsonb_build_object('ok', false, 'erro', 'invalido');
+  END IF;
+
+  evento := pg_catalog.lower(pg_catalog.btrim(COALESCE(p_evento, '')));
+  v_me_status := NULLIF(pg_catalog.left(pg_catalog.btrim(COALESCE(p_me_status, '')), 40), '');
+  v_protocolo := NULLIF(pg_catalog.left(pg_catalog.btrim(COALESCE(p_protocolo, '')), 40), '');
+  v_rastreio := NULLIF(pg_catalog.btrim(COALESCE(p_rastreio, '')), '');
+  IF v_rastreio IS NOT NULL AND v_rastreio !~ '^[A-Za-z0-9]{4,40}$' THEN
+    v_rastreio := NULL;
+  END IF;
+
+  SELECT *
+  INTO ped
+  FROM public.pedidos
+  WHERE me_order_id = p_me_order_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('ok', true, 'ausente', true);
+  END IF;
+
+  IF v_rastreio IS NULL THEN
+    v_rastreio := ped.rastreio;
+  END IF;
+
+  alvo := ped.status;
+  v_email := NULL;
+
+  IF ped.status NOT IN (
+    'cancelado',
+    'reembolsado',
+    'expirado',
+    'recusado',
+    'pendente',
+    'pronto_retirada',
+    'retirado'
+  ) THEN
+    IF evento = 'order.posted' AND ped.status IN ('pago', 'etiqueta_gerada') THEN
+      alvo := 'enviado';
+      v_email := 'enviado';
+    ELSIF evento = 'order.delivered' AND ped.status IN ('pago', 'etiqueta_gerada', 'enviado') THEN
+      alvo := 'entregue';
+      v_email := 'entregue';
+    ELSIF evento IN ('order.generated', 'order.released')
+      AND ped.status = 'pago'
+      AND v_rastreio IS NOT NULL
+    THEN
+      alvo := 'etiqueta_gerada';
+    END IF;
+  END IF;
+
+  v_prova := evento IN ('order.posted', 'order.delivered', 'order.generated', 'order.released')
+    OR pg_catalog.lower(COALESCE(v_me_status, '')) IN (
+      'released', 'generated', 'posted', 'delivered', 'received', 'undelivered'
+    );
+
+  IF v_prova THEN
+    v_me_gravar := COALESCE(
+      v_me_status,
+      CASE evento
+        WHEN 'order.posted' THEN 'posted'
+        WHEN 'order.delivered' THEN 'delivered'
+        WHEN 'order.generated' THEN 'generated'
+        WHEN 'order.released' THEN 'released'
+        ELSE NULL
+      END,
+      ped.me_status
+    );
+  ELSIF ped.me_status IN ('comprando', 'pendente', 'precisa_conferir') THEN
+    v_me_gravar := ped.me_status;
+  ELSE
+    v_me_gravar := COALESCE(v_me_status, ped.me_status);
+  END IF;
+
+  UPDATE public.pedidos
+  SET
+    rastreio = v_rastreio,
+    me_status = v_me_gravar,
+    me_protocolo = COALESCE(v_protocolo, me_protocolo),
+    etiqueta_em = CASE
+      WHEN alvo = 'etiqueta_gerada' AND etiqueta_em IS NULL THEN pg_catalog.now()
+      ELSE etiqueta_em
+    END,
+    status = alvo
+  WHERE id = ped.id;
+
+  IF alvo IS DISTINCT FROM ped.status THEN
+    INSERT INTO public.pedido_status_historico (pedido_id, status, origem)
+    VALUES (ped.id, alvo, 'melhor_envio');
+  END IF;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'ok', true,
+    'pedido_id', ped.id,
+    'status', alvo,
+    'mudou', alvo IS DISTINCT FROM ped.status,
+    'email', v_email
+  );
+END;
+$fn$;
+
+COMMENT ON FUNCTION public.aplicar_evento_melhor_envio(text, text, text, text, text) IS
+  'Aplica postagem e entrega. Não substitui comprando, pendente nem precisa_conferir sem prova de pagamento.';
