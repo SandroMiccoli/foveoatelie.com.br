@@ -146,6 +146,31 @@ export function rotuloStatus(status) {
   return STATUS[status.trim().toLowerCase()] || "—";
 }
 
+/** Origens gravadas no histórico → texto curto em português. */
+const ORIGENS = {
+  mercado_pago: "Mercado Pago",
+  webhook: "Mercado Pago",
+  checkout: "Checkout",
+  admin: "Ajuste manual",
+  manual: "Ajuste manual",
+  sistema: "Sistema",
+  reembolso: "Reembolso",
+  melhor_envio: "Melhor Envio",
+};
+
+export function rotuloOrigem(origem) {
+  if (typeof origem !== "string") return "";
+  const chave = origem.trim().toLowerCase();
+  if (!chave) return "";
+  if (ORIGENS[chave]) return ORIGENS[chave];
+  return chave
+    .replace(/[_-]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1))
+    .join(" ");
+}
+
 export function nivelStatus(status) {
   const chave = typeof status === "string" ? status.trim().toLowerCase() : "";
   if (

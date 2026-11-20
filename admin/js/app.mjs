@@ -42,6 +42,7 @@ import {
   renovar,
   resumoPedidos,
   rotuloEntrega,
+  rotuloOrigem,
   rotuloRail,
   rotuloStatus,
   sair,
@@ -623,7 +624,7 @@ function painelDetalhe(pedido) {
       return el("li", {}, [
         el("span", { class: "hist-status", text: rotuloStatus(h.status) }),
         el("time", { text: quando ? quando.texto : "—" }),
-        el("span", { class: "hist-origem", text: h.origem || "" }),
+        el("span", { class: "hist-origem", text: rotuloOrigem(h.origem) }),
       ]);
     })
     : [el("li", { class: "hist-vazio", text: "Sem histórico ainda." })];

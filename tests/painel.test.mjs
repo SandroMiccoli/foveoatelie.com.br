@@ -28,6 +28,7 @@ import {
   resumoPedidos,
   rotuloEntrega,
   proximoRail,
+  rotuloOrigem,
   rotuloRail,
   rotuloStatus,
   RAIL_ABERTO,
@@ -384,6 +385,19 @@ test("o detalhe e as confirmações existem na interface", async () => {
   assert.match(app, /data-toggle-testes/);
 });
 
+test("origem do histórico fica em português", () => {
+  assert.equal(rotuloOrigem("mercado_pago"), "Mercado Pago");
+  assert.equal(rotuloOrigem("checkout"), "Checkout");
+  assert.equal(rotuloOrigem("admin"), "Ajuste manual");
+  assert.equal(rotuloOrigem("manual"), "Ajuste manual");
+  assert.equal(rotuloOrigem("webhook"), "Mercado Pago");
+  assert.equal(rotuloOrigem("reembolso"), "Reembolso");
+  assert.equal(rotuloOrigem("sistema"), "Sistema");
+  assert.equal(rotuloOrigem("melhor_envio"), "Melhor Envio");
+  assert.equal(rotuloOrigem("fonte_desconhecida"), "Fonte Desconhecida");
+  assert.equal(rotuloOrigem(""), "");
+});
+
 test("a lista no computador não espreme nem quebra palavra no meio", async () => {
   const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
@@ -394,6 +408,8 @@ test("a lista no computador não espreme nem quebra palavra no meio", async () =
   assert.match(css, /pedidos-com-detalhe \.detalhe-camada[\s\S]*position:\s*fixed/);
   assert.match(css, /\.detalhe\s*\{[\s\S]*27\.5rem/);
   assert.doesNotMatch(css, /pedidos-com-detalhe \.pedidos-miolo[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*min\(/);
+  assert.match(css, /\.detalhe-campo\s*\{[\s\S]*column-gap:\s*1\.25rem/);
+  assert.match(css, /\.detalhe-campo\s*\{[\s\S]*9\.5rem/);
 });
 
 test("o menu lateral no computador recolhe e fixa o estado", async () => {
