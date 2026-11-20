@@ -27,7 +27,12 @@ import {
   reembolsarPedido,
   resumoPedidos,
   rotuloEntrega,
+  proximoRail,
+  rotuloRail,
   rotuloStatus,
+  RAIL_ABERTO,
+  RAIL_AUTO,
+  RAIL_RECOLHIDO,
   sessaoPrecisaRenovar,
 } from "../admin/js/painel.mjs";
 
@@ -383,9 +388,28 @@ test("a lista no computador não espreme nem quebra palavra no meio", async () =
   const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
+  assert.doesNotMatch(css, /min-width:\s*56rem/);
+  assert.match(css, /td\[data-campo="velas"\][\s\S]*?white-space:\s*normal/);
+  assert.match(css, /td\[data-campo="entrega"\][\s\S]*?white-space:\s*normal/);
   assert.match(css, /pedidos-com-detalhe \.detalhe-camada[\s\S]*position:\s*fixed/);
   assert.match(css, /\.detalhe\s*\{[\s\S]*27\.5rem/);
   assert.doesNotMatch(css, /pedidos-com-detalhe \.pedidos-miolo[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*min\(/);
+});
+
+test("o menu lateral no computador recolhe e fixa o estado", async () => {
+  assert.equal(proximoRail(RAIL_AUTO), RAIL_ABERTO);
+  assert.equal(proximoRail(RAIL_ABERTO), RAIL_RECOLHIDO);
+  assert.equal(proximoRail(RAIL_RECOLHIDO), RAIL_AUTO);
+  assert.match(rotuloRail(RAIL_AUTO), /Fixar/);
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.match(css, /--rail-w:\s*4rem/);
+  assert.match(css, /\.casca\.rail-aberta \.rail/);
+  assert.match(css, /\.casca\.rail-hover \.rail/);
+  const app = await readFile(new URL("../admin/js/app.mjs", import.meta.url), "utf8");
+  assert.match(app, /data-rail-fixar/);
+  assert.match(app, /RAIL_HOVER_MS\s*=\s*300/);
+  assert.match(app, /iconeWhatsApp|wa-icone/);
+  assert.match(app, /nav-icone/);
 });
 
 function pedidoFixture(extra) {

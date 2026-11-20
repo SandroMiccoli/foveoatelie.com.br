@@ -2,6 +2,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config.mjs";
 import {
   CHAVE_DEPOIS,
   CHAVE_SESSAO,
+  RAIL_ABERTO,
+  RAIL_AUTO,
+  RAIL_RECOLHIDO,
   ROTAS,
   STATUS,
   alterarStatusPedido,
@@ -17,8 +20,10 @@ import {
   formatarPreco,
   formatarVelas,
   gravarMostrarTestes,
+  gravarRail,
   gravarSessao,
   lerMostrarTestes,
+  lerRail,
   lerSessao,
   limparSessao,
   linkWhatsApp,
@@ -32,10 +37,12 @@ import {
   nivelStatus,
   normalizarCaminho,
   opcoesStatus,
+  proximoRail,
   reembolsarPedido,
   renovar,
   resumoPedidos,
   rotuloEntrega,
+  rotuloRail,
   rotuloStatus,
   sair,
   salvarNotasPedido,
@@ -58,6 +65,9 @@ let historicoAberto = [];
 let avisoPedido = "";
 let confirmacao = null;
 let notasRascunho = "";
+let railEstado = RAIL_AUTO;
+let railHoverTimer = 0;
+const RAIL_HOVER_MS = 300;
 
 function el(tag, attrs, children) {
   const node = document.createElement(tag);
@@ -149,6 +159,76 @@ function focarTitulo() {
   titulo.focus({ preventScroll: true });
 }
 
+function svgEl(tag, attrs, children) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  if (attrs) {
+    for (const [chave, valor] of Object.entries(attrs)) {
+      if (valor == null || valor === false) continue;
+      node.setAttribute(chave, valor);
+    }
+  }
+  for (const filho of children || []) {
+    if (filho == null || filho === false) continue;
+    node.append(filho);
+  }
+  return node;
+}
+
+function iconeSvg(paths, viewBox = "0 0 24 24") {
+  return svgEl("svg", {
+    class: "nav-icone",
+    viewBox,
+    width: "20",
+    height: "20",
+    "aria-hidden": "true",
+    focusable: "false",
+  }, paths.map((d) => svgEl("path", {
+    d,
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "1.5",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  })));
+}
+
+const ICONES = {
+  inicio: ["M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"],
+  pedidos: ["M7 4h10a1 1 0 0 1 1 1v15l-3.5-2-3.5 2-3.5-2L4 20V5a1 1 0 0 1 1-1z", "M8 9h8", "M8 13h6"],
+  estoque: ["M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5z", "M12 12v8", "M3.5 8.5 12 12l8.5-3.5"],
+  clientes: ["M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z", "M5 20a7 7 0 0 1 14 0"],
+  sair: ["M10 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4", "M14 12H8", "M14 12l3-3", "M14 12l3 3"],
+  fixar: ["M12 3v7", "M8.5 7.5h7", "M9 10.5 12 21l3-10.5"],
+};
+
+function iconeWhatsApp() {
+  return svgEl("svg", {
+    class: "wa-icone",
+    viewBox: "0 0 24 24",
+    width: "18",
+    height: "18",
+    "aria-hidden": "true",
+    focusable: "false",
+  }, [
+    svgEl("path", {
+      d: "M12 3.5a8 8 0 0 0-6.9 12.1L4.5 20l4.5-.9A8 8 0 1 0 12 3.5z",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "1.5",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    }),
+    svgEl("path", {
+      d: "M9.4 9.6c.3-.3.7-.3.9 0l.8 1.1c.2.3.1.7-.1.9l-.4.4a6.5 6.5 0 0 0 2.5 2.5l.4-.4c.2-.2.6-.3.9-.1l1.1.8c.3.2.3.6 0 .9l-.6.6c-.3.3-.7.4-1.1.3A8.4 8.4 0 0 1 8.5 11c-.1-.4 0-.8.3-1.1z",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "1.5",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    }),
+  ]);
+}
+
 function marca(corte) {
   const img = el("img", {
     src: "/assets/logo-claro.svg",
@@ -159,29 +239,133 @@ function marca(corte) {
   return el("span", { class: corte ? "marca-corte" : "marca-cheia" }, [img]);
 }
 
+function marcaSelo() {
+  return svgEl("svg", {
+    class: "marca-selo-svg",
+    viewBox: "0 0 28 32",
+    width: "28",
+    height: "32",
+    "aria-hidden": "true",
+    focusable: "false",
+  }, [
+    svgEl("text", {
+      x: "14",
+      y: "24",
+      "text-anchor": "middle",
+      fill: "currentColor",
+      "font-family": "EB Garamond, Georgia, serif",
+      "font-size": "22",
+      "font-style": "italic",
+    }, [document.createTextNode("F")]),
+    svgEl("rect", {
+      x: "8",
+      y: "4",
+      width: "12",
+      height: "2",
+      rx: "1",
+      fill: "#c87431",
+    }),
+  ]);
+}
+
+function aplicarClasseRail(cascaNode) {
+  if (!cascaNode) return;
+  cascaNode.classList.remove("rail-aberta", "rail-recolhida", "rail-hover");
+  if (railEstado === RAIL_ABERTO) cascaNode.classList.add("rail-aberta");
+  else if (railEstado === RAIL_RECOLHIDO) cascaNode.classList.add("rail-recolhida");
+  cascaNode.dataset.rail = railEstado;
+  const botao = cascaNode.querySelector("[data-rail-fixar]");
+  if (botao) {
+    botao.setAttribute("aria-pressed", railEstado === RAIL_AUTO ? "false" : "true");
+    botao.setAttribute("aria-label", rotuloRail(railEstado));
+    botao.setAttribute("title", rotuloRail(railEstado));
+  }
+}
+
+function ligarHoverRail(cascaNode) {
+  const rail = cascaNode.querySelector(".rail");
+  if (!rail || rail.dataset.hoverPronto) return;
+  rail.dataset.hoverPronto = "1";
+  rail.addEventListener("mouseenter", () => {
+    if (railEstado !== RAIL_AUTO) return;
+    window.clearTimeout(railHoverTimer);
+    railHoverTimer = window.setTimeout(() => {
+      cascaNode.classList.add("rail-hover");
+    }, RAIL_HOVER_MS);
+  });
+  rail.addEventListener("mouseleave", () => {
+    window.clearTimeout(railHoverTimer);
+    cascaNode.classList.remove("rail-hover");
+  });
+  rail.addEventListener("focusin", () => {
+    if (railEstado !== RAIL_AUTO) return;
+    window.clearTimeout(railHoverTimer);
+    cascaNode.classList.add("rail-hover");
+  });
+  rail.addEventListener("focusout", (event) => {
+    if (rail.contains(event.relatedTarget)) return;
+    window.clearTimeout(railHoverTimer);
+    cascaNode.classList.remove("rail-hover");
+  });
+}
+
 function casca() {
-  const links = [
-    ["/", "Início"],
-    ["/pedidos", "Pedidos"],
-    ["/estoque", "Estoque"],
-    ["/clientes", "Clientes"],
-  ].map(([href, nome]) => {
-    const a = el("a", { href, text: nome });
+  const itens = [
+    ["/", "Início", "inicio"],
+    ["/pedidos", "Pedidos", "pedidos"],
+    ["/estoque", "Estoque", "estoque"],
+    ["/clientes", "Clientes", "clientes"],
+  ].map(([href, nome, chave]) => {
+    const a = el("a", {
+      href,
+      "aria-label": nome,
+      title: nome,
+    }, [
+      iconeSvg(ICONES[chave]),
+      el("span", { class: "nav-rotulo", text: nome }),
+    ]);
     if (href === caminhoAgora()) a.setAttribute("aria-current", "page");
     return a;
   });
 
-  return el("div", { class: "casca" }, [
+  const fixar = el("button", {
+    type: "button",
+    class: "rail-fixar",
+    "data-rail-fixar": "1",
+    "aria-pressed": "false",
+    "aria-label": rotuloRail(RAIL_AUTO),
+    title: rotuloRail(RAIL_AUTO),
+  }, [
+    iconeSvg(ICONES.fixar),
+    el("span", { class: "nav-rotulo", text: "Fixar" }),
+  ]);
+
+  const sairRail = el("button", {
+    class: "sair sair-rail",
+    type: "button",
+    "data-sair": "1",
+    "aria-label": "Sair",
+    title: "Sair",
+  }, [
+    iconeSvg(ICONES.sair),
+    el("span", { class: "nav-rotulo", text: "Sair" }),
+  ]);
+
+  const node = el("div", { class: "casca", "data-rail": railEstado }, [
     el("div", { class: "rail" }, [
       el("div", { class: "topo" }, [
-        el("a", { class: "marca", href: "/" }, [marca(true)]),
+        el("a", { class: "marca marca-larga", href: "/", "aria-label": "Foveō Ateliê" }, [marca(true)]),
+        el("a", { class: "marca marca-selo", href: "/", "aria-label": "Foveō Ateliê", title: "Foveō Ateliê" }, [marcaSelo()]),
         el("button", { class: "sair sair-topo", type: "button", "data-sair": "1", text: "Sair" }),
       ]),
-      el("nav", { class: "nav", "aria-label": "Seções" }, links),
-      el("button", { class: "sair sair-rail", type: "button", "data-sair": "1", text: "Sair" }),
+      el("nav", { class: "nav", "aria-label": "Seções" }, itens),
+      el("div", { class: "rail-rodape" }, [sairRail, fixar]),
     ]),
     el("main", { id: "conteudo", tabindex: "-1" }),
   ]);
+  aplicarClasseRail(node);
+  ligarHoverRail(node);
+  return node;
 }
 
 function titulo(texto) {
@@ -248,14 +432,16 @@ function vista(linha) {
 
 function botaoWa(wa) {
   if (!wa) return null;
-  return el("a", {
+  const a = el("a", {
     class: "wa",
     href: wa,
     target: "_blank",
     rel: "noopener noreferrer",
-    text: "WhatsApp",
     "aria-label": "Abrir WhatsApp da cliente",
+    title: "WhatsApp",
   });
+  a.append(iconeWhatsApp());
+  return a;
 }
 
 function celulaCodigo(item) {
@@ -330,7 +516,9 @@ function tabela(linhas) {
     el("th", { scope: "col", text: "Entrega" }),
     el("th", { scope: "col", text: "Total" }),
     el("th", { scope: "col", text: "Status" }),
-    el("th", { scope: "col", text: "Contato" }),
+    el("th", { scope: "col", class: "th-contato", "aria-label": "Contato" }, [
+      el("span", { class: "sr-only", text: "Contato" }),
+    ]),
   ]);
   const corpo = linhas.map((linha) => {
     const item = vista(linha);
@@ -676,8 +864,14 @@ function telaSumida() {
 }
 
 function pintarConteudo(node, focar) {
-  const temCasca = document.querySelector(".casca");
-  if (!temCasca) app.replaceChildren(casca());
+  let cascaNode = document.querySelector(".casca");
+  if (!cascaNode) {
+    app.replaceChildren(casca());
+    cascaNode = document.querySelector(".casca");
+  } else {
+    ligarHoverRail(cascaNode);
+    aplicarClasseRail(cascaNode);
+  }
   document.querySelectorAll(".nav a").forEach((a) => {
     const href = a.getAttribute("href");
     if (href === caminhoAgora()) a.setAttribute("aria-current", "page");
@@ -1017,6 +1211,18 @@ app.addEventListener("click", (event) => {
     pintarRegiaoPedidos();
     return;
   }
+  const fixarRail = event.target.closest("[data-rail-fixar]");
+  if (fixarRail) {
+    event.preventDefault();
+    railEstado = proximoRail(railEstado);
+    gravarRail(localStorage, railEstado);
+    const cascaNode = document.querySelector(".casca");
+    if (cascaNode) {
+      cascaNode.classList.remove("rail-hover");
+      aplicarClasseRail(cascaNode);
+    }
+    return;
+  }
   const fechar = event.target.closest("[data-fechar-detalhe]");
   if (fechar) {
     fecharDetalhe();
@@ -1158,6 +1364,7 @@ window.addEventListener("storage", (event) => {
 
 garantirSessao().then(() => {
   filtros.mostrarTestes = lerMostrarTestes(localStorage);
+  railEstado = lerRail(localStorage);
   exigirEntrada();
   pintar();
 });

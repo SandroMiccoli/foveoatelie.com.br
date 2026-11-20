@@ -2,6 +2,10 @@ export const EMAIL_ADMIN = "contato@foveoatelie.com.br";
 export const CHAVE_SESSAO = "foveo.admin.sessao";
 export const CHAVE_DEPOIS = "foveo.admin.depois";
 export const CHAVE_MOSTRAR_TESTES = "foveo.admin.mostrar_testes";
+export const CHAVE_RAIL = "foveo.admin.rail";
+export const RAIL_AUTO = "auto";
+export const RAIL_ABERTO = "aberto";
+export const RAIL_RECOLHIDO = "recolhido";
 
 export const ROTAS = {
   "/": "inicio",
@@ -365,6 +369,41 @@ export function gravarMostrarTestes(storage, valor) {
   } catch (_err) {
     // Sessão privada pode recusar.
   }
+}
+
+export function lerRail(storage) {
+  try {
+    const bruto = storage.getItem(CHAVE_RAIL);
+    if (bruto === RAIL_ABERTO || bruto === RAIL_RECOLHIDO) return bruto;
+    return RAIL_AUTO;
+  } catch (_err) {
+    return RAIL_AUTO;
+  }
+}
+
+export function gravarRail(storage, valor) {
+  try {
+    if (valor === RAIL_ABERTO || valor === RAIL_RECOLHIDO) {
+      storage.setItem(CHAVE_RAIL, valor);
+    } else {
+      storage.setItem(CHAVE_RAIL, RAIL_AUTO);
+    }
+  } catch (_err) {
+    // Sessão privada pode recusar.
+  }
+}
+
+/** Ciclo: auto → aberto → recolhido → auto. */
+export function proximoRail(atual) {
+  if (atual === RAIL_ABERTO) return RAIL_RECOLHIDO;
+  if (atual === RAIL_RECOLHIDO) return RAIL_AUTO;
+  return RAIL_ABERTO;
+}
+
+export function rotuloRail(estado) {
+  if (estado === RAIL_ABERTO) return "Menu fixado aberto";
+  if (estado === RAIL_RECOLHIDO) return "Menu fixado recolhido";
+  return "Fixar menu";
 }
 
 function diaEmBrasilia(iso) {

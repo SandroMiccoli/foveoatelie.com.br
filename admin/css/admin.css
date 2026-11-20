@@ -14,6 +14,8 @@
   --serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --nav-h: 4.25rem;
+  --rail-w: 4rem;
+  --rail-w-aberta: 15rem;
 }
 
 *,
@@ -253,6 +255,13 @@ h2 {
 }
 
 .sair-rail {
+  display: none;
+}
+
+.marca-selo,
+.rail-fixar,
+.nav-icone,
+.rail-rodape {
   display: none;
 }
 
@@ -517,14 +526,14 @@ input:-webkit-autofill {
 
 .rolagem {
   margin-top: 0.5rem;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 
 table {
   width: 100%;
-  min-width: 56rem;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
+  table-layout: auto;
 }
 
 caption {
@@ -561,11 +570,18 @@ td[data-campo="total"] {
 td[data-campo="codigo"],
 td[data-campo="data"],
 td[data-campo="cliente"],
-td[data-campo="velas"],
-td[data-campo="entrega"],
 td[data-campo="status"],
 td[data-campo="contato"] {
   white-space: nowrap;
+}
+
+td[data-campo="velas"],
+td[data-campo="entrega"] {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  max-width: 11rem;
 }
 
 .pedido-linha {
@@ -584,18 +600,20 @@ td[data-campo="contato"] {
 .wa {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 44px;
-  padding: 0.25rem 0;
+  min-width: 44px;
+  padding: 0.25rem;
   color: var(--paper-dim);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
   text-decoration: none;
-  text-transform: uppercase;
 }
 
 .wa:hover {
   color: var(--copper);
+}
+
+.wa-icone {
+  display: block;
 }
 
 .pedido-wa {
@@ -951,36 +969,117 @@ td[data-campo="total"] {
 
 @media (min-width: 60rem) {
   .casca {
-    display: grid;
-    grid-template-columns: 16rem minmax(0, 1fr);
+    display: block;
     min-height: 100dvh;
+    padding-left: var(--rail-w);
   }
 
   .rail {
     display: flex;
     flex-direction: column;
-    position: sticky;
+    position: fixed;
+    left: 0;
     top: 0;
+    z-index: 15;
+    width: var(--rail-w);
     height: 100dvh;
     border-right: 1px solid var(--line);
+    background: var(--ink);
+    overflow: hidden;
+    transition: width 0.2s ease;
+  }
+
+  .casca.rail-aberta .rail,
+  .casca.rail-hover .rail {
+    width: var(--rail-w-aberta);
   }
 
   .topo {
     position: static;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.75rem;
     border-bottom: 0;
-    padding: 1.25rem 1.25rem 0.5rem;
+    padding: 1rem 0.65rem 0.5rem;
+    min-height: 0;
+  }
+
+  .marca-larga {
+    display: none;
+  }
+
+  .casca.rail-aberta .marca-larga,
+  .casca.rail-hover .marca-larga {
+    display: inline-flex;
+    width: 100%;
+    padding: 0 0.6rem;
+  }
+
+  .casca.rail-aberta .marca-larga .marca-corte,
+  .casca.rail-hover .marca-larga .marca-corte {
+    width: 6.6rem;
+  }
+
+  .marca-selo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    color: var(--paper);
+  }
+
+  .casca.rail-aberta .marca-selo,
+  .casca.rail-hover .marca-selo {
+    display: none;
+  }
+
+  .marca-selo-svg {
+    display: block;
   }
 
   .sair-topo {
     display: none;
   }
 
-  .sair-rail {
+  .rail-rodape {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: auto;
+    margin-bottom: 0.75rem;
+    padding: 0 0.35rem;
+  }
+
+  .sair-rail,
+  .rail-fixar {
+    appearance: none;
     display: inline-flex;
-    align-self: flex-start;
-    margin: auto 0 0.75rem;
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding: 0.55rem 0.55rem;
+    border: 0;
+    background: transparent;
+    color: var(--paper);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .sair-rail:hover,
+  .rail-fixar:hover {
+    color: var(--copper);
+  }
+
+  .rail-fixar[aria-pressed="true"] {
+    color: var(--copper);
   }
 
   .nav {
@@ -989,15 +1088,16 @@ td[data-campo="total"] {
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    padding: 1rem 0 0;
+    padding: 0.75rem 0.35rem 0;
     border-top: 0;
     background: transparent;
   }
 
   .nav a {
     justify-content: flex-start;
+    gap: 0.75rem;
     min-height: 44px;
-    padding: 0.55rem 1.25rem;
+    padding: 0.55rem 0.55rem;
     font-size: 0.8125rem;
     letter-spacing: 0.08em;
     text-align: left;
@@ -1008,8 +1108,66 @@ td[data-campo="total"] {
     box-shadow: none;
   }
 
+  .nav a[aria-current="page"] .nav-icone {
+    color: var(--copper);
+  }
+
+  .nav-icone {
+    display: block;
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .nav-rotulo {
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    width: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .casca.rail-aberta .nav-rotulo,
+  .casca.rail-hover .nav-rotulo {
+    opacity: 1;
+    width: auto;
+  }
+
   .pagina {
-    padding: 2.5rem 2.5rem 4rem;
+    padding: 2rem 1.15rem 3.5rem;
+  }
+
+  table {
+    font-size: 0.8125rem;
+  }
+
+  th {
+    padding: 0.7rem 0.4rem 0.55rem 0;
+  }
+
+  td {
+    padding: 0.7rem 0.4rem 0.7rem 0;
+  }
+
+  th.th-contato,
+  td[data-campo="contato"] {
+    width: 2.75rem;
+    padding-right: 0;
+    text-align: center;
+  }
+
+  .wa {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+
+  td[data-campo="velas"],
+  td[data-campo="entrega"] {
+    max-width: 7.25rem;
+  }
+
+  td[data-campo="status"] .status {
+    letter-spacing: -0.01em;
   }
 
   /* No computador o detalhe sobrepõe a lista (camada escura + painel
@@ -1035,6 +1193,13 @@ td[data-campo="total"] {
     flex: none;
     border-left: 1px solid var(--line);
     padding: 1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 60rem) and (prefers-reduced-motion: reduce) {
+  .rail,
+  .nav-rotulo {
+    transition: none;
   }
 }
 
