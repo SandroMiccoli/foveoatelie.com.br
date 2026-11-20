@@ -522,6 +522,7 @@ input:-webkit-autofill {
 
 table {
   width: 100%;
+  min-width: 56rem;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
@@ -542,7 +543,9 @@ td {
   padding: 0.9rem 0.75rem 0.9rem 0;
   border-top: 1px solid var(--line);
   vertical-align: baseline;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 th:last-child,
@@ -557,6 +560,9 @@ td[data-campo="total"] {
 
 td[data-campo="codigo"],
 td[data-campo="data"],
+td[data-campo="cliente"],
+td[data-campo="velas"],
+td[data-campo="entrega"],
 td[data-campo="status"],
 td[data-campo="contato"] {
   white-space: nowrap;
@@ -693,7 +699,7 @@ td[data-campo="contato"] {
 }
 
 .detalhe {
-  width: min(28rem, 100%);
+  width: min(27.5rem, 100%);
   height: 100%;
   overflow: auto;
   background: var(--ink);
@@ -751,7 +757,9 @@ td[data-campo="contato"] {
 
 .detalhe-valor {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .detalhe-valor a {
@@ -905,7 +913,9 @@ td[data-campo="total"] {
 
 .pedido dd {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .so-larga {
@@ -1002,31 +1012,29 @@ td[data-campo="total"] {
     padding: 2.5rem 2.5rem 4rem;
   }
 
-  .pedidos-com-detalhe .pedidos-miolo {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) min(26rem, 38%);
-    gap: 0;
-    align-items: start;
+  /* No computador o detalhe sobrepõe a lista (camada escura + painel
+     fixo à direita). A tabela mantém a largura cheia por baixo. */
+  .pedidos-com-detalhe .lista-pedidos {
+    width: 100%;
   }
 
   .pedidos-com-detalhe .detalhe-camada {
-    position: sticky;
-    top: 0;
-    inset: auto;
-    height: calc(100dvh - 2rem);
-    background: transparent;
-    border-left: 1px solid var(--line);
+    position: fixed;
+    inset: 0;
+    z-index: 12;
+    background: rgba(13, 9, 8, 0.72);
+    display: flex;
+    justify-content: flex-end;
+    pointer-events: auto;
   }
 
   .pedidos-com-detalhe .detalhe {
-    width: 100%;
+    width: 27.5rem;
+    max-width: min(27.5rem, 100%);
     height: 100%;
-    border-left: 0;
-    padding: 0 0 0 1.5rem;
-  }
-
-  body.detalhe-aberto {
-    overflow: auto;
+    flex: none;
+    border-left: 1px solid var(--line);
+    padding: 1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
   }
 }
 

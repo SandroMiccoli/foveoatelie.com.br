@@ -379,6 +379,15 @@ test("o detalhe e as confirmações existem na interface", async () => {
   assert.match(app, /data-toggle-testes/);
 });
 
+test("a lista no computador não espreme nem quebra palavra no meio", async () => {
+  const css = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(css, /word-break:\s*break-all/);
+  assert.match(css, /pedidos-com-detalhe \.detalhe-camada[\s\S]*position:\s*fixed/);
+  assert.match(css, /\.detalhe\s*\{[\s\S]*27\.5rem/);
+  assert.doesNotMatch(css, /pedidos-com-detalhe \.pedidos-miolo[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*min\(/);
+});
+
 function pedidoFixture(extra) {
   return normalizarPedido({
     id: "00000000-0000-0000-0000-000000000000",
