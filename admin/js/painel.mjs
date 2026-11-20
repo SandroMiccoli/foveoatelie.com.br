@@ -178,6 +178,7 @@ const ORIGENS = {
   manual: "Ajuste manual",
   sistema: "Sistema",
   reembolso: "Reembolso",
+  mp_ja_reembolsado: "Mercado Pago (já reembolsado)",
   melhor_envio: "Melhor Envio",
 };
 
@@ -880,6 +881,10 @@ export function mensagemReembolsar(pedido) {
   return "Devolver " + total + " pro cliente pelo Mercado Pago" + forma + "? Não dá pra desfazer.";
 }
 
+export function mensagemJaReembolsado() {
+  return "O Mercado Pago informa que esse pagamento já foi reembolsado. Deseja marcar o pedido como reembolsado mesmo assim?";
+}
+
 export function mensagemApagarTeste(pedido) {
   const codigo = pedido && pedido.codigo ? "#" + pedido.codigo : "este pedido";
   return "Apagar " + codigo + "? Só pedidos de teste somem, e não tem volta.";
@@ -926,6 +931,9 @@ export function mensagemDeAcao(corpo, fallback) {
   if (erro === "use_reembolso") return "Reembolso passa pelo Mercado Pago, não pela troca de status.";
   if (erro === "status_invalido") return "Esse status não é aceito.";
   if (erro === "mp_recusou") return "O Mercado Pago recusou o reembolso.";
+  if (erro === "ja_reembolsado") {
+    return "O Mercado Pago informa que esse pagamento já foi reembolsado.";
+  }
   if (erro === "sem_pagamento" || erro === "sem_order") {
     return corpo && corpo.mensagem ? corpo.mensagem : "Não dá para reembolsar este pedido.";
   }
@@ -1138,6 +1146,12 @@ export async function apagarPedidoTeste(config, accessToken, pedidoId, fetchImpl
   }, fetchImpl);
 }
 
+export async function confirmarReembolso(config, accessToken, pedidoId, origem, fetchImpl) {
+  const corpo = { p_pedido_id: pedidoId };
+  if (origem) corpo.p_origem = origem;
+  return chamarRpc(config, accessToken, "admin_confirmar_reembolso", corpo, fetchImpl);
+}
+
 async function lerTabela(config, accessToken, caminho, fetchImpl, signal) {
   let res;
   try {
@@ -1229,6 +1243,9 @@ export async function reembolsarPedido(config, accessToken, pedidoId, fetchImpl)
     return { ok: false, rede: true };
   }
   const data = await lerCorpo(res);
+  if (data && data.ja_reembolsado === true) {
+    return { ok: false, ja_reembolsado: true, status: res.status, body: data };
+  }
   if (!res.ok || (data && data.ok === false)) {
     return { ok: false, status: res.status, body: data };
   }

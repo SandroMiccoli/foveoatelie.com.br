@@ -4,7 +4,10 @@
 //
 // Fluxo: confere o admin, POST /v1/orders/{mp_order_id}/refund (corpo vazio).
 // Se o Mercado Pago confirmar, chama admin_confirmar_reembolso (status + estoque).
-// Se o Mercado Pago recusar, o status do pedido não muda.
+// Se o Mercado Pago disser que já devolveu (ou a order já estiver refunded /
+// charged_back), devolve { ja_reembolsado: true } sem mudar o status — o painel
+// pede confirmação e aí chama a RPC.
+// Se o Mercado Pago recusar por outro motivo, o status do pedido não muda.
 
 import { jsonPainel, origemPainel } from "../_shared/painel.ts";
 
@@ -89,8 +92,16 @@ Deno.serve(async (req) => {
     });
   }
 
+  const jaNaOrder = await orderJaReembolsada(tokenMp, orderId);
+  if (jaNaOrder === true) {
+    return jsonPainel(origin, 409, { ok: false, ja_reembolsado: true, erro: "ja_reembolsado" });
+  }
+
   const reembolso = await reembolsarOrder(tokenMp, orderId);
   if (!reembolso.ok) {
+    if (reembolso.ja_reembolsado) {
+      return jsonPainel(origin, 409, { ok: false, ja_reembolsado: true, erro: "ja_reembolsado" });
+    }
     return jsonPainel(origin, reembolso.http, {
       ok: false,
       erro: reembolso.erro,
@@ -195,12 +206,61 @@ async function lerPedido(
   }
 }
 
+async function orderJaReembolsada(
+  token: string,
+  orderId: string,
+): Promise<boolean | null> {
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(orderId)) return null;
+  let res: Response;
+  try {
+    res = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch (_err) {
+    return null;
+  }
+  if (!res.ok) return null;
+  let data: Record<string, unknown> | null = null;
+  try {
+    data = await res.json();
+  } catch (_err) {
+    return null;
+  }
+  if (!data) return null;
+  const status = typeof data.status === "string" ? data.status.toLowerCase() : "";
+  if (status === "refunded") return true;
+  const pagamento = statusUltimoPagamento(data);
+  if (pagamento === "refunded" || pagamento === "charged_back" || pagamento === "chargeback") {
+    return true;
+  }
+  return false;
+}
+
+function statusUltimoPagamento(order: Record<string, unknown>): string {
+  const tx = order.transactions;
+  if (!tx || typeof tx !== "object") return "";
+  const payments = (tx as { payments?: unknown }).payments;
+  if (!Array.isArray(payments)) return "";
+  for (let i = payments.length - 1; i >= 0; i--) {
+    const item = payments[i];
+    if (!item || typeof item !== "object") continue;
+    const st = (item as { status?: unknown }).status;
+    if (typeof st === "string" && st.trim()) return st.trim().toLowerCase();
+  }
+  return "";
+}
+
 async function reembolsarOrder(
   token: string,
   orderId: string,
 ): Promise<
   | { ok: true }
-  | { ok: false; http: number; erro: string; mensagem: string }
+  | { ok: false; ja_reembolsado: true }
+  | { ok: false; ja_reembolsado?: false; http: number; erro: string; mensagem: string }
 > {
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(orderId)) {
     return {
@@ -251,6 +311,10 @@ async function reembolsarOrder(
     if (res.status === 201) return { ok: true };
   }
 
+  if (respostaJaReembolsado(data)) {
+    return { ok: false, ja_reembolsado: true };
+  }
+
   const mensagem = mensagemMercadoPago(res.status, data);
   return {
     ok: false,
@@ -260,7 +324,7 @@ async function reembolsarOrder(
   };
 }
 
-function mensagemMercadoPago(status: number, data: Record<string, unknown> | null): string {
+function respostaJaReembolsado(data: Record<string, unknown> | null): boolean {
   const errors = data && Array.isArray(data.errors) ? data.errors : null;
   const primeiro = errors && errors[0] && typeof errors[0] === "object"
     ? errors[0] as { code?: unknown; message?: unknown }
@@ -268,10 +332,17 @@ function mensagemMercadoPago(status: number, data: Record<string, unknown> | nul
   const codigo = primeiro && typeof primeiro.code === "string" ? primeiro.code : "";
   const msg = primeiro && typeof primeiro.message === "string" ? primeiro.message : "";
   const detail = data && typeof data.message === "string" ? data.message : "";
+  return codigo === "refund_amount_exceeds" || /already refunded/i.test(msg + detail);
+}
 
-  if (codigo === "refund_amount_exceeds" || /already refunded/i.test(msg + detail)) {
-    return "O Mercado Pago diz que esse pagamento já foi devolvido.";
-  }
+function mensagemMercadoPago(status: number, data: Record<string, unknown> | null): string {
+  const errors = data && Array.isArray(data.errors) ? data.errors : null;
+  const primeiro = errors && errors[0] && typeof errors[0] === "object"
+    ? errors[0] as { code?: unknown; message?: unknown }
+    : null;
+  const msg = primeiro && typeof primeiro.message === "string" ? primeiro.message : "";
+  const detail = data && typeof data.message === "string" ? data.message : "";
+
   if (/insufficient|saldo|balance/i.test(msg + detail)) {
     return "Sem saldo na conta do Mercado Pago para devolver esse valor.";
   }
