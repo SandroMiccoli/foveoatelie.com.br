@@ -1,0 +1,273 @@
+:root {
+  --ink: #0d0908;
+  --paper: #ede6d9;
+  --paper-dim: #c9c0b1;
+  --copper: #c87431;
+  --copper-press: #b86a2c;
+  --line: rgba(237, 230, 217, 0.2);
+  --erro: #cc6456;
+  --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --serif: "EB Garamond", "Iowan Old Style", Palatino, Georgia, serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.pular {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+  transform: translateY(-150%);
+  background: var(--copper);
+  color: var(--ink);
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.pular:focus {
+  transform: none;
+}
+
+.topo {
+  padding: 1.25rem 1.25rem 0;
+}
+
+.marca {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--paper);
+}
+
+.marca a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.marca a:hover {
+  color: var(--copper);
+}
+
+.miolo {
+  width: min(32rem, 100%);
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem calc(2rem + env(safe-area-inset-bottom));
+}
+
+h1 {
+  margin: 0.5rem 0 0.6rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.75rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin: 0 0 1.4rem;
+  color: var(--paper-dim);
+}
+
+form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.campo {
+  display: grid;
+  gap: 0.3rem;
+}
+
+label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper);
+  font: inherit;
+  font-size: 1rem;
+  caret-color: var(--copper);
+}
+
+input:focus {
+  outline: 2px solid var(--copper);
+  outline-offset: 2px;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--erro);
+}
+
+.erro {
+  margin: 0;
+  color: var(--erro);
+}
+
+.botao {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 0.35rem;
+  padding: 0.75rem 1.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--copper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.botao:hover {
+  background: var(--copper-press);
+}
+
+.botao:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.botao:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: 3px;
+}
+
+.resultado {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.resultado h2 {
+  margin: 0 0 0.35rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.6rem;
+}
+
+.codigo {
+  margin: 0 0 1rem;
+  color: var(--paper-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.linha {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.linha li {
+  position: relative;
+  padding: 0 0 1rem 1.35rem;
+}
+
+.linha li::before {
+  content: "";
+  position: absolute;
+  left: 0.28rem;
+  top: 0.45rem;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.linha li:last-child::before {
+  display: none;
+}
+
+.linha li::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.4rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--paper-dim);
+}
+
+.linha li[aria-current="step"]::after {
+  background: var(--copper);
+}
+
+.passo-nome {
+  display: block;
+}
+
+.passo-quando {
+  display: block;
+  color: var(--paper-dim);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rastreio {
+  margin: 0.4rem 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.resultado a {
+  color: var(--copper);
+}
+
+.resultado a:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 45rem) {
+  .topo {
+    padding: 2rem 2.5rem 0;
+  }
+
+  .miolo {
+    padding-top: 2rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .botao {
+    width: auto;
+  }
+}

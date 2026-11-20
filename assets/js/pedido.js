@@ -7,7 +7,23 @@
   var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   var INTERVALO = 3000;
   var LIMITE = 60000;
-  var PAGOS = { pago: true, enviado: true, entregue: true };
+  var PAGOS = {
+    pago: true,
+    etiqueta_gerada: true,
+    enviado: true,
+    entregue: true,
+    pronto_retirada: true,
+    retirado: true
+  };
+
+  var TITULOS = {
+    pago: "Pagamento aprovado",
+    etiqueta_gerada: "Etiqueta gerada",
+    enviado: "Pedido enviado",
+    entregue: "Pedido entregue",
+    pronto_retirada: "Pronto pra retirada",
+    retirado: "Pedido retirado"
+  };
 
   var raiz = document.getElementById("pedido-pagina");
   if (!raiz) return;
@@ -139,7 +155,8 @@
     if (dados.entrega_tipo === "retirada") {
       return "Suas velas ficam prontas a partir de quarta\u2011feira, " + dia + ". Chama a gente no WhatsApp pra combinar a retirada.";
     }
-    return "Seu pedido será postado na quarta\u2011feira, " + dia + ". O código de rastreio chega pelo WhatsApp.";
+    if (dados.rastreio) return "Seu pedido foi postado na quarta\u2011feira, " + dia + ".";
+    return "Seu pedido será postado na quarta\u2011feira, " + dia + ". O código de rastreio chega neste e-mail e nesta página.";
   }
 
   function linkWhatsapp(dados, extra) {
@@ -208,6 +225,29 @@
     return home + (home.indexOf("?") === -1 ? "?" : "&") + "sacola=1";
   }
 
+  function blocoRastreio(dados) {
+    var antigo = document.getElementById("pedido-rastreio");
+    if (antigo) antigo.remove();
+    if (!dados || !dados.rastreio || !prazo || !prazo.parentNode) return;
+    var bloco = document.createElement("div");
+    bloco.id = "pedido-rastreio";
+    bloco.className = "pedido-rastreio";
+    var rotulo = document.createElement("p");
+    rotulo.className = "pedido-nota";
+    rotulo.textContent = "Rastreio " + dados.rastreio;
+    bloco.appendChild(rotulo);
+    if (dados.rastreio_url) {
+      var link = document.createElement("a");
+      link.className = "cta";
+      link.href = dados.rastreio_url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Acompanhar na transportadora";
+      bloco.appendChild(link);
+    }
+    prazo.parentNode.insertBefore(bloco, prazo.nextSibling);
+  }
+
   function desenhar(dados) {
     if (!dados || !titulo) return;
     if (resumo) resumo.hidden = true;
@@ -216,8 +256,9 @@
     document.title = "Pedido — Foveō Ateliê";
 
     if (PAGOS[dados.status]) {
-      titulo.textContent = "Pagamento aprovado";
-      document.title = "Pagamento aprovado — Foveō Ateliê";
+      var tituloPago = TITULOS[dados.status] || "Pagamento aprovado";
+      titulo.textContent = tituloPago;
+      document.title = tituloPago + " — Foveō Ateliê";
       mostrarNota(dados.primeiro_nome ? "Obrigado, " + dados.primeiro_nome + "!" : "Obrigado!");
       desenharResumo(dados);
       if (prazo) {
@@ -225,11 +266,14 @@
         prazo.hidden = !frase;
         prazo.textContent = frase;
       }
+      blocoRastreio(dados);
       ligarWhatsapp(dados, "");
       mostrarAcoes();
       esvaziarSacola();
       return;
     }
+    var velho = document.getElementById("pedido-rastreio");
+    if (velho) velho.remove();
 
     if (dados.status === "pendente" && dados.retentativa) {
       titulo.textContent = "Pagamento não aprovado";
