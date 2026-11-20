@@ -204,8 +204,8 @@ h2 {
 .marca-entrada {
   align-self: center;
   justify-content: center;
-  width: min(12rem, 100%);
-  margin-bottom: 2rem;
+  width: 150%;
+  margin-bottom: 4rem;
 }
 
 .marca-entrada .marca-cheia {
