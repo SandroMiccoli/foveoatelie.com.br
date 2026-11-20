@@ -180,27 +180,61 @@ function somarDias(y: number, m: number, d: number, dias: number): { y: number; 
   return { y: data.getUTCFullYear(), m: data.getUTCMonth() + 1, d: data.getUTCDate() };
 }
 
-// Fecha na sexta à noite (America/Sao_Paulo). A postagem é a quarta da semana seguinte:
-// sexta + 5 dias. Sábado e domingo entram na semana que começa na segunda.
-export function dataPostagem(instante: string | Date): string | null {
+function isoCivil(c: { y: number; m: number; d: number }): string {
+  return `${c.y}-${String(c.m).padStart(2, "0")}-${String(c.d).padStart(2, "0")}`;
+}
+
+function diaMesCivil(c: { y: number; m: number; d: number }): string {
+  return String(c.d).padStart(2, "0") + "/" + String(c.m).padStart(2, "0");
+}
+
+// Corte na segunda 23:59 (America/Sao_Paulo). Pago até segunda → quarta da mesma
+// semana; de terça 00:00 a domingo 23:59 → quarta da semana seguinte.
+// Ex.: dom 22/11 → 25/11; seg 23/11 → 25/11; ter 24/11 → 02/12.
+function civilQuartaPostagem(instante: string | Date): { y: number; m: number; d: number } | null {
   const data = instante instanceof Date ? instante : new Date(instante);
   if (Number.isNaN(data.getTime())) return null;
   const civil = dataCivil(data);
   if (!civil) return null;
-  let { y, m, d } = civil;
-  let dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  if (dow === 6) {
-    ({ y, m, d } = somarDias(y, m, d, 2));
-    dow = 1;
-  } else if (dow === 0) {
-    ({ y, m, d } = somarDias(y, m, d, 1));
-    dow = 1;
-  }
-  const sexta = somarDias(y, m, d, 5 - dow);
-  const quarta = somarDias(sexta.y, sexta.m, sexta.d, 5);
-  const mm = String(quarta.m).padStart(2, "0");
-  const dd = String(quarta.d).padStart(2, "0");
-  return `${quarta.y}-${mm}-${dd}`;
+  const { y, m, d } = civil;
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=dom … 1=seg … 6=sáb
+  // Segunda → +2; terça → +8; quarta → +7; …; domingo → +3.
+  const dias = dow === 1 ? 2 : dow === 0 ? 3 : 10 - dow;
+  return somarDias(y, m, d, dias);
+}
+
+/** YYYY-MM-DD da quarta de postagem (página do pedido / lote). */
+export function dataPostagem(instante: string | Date): string | null {
+  const quarta = civilQuartaPostagem(instante);
+  return quarta ? isoCivil(quarta) : null;
+}
+
+/** dd/mm da quarta de postagem (e-mail de pagamento confirmado). */
+export function proximaQuartaPostagem(instante: string | Date): string | null {
+  const quarta = civilQuartaPostagem(instante);
+  return quarta ? diaMesCivil(quarta) : null;
+}
+
+/** Quarta-feira do lote atual: hoje se for quarta em SP, senão a próxima. YYYY-MM-DD. */
+export function quartaAlvoLote(agora: string | Date = new Date()): string | null {
+  const data = agora instanceof Date ? agora : new Date(agora);
+  if (Number.isNaN(data.getTime())) return null;
+  const civil = dataCivil(data);
+  if (!civil) return null;
+  const dow = new Date(Date.UTC(civil.y, civil.m - 1, civil.d)).getUTCDay();
+  const dias = dow === 3 ? 0 : (3 - dow + 7) % 7;
+  return isoCivil(somarDias(civil.y, civil.m, civil.d, dias));
+}
+
+/** Pedido entra no lote se a postagem for até a quarta alvo (inclui atrasados). */
+export function pedidoNoLoteQuarta(
+  quando: string | Date,
+  agora: string | Date = new Date(),
+): boolean {
+  const postagem = dataPostagem(quando);
+  const alvo = quartaAlvoLote(agora);
+  if (!postagem || !alvo) return false;
+  return postagem <= alvo;
 }
 
 export function partirNome(nome: string): { first_name: string; last_name?: string } {

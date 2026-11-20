@@ -4,7 +4,7 @@
 import { linkRastreio, type EventoEmail } from "./etiquetas.ts";
 
 export type { EventoEmail };
-import { centavosParaReais } from "./pedido.ts";
+import { centavosParaReais, proximaQuartaPostagem } from "./pedido.ts";
 
 export type ItemEmail = { nome: string; qtd: number; preco_unitario_centavos: number };
 
@@ -22,7 +22,20 @@ export type DadosEmail = {
   transportadora: string;
   servico: string;
   rastreio: string;
+  /** pago_em ou created_at; usado só no e-mail de pagamento confirmado (envio). */
+  quando?: string;
 };
+
+export function frasePosPagamento(dados: DadosEmail): string {
+  if (dados.entrega_tipo === "retirada") {
+    return "Avisamos por aqui quando o pedido estiver pronto pra retirada.";
+  }
+  const dia = dados.quando ? proximaQuartaPostagem(dados.quando) : null;
+  if (dia) {
+    return "A postagem sai na quarta-feira, " + dia + ". O código de rastreio chega neste e-mail.";
+  }
+  return "A postagem sai na quarta-feira. O código de rastreio chega neste e-mail.";
+}
 
 const COR = {
   fundo: "#0e0b09",
@@ -78,7 +91,7 @@ export function textoEmail(dados: DadosEmail): string {
     linhas.push("Frete: " + frete + " — " + (dados.frete_centavos > 0 ? reaisEmail(dados.frete_centavos) : "grátis"));
     linhas.push("Total: " + reaisEmail(dados.total_centavos));
     linhas.push("");
-    linhas.push("A postagem sai na quarta-feira. O código de rastreio chega neste e-mail.");
+    linhas.push(frasePosPagamento(dados));
   } else if (dados.evento === "enviado") {
     linhas.push("O pedido " + codigo + " foi postado.");
     if (dados.rastreio) {
@@ -130,7 +143,8 @@ export function htmlEmail(dados: DadosEmail): string {
     tabela += linhaHtml(freteNome, dados.frete_centavos > 0 ? reaisEmail(dados.frete_centavos) : "Grátis");
     tabela += linhaHtml("Total", reaisEmail(dados.total_centavos), true);
     miolo += "<table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;margin:8px 0 16px;\">" + tabela + "</table>";
-    miolo += "<p style=\"margin:0;color:" + COR.baço + ";font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;\">A postagem sai na quarta-feira. O código de rastreio chega neste e-mail.</p>";
+    miolo += "<p style=\"margin:0;color:" + COR.baço + ";font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;\">" +
+      escapar(frasePosPagamento(dados)) + "</p>";
   } else if (dados.evento === "enviado") {
     const link = dados.rastreio ? linkRastreio(dados.transportadora, dados.rastreio) : null;
     miolo += "<p style=\"margin:0 0 12px;color:" + COR.papel + ";font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;\">" +

@@ -24,6 +24,7 @@ import {
 } from "../_shared/etiquetas.ts";
 import { registrarSaldoBaixo } from "../_shared/avisos.ts";
 import { baseUrlMelhorEnvio, cotarMelhorEnvio, montarPacotes } from "../_shared/frete.ts";
+import { pedidoNoLoteQuarta, quartaAlvoLote } from "../_shared/pedido.ts";
 import { chamarMelhorEnvio, tokenMelhorEnvio } from "../_shared/token-me.ts";
 import { emSegundoPlano } from "../_shared/segundo-plano.ts";
 
@@ -42,7 +43,14 @@ const MOTIVO: Record<string, string> = {
   sem_itens: "O pedido não tem velas.",
   em_compra: "Outra compra desta etiqueta já está em andamento.",
   sem_cotacao: "Não consegui o preço atual no Melhor Envio.",
+  outra_quarta: "A postagem é em outra quarta. Fica para o próximo lote.",
 };
+
+function diaMesDeIso(iso: string): string {
+  const partes = iso.split("-");
+  if (partes.length !== 3) return "";
+  return partes[2] + "/" + partes[1];
+}
 
 Deno.serve(async (req) => {
   const origin = origemPainel(req.headers.get("Origin"));
@@ -201,6 +209,11 @@ function pedidoDe(row: Record<string, unknown>): PedidoEtiqueta | null {
     me_order_id: texto(row.me_order_id),
     me_status: texto(row.me_status).toLowerCase(),
     rastreio: texto(row.rastreio),
+    quando: typeof row.pago_em === "string" && row.pago_em
+      ? row.pago_em
+      : typeof row.created_at === "string"
+      ? row.created_at
+      : "",
   };
 }
 
@@ -229,6 +242,8 @@ async function listarPedidos(
     "me_order_id",
     "me_status",
     "rastreio",
+    "pago_em",
+    "created_at",
   ].join(",");
   const filtro = ids && ids.length
     ? "&id=in.(" + ids.join(",") + ")"
@@ -295,7 +310,15 @@ async function resumo(
   const conferir: { id: string; codigo: string }[] = [];
   const candidatos: PedidoEtiqueta[] = [];
   const fora: { codigo: string; motivo: string }[] = [];
+  const lote = !ids ? quartaAlvoLote() : null;
   for (const pedido of pedidos) {
+    if (lote && (!pedido.quando || !pedidoNoLoteQuarta(pedido.quando))) {
+      fora.push({
+        codigo: pedido.codigo || pedido.id.slice(0, 8),
+        motivo: MOTIVO.outra_quarta,
+      });
+      continue;
+    }
     const classe = classificarPedido(pedido);
     if (classe.tipo === "comprar") candidatos.push(pedido);
     else if (classe.tipo === "gerar") gerar.push({ id: pedido.id, codigo: pedido.codigo });
@@ -328,6 +351,7 @@ async function resumo(
   }
   const contas = fecharResumo(comprar.map((item) => item.custo_centavos), saldo);
   const pode = contas.pode_comprar || (comprar.length === 0 && gerar.length > 0);
+  const quartaIso = lote || quartaAlvoLote();
   return jsonPainel(origin, 200, {
     ok: true,
     remetente_ok: remetenteOk,
@@ -341,6 +365,8 @@ async function resumo(
     pedidos: comprar,
     ja_pagas: gerar,
     fora,
+    quarta_lote: quartaIso,
+    quarta_lote_fmt: quartaIso ? diaMesDeIso(quartaIso) : "",
   });
 }
 
@@ -495,7 +521,19 @@ async function comprar(
   const novos: PedidoEtiqueta[] = [];
   const gerar: PedidoEtiqueta[] = [];
   const fora: { codigo: string; motivo: string }[] = [];
+  const lote = !ids ? quartaAlvoLote() : null;
   for (const pedido of pedidos) {
+    if (lote && (!pedido.quando || !pedidoNoLoteQuarta(pedido.quando))) {
+      fora.push({
+        codigo: pedido.codigo || pedido.id.slice(0, 8),
+        motivo: MOTIVO.outra_quarta,
+      });
+      if (reservados.has(pedido.id)) {
+        await soltarCompra(url, anonKey, jwt, pedido.id, tentativa, true);
+        reservados.delete(pedido.id);
+      }
+      continue;
+    }
     const classe = classificarPedido(reservados.has(pedido.id) ? { ...pedido, me_status: "" } : pedido);
     if (reservados.has(pedido.id) && classe.tipo === "comprar") novos.push(pedido);
     else if (classe.tipo === "gerar") gerar.push(pedido);

@@ -80,6 +80,8 @@ async function lerPedido(cred: Cred, pedidoId: string): Promise<DadosEmail | nul
     "frete",
     "rastreio",
     "status",
+    "pago_em",
+    "created_at",
   ].join(",");
   let res: Response;
   try {
@@ -110,6 +112,11 @@ async function lerPedido(cred: Cred, pedidoId: string): Promise<DadosEmail | nul
   const frete = pedido.frete && typeof pedido.frete === "object" ? pedido.frete as Record<string, unknown> : {};
   const codigo = typeof pedido.codigo === "string" && /^[0-9]{9}$/.test(pedido.codigo) ? pedido.codigo : "";
   const rastreio = typeof pedido.rastreio === "string" ? pedido.rastreio : "";
+  const quando = typeof pedido.pago_em === "string" && pedido.pago_em
+    ? pedido.pago_em
+    : typeof pedido.created_at === "string"
+    ? pedido.created_at
+    : "";
   return {
     evento: "pagamento_confirmado",
     codigo,
@@ -124,6 +131,7 @@ async function lerPedido(cred: Cred, pedidoId: string): Promise<DadosEmail | nul
     transportadora: typeof frete.transportadora === "string" ? frete.transportadora : "",
     servico: typeof frete.servico === "string" ? frete.servico : "",
     rastreio,
+    quando,
   };
 }
 

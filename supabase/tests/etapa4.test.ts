@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  frasePosPagamento,
   htmlEmail,
   mensagemData,
   eventoCompativel,
@@ -110,6 +111,7 @@ function pedido(extra: Partial<PedidoEtiqueta> = {}): PedidoEtiqueta {
     me_order_id: "",
     me_status: "",
     rastreio: "",
+    quando: "2026-11-23T12:00:00-03:00",
     ...extra,
   };
 }
@@ -434,7 +436,66 @@ test("e-mail usa a paleta, o rastreio, e não sai sem SMTP", () => {
     transportadora: "Correios",
     servico: "PAC",
     rastreio: "",
-  }), /Acolher/);
+    quando: "2026-11-23T23:59:00-03:00",
+  }), /Acolher[\s\S]*A postagem sai na quarta-feira, 25\/11/);
+
+  assert.equal(
+    frasePosPagamento({
+      evento: "pagamento_confirmado",
+      codigo: "261120001",
+      nome: "Ana",
+      email: "ana@exemplo.com",
+      entrega_tipo: "envio",
+      itens: [],
+      subtotal_centavos: 6000,
+      desconto_centavos: 0,
+      frete_centavos: 1890,
+      total_centavos: 7890,
+      transportadora: "Correios",
+      servico: "PAC",
+      rastreio: "",
+      quando: "2026-11-24T00:00:00-03:00",
+    }),
+    "A postagem sai na quarta-feira, 02/12. O código de rastreio chega neste e-mail.",
+  );
+  assert.equal(
+    frasePosPagamento({
+      evento: "pagamento_confirmado",
+      codigo: "261120001",
+      nome: "Ana",
+      email: "ana@exemplo.com",
+      entrega_tipo: "retirada",
+      itens: [],
+      subtotal_centavos: 6000,
+      desconto_centavos: 0,
+      frete_centavos: 0,
+      total_centavos: 6000,
+      transportadora: "",
+      servico: "",
+      rastreio: "",
+      quando: "2026-11-23T23:59:00-03:00",
+    }),
+    "Avisamos por aqui quando o pedido estiver pronto pra retirada.",
+  );
+  assert.doesNotMatch(
+    textoEmail({
+      evento: "pagamento_confirmado",
+      codigo: "261120001",
+      nome: "Ana",
+      email: "ana@exemplo.com",
+      entrega_tipo: "retirada",
+      itens: [],
+      subtotal_centavos: 6000,
+      desconto_centavos: 0,
+      frete_centavos: 0,
+      total_centavos: 6000,
+      transportadora: "",
+      servico: "",
+      rastreio: "",
+      quando: "2026-11-23T23:59:00-03:00",
+    }),
+    /postagem|rastreio/i,
+  );
 
   const carta = mensagemData({
     fromName: REMETENTE_NOME,
