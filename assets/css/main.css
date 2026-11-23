@@ -1848,6 +1848,11 @@ html.has-logo-handoff .site-header.is-logo .brand .logo-crop img {
   margin-top: 0.65rem;
 }
 
+#tf-error-envio:empty {
+  min-height: 0;
+  margin-top: 0;
+}
+
 /* Welcome screen */
 .tf-screen--welcome .tf-content {
   align-items: flex-start;
