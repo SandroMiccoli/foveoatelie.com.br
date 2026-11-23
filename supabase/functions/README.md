@@ -260,3 +260,29 @@ Arquivos de cada deploy, pelo `deno info` de cada `index.ts` (só arquivos deste
 - `consultar-pedido` (`verify_jwt` false): `consultar-pedido/index.ts`, `_shared/aplicar-order.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/enviar-cliente.ts`, `_shared/correio.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/pedido.ts`, `_shared/smtp.ts`, `_shared/http.ts`.
 - `despachar-avisos` (`verify_jwt` true): `despachar-avisos/index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/painel.ts`.
 - `manutencao-diaria` (`verify_jwt` true): `manutencao-diaria/index.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/etiquetas.ts`, `_shared/frete.ts`, `_shared/token-me.ts`, `_shared/pedido.ts`.
+
+## Feedback — respostas do formulário
+
+Uma migration, o arquivo inteiro, uma vez, no SQL editor. Não usar `supabase db push`. Não aplicar antes de ler.
+
+`supabase/migrations/20261123210000_feedback_respostas.sql`
+
+Ela cria `public.feedback_respostas` e libera o tipo `feedback_novo` nos avisos. `anon` não ganha GRANT. Quem responde no site chama a função `enviar-feedback`. A função valida, ignora o honeypot e grava pela RPC `enviar_feedback`, no máximo 6 vezes por IP a cada hora, com 20 segundos entre um envio e outro. O painel lê, marca `is_test` e apaga. Só `contato@foveoatelie.com.br`.
+
+O aviso usa o webhook que já existe: `GROKBOT_AVISOS_WEBHOOK_URL` e `GROKBOT_AVISOS_WEBHOOK_KEY`. Não há secret novo. Cada resposta avisa uma vez. A frase leva as velas, a nota, o consentimento e a primeira linha de cada texto.
+
+Ordem, com a CLI autenticada. Não rode daqui.
+
+1. SQL editor: o arquivo da migration, inteiro.
+2. Deploy da função. `verify_jwt` fica false porque a chave publishable não é um JWT. O corpo não é confiável.
+
+```bash
+supabase functions deploy enviar-feedback --project-ref bbksditqlgdjftwowtje --no-verify-jwt
+```
+
+Arquivos desse deploy: `enviar-feedback/index.ts`, `_shared/feedback.ts`, `_shared/avisos.ts`, `_shared/segundo-plano.ts`, `_shared/http.ts`.
+
+3. Publicar o branch `admin` para a página Respostas aparecer em `/respostas`.
+4. Publicar o formulário (branch do site) só depois da função estar no ar. Enquanto a função não existe, o envio responde erro em português e não perde a tela.
+
+O CSV antigo da Netlify não está no repositório. Se for trazer os testes de 04/11, insira com `is_test = true`. Insert direto não dispara o aviso.

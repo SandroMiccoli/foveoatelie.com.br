@@ -1073,3 +1073,346 @@ export function paginaAvisos(estado) {
     el("div", { id: "regiao-avisos" }, [mioloAvisos(estado)]),
   ]);
 }
+
+function botaoAba(id, nome, ativa) {
+  return el("button", {
+    type: "button",
+    role: "tab",
+    id: "aba-" + id,
+    "data-aba": id,
+    "aria-selected": ativa ? "true" : "false",
+    "aria-controls": "painel-" + id,
+    tabindex: ativa ? "0" : "-1",
+    text: nome,
+  });
+}
+
+function botaoModo(id, nome, ativo) {
+  return el("button", {
+    type: "button",
+    "data-periodo-respostas": id,
+    "aria-pressed": ativo ? "true" : "false",
+    text: nome,
+  });
+}
+
+function tabelaContagem(itens, legenda) {
+  return el("table", { class: "sr-only" }, [
+    el("caption", { text: legenda }),
+    el("thead", {}, [
+      el("tr", {}, [
+        el("th", { scope: "col", text: "Item" }),
+        el("th", { scope: "col", text: "Quantidade" }),
+      ]),
+    ]),
+    el("tbody", {}, itens.map((item) => el("tr", {}, [
+      el("td", { text: item.rotulo }),
+      el("td", { text: String(item.valor) }),
+    ]))),
+  ]);
+}
+
+function graficoCategorias(itens, descricao, larguraInformada) {
+  const largura = Math.max(280, larguraInformada || 640);
+  const esquerda = Math.min(168, Math.round(largura * 0.42));
+  const direita = 36;
+  const topo = 8;
+  const linha = 36;
+  const altura = topo + itens.length * linha + 8;
+  const miolo = Math.max(24, largura - esquerda - direita);
+  const maior = Math.max(1, ...itens.map((item) => item.valor));
+  const svg = svgEl("svg", {
+    class: "grafico grafico-categorias",
+    viewBox: "0 0 " + largura + " " + altura,
+    width: String(largura),
+    height: String(altura),
+    role: "img",
+    "aria-label": descricao,
+  });
+  itens.forEach((item, indice) => {
+    const y = topo + indice * linha;
+    const meio = y + 18;
+    const comprimento = item.valor <= 0 ? 0 : Math.max(2, (item.valor / maior) * miolo);
+    svg.append(svgEl("text", {
+      class: "grafico-eixo",
+      x: String(esquerda - 10),
+      y: String(meio + 4),
+      "text-anchor": "end",
+    }, [document.createTextNode(item.curto || item.rotulo)]));
+    svg.append(svgEl("rect", {
+      class: "grafico-barra",
+      x: String(esquerda),
+      y: String(y + 8),
+      width: String(comprimento),
+      height: "16",
+    }));
+    svg.append(svgEl("text", {
+      class: "grafico-dia-rotulo",
+      x: String(esquerda + comprimento + 8),
+      y: String(meio + 4),
+    }, [document.createTextNode(String(item.valor))]));
+  });
+  return el("div", { class: "grafico-caixa" }, [
+    svg,
+    tabelaContagem(itens, descricao),
+  ]);
+}
+
+function listaTextos(itens) {
+  if (!itens.length) {
+    return el("p", { class: "vazio", text: "Nenhuma resposta escrita neste período." });
+  }
+  return el("ul", { class: "lista-textos" }, itens.map((item) => {
+    const data = formatarData(item.created_at);
+    const tempo = el("time", { text: data ? data.texto : "—" });
+    if (data) tempo.setAttribute("datetime", data.iso);
+    return el("li", {}, [tempo, el("p", { text: item.texto })]);
+  }));
+}
+
+function controlesRespostas(estado) {
+  const aviso = estado.avisoPeriodo
+    ? el("p", { class: "alerta", role: "alert", text: estado.avisoPeriodo })
+    : null;
+  const periodo = estado.modo === "personalizado"
+    ? el("form", { id: "periodo-respostas", class: "periodo" }, [
+      el("div", { class: "filtro" }, [
+        el("label", { for: "respostas-de", text: "De" }),
+        el("input", { id: "respostas-de", name: "de", type: "date", value: estado.de || "" }),
+      ]),
+      el("div", { class: "filtro" }, [
+        el("label", { for: "respostas-ate", text: "Até" }),
+        el("input", { id: "respostas-ate", name: "ate", type: "date", value: estado.ate || "" }),
+      ]),
+      el("div", { class: "periodo-acoes" }, [
+        el("button", { class: "botao botao-secundario", type: "submit", text: "Aplicar" }),
+      ]),
+    ])
+    : null;
+  const notaMes = estado.modo === "mes" && estado.tituloPeriodo
+    ? el("p", { class: "grafico-nota", text: estado.tituloPeriodo })
+    : null;
+  return el("div", { class: "respostas-controles" }, [
+    el("div", { class: "grafico-topo" }, [
+      el("div", { class: "segmento", role: "group", "aria-label": "Período" }, [
+        botaoModo("tudo", "Tudo", estado.modo === "tudo"),
+        botaoModo("mes", "Este mês", estado.modo === "mes"),
+        botaoModo("personalizado", "Período", estado.modo === "personalizado"),
+      ]),
+      el("button", {
+        type: "button",
+        class: "botao-texto",
+        "data-toggle-testes-respostas": "1",
+        "aria-pressed": estado.mostrarTestes ? "false" : "true",
+        text: estado.mostrarTestes ? "Esconder testes" : "Mostrar testes",
+      }),
+    ]),
+    notaMes,
+    periodo,
+    aviso,
+    estado.cortada
+      ? el("p", { class: "grafico-nota", text: "Mostrando as 2.000 respostas mais recentes." })
+      : null,
+  ]);
+}
+
+function cartoesRespostas(resumo) {
+  return el("div", { class: "numeros" }, [
+    el("p", { class: "numero" }, [
+      el("span", { class: "numero-rotulo", text: "Respostas" }),
+      el("span", { class: "numero-valor", text: String(resumo.total) }),
+    ]),
+    el("p", { class: "numero" }, [
+      el("span", { class: "numero-rotulo", text: "Nota média" }),
+      el("span", { class: "numero-valor", text: resumo.media }),
+    ]),
+    el("p", { class: "numero" }, [
+      el("span", { class: "numero-rotulo", text: "Querem novidade" }),
+      el("span", { class: "numero-valor", text: String(resumo.querem) }),
+    ]),
+  ]);
+}
+
+function painelResumo(estado) {
+  const resumo = estado.resumo;
+  if (!resumo || !resumo.total) {
+    const ocultas = estado.ocultas
+      ? " Há " + estado.ocultas + (estado.ocultas === 1 ? " de teste oculta." : " de teste ocultas.")
+      : "";
+    return el("p", { class: "vazio", text: "Nenhuma resposta neste período." + ocultas });
+  }
+  const contatos = resumo.contatos.length
+    ? el("section", { class: "bloco", "aria-labelledby": "titulo-contatos" }, [
+      el("h2", { id: "titulo-contatos", text: "Contato para novidades" }),
+      el("ul", { class: "lista-textos" }, resumo.contatos.map((item) => {
+        const data = formatarData(item.created_at);
+        const tempo = el("time", { text: data ? data.texto : "—" });
+        if (data) tempo.setAttribute("datetime", data.iso);
+        const nome = item.nome || "Sem nome";
+        const contato = item.contato || "Sem contato";
+        return el("li", {}, [tempo, el("p", { text: nome + " — " + contato })]);
+      })),
+    ])
+    : null;
+  return el("div", {}, [
+    cartoesRespostas(resumo),
+    el("section", { class: "bloco", "aria-labelledby": "titulo-notas" }, [
+      el("h2", { id: "titulo-notas", text: "Nota" }),
+      graficoCategorias(resumo.notas, "Distribuição das notas de 1 a 5", estado.largura),
+    ]),
+    el("section", { class: "bloco", "aria-labelledby": "titulo-velas" }, [
+      el("h2", { id: "titulo-velas", text: "Velas" }),
+      el("p", { class: "grafico-nota", text: "Uma resposta pode marcar mais de uma." }),
+      graficoCategorias(resumo.velas, "Velas mencionadas", estado.largura),
+    ]),
+    el("section", { class: "bloco", "aria-labelledby": "titulo-share" }, [
+      el("h2", { id: "titulo-share", text: "Compartilhar no site ou no Instagram" }),
+      graficoCategorias(resumo.shares, "Autorização para compartilhar", estado.largura),
+    ]),
+    ...resumo.textos.map((pergunta) => el("section", { class: "bloco" }, [
+      el("h2", { text: pergunta.titulo }),
+      listaTextos(pergunta.itens),
+    ])),
+    contatos,
+  ]);
+}
+
+function campoResposta(rotulo, valor) {
+  return [
+    el("dt", { text: rotulo }),
+    el("dd", { text: valor && String(valor).trim() ? String(valor) : "—" }),
+  ];
+}
+
+function painelIndividual(estado) {
+  const lista = estado.respostas || [];
+  if (!lista.length) {
+    return el("p", { class: "vazio", text: "Nenhuma resposta neste período." });
+  }
+  const indice = Math.min(Math.max(estado.indice || 0, 0), lista.length - 1);
+  const resposta = lista[indice];
+  const opcoes = lista.map((item, i) => {
+    const option = el("option", { value: String(i), text: rotuloLista(item) });
+    if (i === indice) option.setAttribute("selected", "selected");
+    return option;
+  });
+  const botoes = lista.map((item, i) => el("li", {}, [
+    el("button", {
+      type: "button",
+      class: i === indice ? "item-resposta atual" : "item-resposta",
+      "data-indice-resposta": String(i),
+      "aria-current": i === indice ? "true" : "false",
+      text: rotuloLista(item),
+    }),
+  ]));
+  const data = formatarData(resposta.created_at);
+  const tempo = el("time", { text: data ? data.texto : "—" });
+  if (data) tempo.setAttribute("datetime", data.iso);
+  const confirmacao = estado.confirmacao && estado.confirmacao.id === resposta.id
+    ? el("div", { class: "confirmacao", role: "alertdialog", "aria-labelledby": "confirm-resposta" }, [
+      el("p", { id: "confirm-resposta", tabindex: "-1", text: "Apagar esta resposta? Ela sai da lista e não volta." }),
+      el("div", { class: "confirmacao-acoes" }, [
+        el("button", {
+          type: "button",
+          class: "botao botao-perigoso",
+          "data-confirmar-resposta": "apagar",
+          text: "Apagar",
+        }),
+        el("button", { type: "button", class: "botao-texto", "data-cancelar-resposta": "1", text: "Voltar" }),
+      ]),
+    ])
+    : null;
+  const travado = estado.salvando ? "disabled" : null;
+  return el("div", { class: "resposta-corpo" }, [
+    el("div", { class: "resposta-nav", role: "group", "aria-label": "Navegar respostas" }, [
+      el("button", {
+        type: "button",
+        class: "seta",
+        "data-passo-resposta": "-1",
+        "aria-label": "Resposta anterior",
+        disabled: indice === 0 ? "disabled" : null,
+      }, [chevron("esquerda")]),
+      el("p", { class: "resposta-posicao", "aria-live": "polite", text: (indice + 1) + " de " + lista.length }),
+      el("button", {
+        type: "button",
+        class: "seta",
+        "data-passo-resposta": "1",
+        "aria-label": "Próxima resposta",
+        disabled: indice === lista.length - 1 ? "disabled" : null,
+      }, [chevron("direita")]),
+    ]),
+    el("label", { class: "so-estreita", for: "lista-respostas", text: "Resposta" }),
+    el("select", { id: "lista-respostas", class: "so-estreita select-respostas" }, opcoes),
+    el("ol", { class: "lista-individual so-larga" }, botoes),
+    el("article", { class: "resposta-ficha", "aria-labelledby": "titulo-resposta" }, [
+      el("h2", { id: "titulo-resposta" }, [
+        tempo,
+        resposta.is_test ? el("span", { class: "selo", text: "teste" }) : null,
+      ]),
+      el("dl", { class: "resposta-dl" }, [
+        ...campoResposta("Velas", resposta.candles.join(", ")),
+        ...campoResposta("Nota", String(resposta.rating)),
+        ...campoResposta("Na pele", resposta.sensacao),
+        ...campoResposta("O que mudaria", resposta.mudaria),
+        ...campoResposta("Pra uma amiga", resposta.depoimento),
+        ...campoResposta("Compartilhar", resposta.instagram_share),
+        ...campoResposta("Novidades", resposta.novidades),
+        ...campoResposta("Nome", resposta.nome),
+        ...campoResposta("Contato", resposta.contato),
+        ...campoResposta("Origem", resposta.source),
+      ]),
+      el("div", { class: "acoes-resposta" }, [
+        el("button", {
+          type: "button",
+          class: "botao botao-secundario",
+          "data-marcar-teste": resposta.id,
+          "data-teste": resposta.is_test ? "1" : "0",
+          disabled: travado,
+          text: resposta.is_test ? "Desmarcar teste" : "Marcar como teste",
+        }),
+        el("button", {
+          type: "button",
+          class: "botao-texto botao-perigoso-texto",
+          "data-apagar-resposta": resposta.id,
+          disabled: travado,
+          text: "Apagar",
+        }),
+      ]),
+      confirmacao,
+      estado.aviso ? el("p", { class: "alerta", role: "alert", text: estado.aviso }) : null,
+    ]),
+  ]);
+}
+
+function rotuloLista(resposta) {
+  const data = formatarDataCurta(resposta.created_at);
+  const quando = data ? data.texto : "—";
+  const marca = resposta.is_test ? " · teste" : "";
+  return quando + " · " + resposta.rating + " · " + resposta.candles.join(", ") + marca;
+}
+
+export function mioloRespostas(estado) {
+  if (estado.tipo === "carregando") return esqueleto("Carregando as respostas.");
+  if (estado.tipo === "erro") return avisoErro(estado.mensagem, "respostas");
+  const abas = el("div", { class: "segmento abas-respostas", role: "tablist", "aria-label": "Visão das respostas" }, [
+    botaoAba("resumo", "Resumo", estado.aba === "resumo"),
+    botaoAba("individual", "Individual", estado.aba === "individual"),
+  ]);
+  const painel = estado.aba === "individual" ? painelIndividual(estado) : painelResumo(estado);
+  return el("div", {}, [
+    controlesRespostas(estado),
+    abas,
+    el("div", {
+      id: "painel-" + estado.aba,
+      role: "tabpanel",
+      "aria-labelledby": "aba-" + estado.aba,
+    }, [painel]),
+  ]);
+}
+
+export function paginaRespostas(estado) {
+  return el("div", { class: "pagina pagina-respostas" }, [
+    titulo("Respostas"),
+    el("div", { id: "regiao-respostas" }, [mioloRespostas(estado)]),
+  ]);
+}

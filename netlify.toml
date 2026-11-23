@@ -48,6 +48,16 @@
   status = 301
 
 [[redirects]]
+  from = "/respostas"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/respostas/"
+  to = "/respostas"
+  status = 301
+
+[[redirects]]
   from = "/entrar"
   to = "/index.html"
   status = 200

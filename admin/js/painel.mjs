@@ -2,6 +2,7 @@ export const EMAIL_ADMIN = "contato@foveoatelie.com.br";
 export const CHAVE_SESSAO = "foveo.admin.sessao";
 export const CHAVE_DEPOIS = "foveo.admin.depois";
 export const CHAVE_MOSTRAR_TESTES = "foveo.admin.mostrar_testes";
+export const CHAVE_RESPOSTAS_TESTES = "foveo.admin.respostas_mostrar_testes";
 export const CHAVE_RAIL = "foveo.admin.rail";
 export const RAIL_AUTO = "auto";
 export const RAIL_ABERTO = "aberto";
@@ -14,6 +15,7 @@ export const ROTAS = {
   "/estoque": "estoque",
   "/clientes": "clientes",
   "/avisos": "avisos",
+  "/respostas": "respostas",
 };
 
 export const ROTULOS_AVISO = {
@@ -21,6 +23,7 @@ export const ROTULOS_AVISO = {
   saldo_baixo: "Saldo do frete",
   problema_entrega: "Problema na entrega",
   token_melhor_envio: "Token do Melhor Envio",
+  feedback_novo: "Feedback",
 };
 
 /** Status gravados no banco. `pendente` aparece como Aguardando pagamento. */
@@ -138,6 +141,7 @@ export function tituloDaRota(caminho) {
     "/estoque": "Estoque",
     "/clientes": "Clientes",
     "/avisos": "Avisos",
+    "/respostas": "Respostas",
   };
   const nome = nomes[normalizarCaminho(caminho)];
   return nome ? nome + " — Foveō Ateliê" : "Foveō Ateliê";
@@ -1438,6 +1442,227 @@ export async function dispararAvisos(config, accessToken, fetchImpl) {
   } catch (_err) {
     // A linha continua pendente. A manutenção diária tenta de novo.
   }
+}
+
+export const VELAS_FEEDBACK = ["Acolher", "Despertar", "Permanecer", "Não lembro"];
+
+export const SHARES_FEEDBACK = [
+  { id: "nome", rotulo: "Sim, com meu nome", curto: "Com nome" },
+  { id: "anonimo", rotulo: "Sim, anônimo", curto: "Anônimo" },
+  { id: "nao", rotulo: "Não", curto: "Não" },
+];
+
+export const PERGUNTAS_FEEDBACK = [
+  { campo: "sensacao", titulo: "Como você sentiu a vela na pele?" },
+  { campo: "mudaria", titulo: "O que você mudaria ou sentiu falta?" },
+  {
+    campo: "depoimento",
+    titulo: "Se fosse contar pra uma amiga sobre o seu ritual com a Foveō, o que você diria?",
+  },
+];
+
+const UUID_RESPOSTA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export function lerMostrarTestesRespostas(storage) {
+  try {
+    return storage.getItem(CHAVE_RESPOSTAS_TESTES) === "1";
+  } catch (_err) {
+    return false;
+  }
+}
+
+export function gravarMostrarTestesRespostas(storage, mostrar) {
+  try {
+    storage.setItem(CHAVE_RESPOSTAS_TESTES, mostrar ? "1" : "0");
+  } catch (_err) {
+    // Sessão privada pode recusar.
+  }
+}
+
+export function validarPeriodoFeedback(de, ate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(de || "") || !/^\d{4}-\d{2}-\d{2}$/.test(ate || "")) {
+    return "Informe o começo e o fim do período.";
+  }
+  if (de > ate) return "A data inicial precisa ser antes da final.";
+  return "";
+}
+
+export function normalizarResposta(row) {
+  if (!row || typeof row !== "object") return null;
+  const id = typeof row.id === "string" ? row.id.trim().toLowerCase() : "";
+  if (!UUID_RESPOSTA.test(id)) return null;
+  const created = typeof row.created_at === "string" ? row.created_at : "";
+  if (!created || Number.isNaN(new Date(created).getTime())) return null;
+  const rating = Number(row.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+  const share = typeof row.instagram_share === "string" ? row.instagram_share : "";
+  if (!SHARES_FEEDBACK.some((opcao) => opcao.rotulo === share)) return null;
+  const brutas = Array.isArray(row.candles) ? row.candles : [];
+  const candles = VELAS_FEEDBACK.filter((nome) => brutas.includes(nome));
+  if (!candles.length || candles.length !== brutas.length) return null;
+  const novidades = row.novidades === "Sim" || row.novidades === "Não" ? row.novidades : "";
+  const campo = (valor) => (typeof valor === "string" ? valor.trim() : "");
+  return {
+    id,
+    created_at: created,
+    dia: diaSp(created),
+    candles,
+    rating,
+    sensacao: campo(row.sensacao),
+    mudaria: campo(row.mudaria),
+    depoimento: campo(row.depoimento),
+    instagram_share: share,
+    novidades,
+    nome: campo(row.nome),
+    contato: campo(row.contato),
+    user_agent: campo(row.user_agent),
+    source: campo(row.source),
+    is_test: row.is_test === true,
+  };
+}
+
+export function filtrarRespostas(linhas, filtro) {
+  const de = filtro && filtro.de ? filtro.de : "";
+  const ate = filtro && filtro.ate ? filtro.ate : "";
+  const mostrar = Boolean(filtro && filtro.mostrarTestes);
+  return (linhas || []).filter((linha) => {
+    if (!linha) return false;
+    if (!mostrar && linha.is_test) return false;
+    if (de && linha.dia < de) return false;
+    if (ate && linha.dia > ate) return false;
+    return true;
+  });
+}
+
+export function formatarMediaNota(linhas) {
+  if (!linhas.length) return "—";
+  const soma = linhas.reduce((total, linha) => total + linha.rating, 0);
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(soma / linhas.length);
+}
+
+export function contagemNotas(linhas) {
+  return [1, 2, 3, 4, 5].map((nota) => ({
+    id: String(nota),
+    rotulo: String(nota),
+    valor: linhas.filter((linha) => linha.rating === nota).length,
+  }));
+}
+
+export function contagemVelas(linhas) {
+  return VELAS_FEEDBACK.map((nome) => ({
+    id: nome,
+    rotulo: nome,
+    valor: linhas.filter((linha) => linha.candles.includes(nome)).length,
+  }));
+}
+
+export function contagemCompartilhar(linhas) {
+  return SHARES_FEEDBACK.map((opcao) => ({
+    id: opcao.id,
+    rotulo: opcao.rotulo,
+    curto: opcao.curto,
+    valor: linhas.filter((linha) => linha.instagram_share === opcao.rotulo).length,
+  }));
+}
+
+export function respostasTexto(linhas, campo) {
+  return linhas
+    .filter((linha) => linha[campo])
+    .map((linha) => ({
+      id: linha.id,
+      created_at: linha.created_at,
+      texto: linha[campo],
+    }));
+}
+
+export function contatosNovidade(linhas) {
+  return linhas
+    .filter((linha) => linha.novidades === "Sim" && (linha.nome || linha.contato))
+    .map((linha) => ({
+      id: linha.id,
+      created_at: linha.created_at,
+      nome: linha.nome,
+      contato: linha.contato,
+    }));
+}
+
+export function resumoRespostas(linhas) {
+  const querem = linhas.filter((linha) => linha.novidades === "Sim").length;
+  return {
+    total: linhas.length,
+    media: formatarMediaNota(linhas),
+    querem,
+    notas: contagemNotas(linhas),
+    velas: contagemVelas(linhas),
+    shares: contagemCompartilhar(linhas),
+    textos: PERGUNTAS_FEEDBACK.map((pergunta) => ({
+      campo: pergunta.campo,
+      titulo: pergunta.titulo,
+      itens: respostasTexto(linhas, pergunta.campo),
+    })),
+    contatos: contatosNovidade(linhas),
+  };
+}
+
+export function rotuloRespostaCurta(resposta) {
+  const data = formatarData(resposta.created_at);
+  const quando = data ? data.texto : "—";
+  return quando + " · nota " + resposta.rating + " · " + resposta.candles.join(", ");
+}
+
+export async function listarRespostas(config, accessToken, fetchImpl, signal) {
+  const resposta = await lerTabela(
+    config,
+    accessToken,
+    "/rest/v1/feedback_respostas?select=id,created_at,candles,rating,sensacao,mudaria,depoimento,instagram_share,novidades,nome,contato,user_agent,source,is_test&order=created_at.desc&limit=2000",
+    fetchImpl,
+    signal,
+  );
+  if (!resposta.ok) return resposta;
+  return {
+    ok: true,
+    linhas: resposta.linhas.map(normalizarResposta).filter(Boolean),
+    cortada: resposta.linhas.length >= 2000,
+  };
+}
+
+async function escreverResposta(config, accessToken, id, metodo, corpo, fetchImpl) {
+  if (!UUID_RESPOSTA.test(id || "")) return { ok: false, status: 400, body: null };
+  let res;
+  try {
+    res = await fetchImpl(config.url + "/rest/v1/feedback_respostas?id=eq." + id, {
+      method: metodo,
+      headers: {
+        ...cabecalhos(config, accessToken),
+        Prefer: "return=representation",
+      },
+      body: corpo,
+    });
+  } catch (_err) {
+    return { ok: false, rede: true };
+  }
+  const data = await lerCorpo(res);
+  if (!res.ok) return { ok: false, status: res.status, body: data };
+  if (Array.isArray(data) && data.length === 0) return { ok: false, status: 404, body: data };
+  return { ok: true, body: data };
+}
+
+export async function marcarRespostaTeste(config, accessToken, id, isTest, fetchImpl) {
+  return escreverResposta(
+    config,
+    accessToken,
+    id,
+    "PATCH",
+    JSON.stringify({ is_test: isTest === true }),
+    fetchImpl,
+  );
+}
+
+export async function apagarResposta(config, accessToken, id, fetchImpl) {
+  return escreverResposta(config, accessToken, id, "DELETE", null, fetchImpl);
 }
 
 export async function reembolsarPedido(config, accessToken, pedidoId, fetchImpl) {
