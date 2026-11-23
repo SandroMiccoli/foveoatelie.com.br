@@ -487,4 +487,105 @@
     }
   });
 
+  // Envio para a função enviar-feedback. Sem JS, o browser posta o form.
+  var form = pager.querySelector("form");
+  var enviando = false;
+
+  function destinoObrigado() {
+    return (form && form.getAttribute("data-obrigado")) || "/feedback/obrigado/";
+  }
+
+  function fraseErro(codigo) {
+    if (codigo === "taxa") return "Muitas respostas seguidas. Espere um pouco e tente de novo.";
+    if (codigo === "longo") return "Um dos textos passou do limite. Encurta um pouco e tenta de novo.";
+    if (codigo === "invalido") return "Confira as respostas e tente de novo.";
+    return "Não consegui enviar agora. Tente de novo em instantes.";
+  }
+
+  function mostrarErroEnvio(msg) {
+    var el = document.getElementById("tf-error-envio");
+    if (el) el.textContent = msg;
+    var botao = form.querySelector(".tf-submit");
+    if (botao) {
+      botao.disabled = false;
+      botao.removeAttribute("aria-busy");
+      botao.textContent = "Enviar";
+    }
+    enviando = false;
+  }
+
+  function valorCampo(nome) {
+    var campo = form.elements.namedItem(nome);
+    return campo && "value" in campo ? campo.value : "";
+  }
+
+  function enviarFeedback() {
+    if (!form || enviando) return;
+    var bot = form.querySelector("[name=\"bot-field\"]");
+    if (bot && bot.value) {
+      window.location.href = destinoObrigado();
+      return;
+    }
+    var velas = [];
+    Array.prototype.forEach.call(form.querySelectorAll("[name=\"vela[]\"]:checked"), function (input) {
+      velas.push(input.value);
+    });
+    var nota = form.querySelector("[name=\"nota\"]:checked");
+    var compartilhar = form.querySelector("[name=\"compartilhar\"]:checked");
+    var novidades = form.querySelector("[name=\"novidades\"]:checked");
+    var corpo = {
+      candles: velas,
+      nota: nota ? nota.value : "",
+      sensacao: valorCampo("sensacao"),
+      mudaria: valorCampo("mudaria"),
+      depoimento: valorCampo("depoimento"),
+      compartilhar: compartilhar ? compartilhar.value : "",
+      novidades: novidades ? novidades.value : "",
+      nome: valorCampo("nome"),
+      contato: valorCampo("contato")
+    };
+    var botao = form.querySelector(".tf-submit");
+    enviando = true;
+    if (botao) {
+      botao.disabled = true;
+      botao.setAttribute("aria-busy", "true");
+      botao.textContent = "Enviando…";
+    }
+    var erroEl = document.getElementById("tf-error-envio");
+    if (erroEl) erroEl.textContent = "";
+    var chave = form.getAttribute("data-supabase-key") || "";
+    fetch(form.action, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        apikey: chave
+      },
+      body: JSON.stringify(corpo)
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { ok: res.ok, status: res.status, data: data };
+      }).catch(function () {
+        return { ok: false, status: res.status, data: null };
+      });
+    }).then(function (res) {
+      if (res.ok && res.data && res.data.ok === true) {
+        window.location.href = destinoObrigado();
+        return;
+      }
+      var codigo = res.data && res.data.erro;
+      if (res.status === 429) codigo = "taxa";
+      mostrarErroEnvio(fraseErro(codigo));
+    }).catch(function () {
+      mostrarErroEnvio(fraseErro("rede"));
+    });
+  }
+
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      enviarFeedback();
+    });
+  }
+
 })();

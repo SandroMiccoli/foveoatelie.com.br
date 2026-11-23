@@ -37,21 +37,15 @@ sitemap: false
 </div>
 
 <main id="conteudo">
-  <!--
-    NETLIFY FORM DETECTION: The <form> below must remain a real HTML form with
-    name="feedback", method="POST", data-netlify="true", and all named inputs
-    present in the static HTML. JS enhances the layout; it never removes inputs.
-  -->
   <div class="tf-pager" id="tf-pager">
     <form
       class="tf-form"
       name="feedback"
       method="POST"
-      action="{{ '/feedback/obrigado/' | relative_url }}"
-      data-netlify="true"
-      netlify-honeypot="bot-field"
+      action="{{ site.supabase.url }}/functions/v1/enviar-feedback"
+      data-obrigado="{{ '/feedback/obrigado/' | relative_url }}"
+      data-supabase-key="{{ site.supabase.anon_key }}"
     >
-      <input type="hidden" name="form-name" value="feedback">
       <p class="sr-only">
         <label>Não preencha se você for humano: <input name="bot-field"></label>
       </p>
@@ -284,6 +278,7 @@ sitemap: false
           <p class="tf-final-heading">Tudo pronto.</p>
           <p class="tf-final-sub">Obrigado por compartilhar o seu ritual com a Foveō.</p>
           <button type="submit" class="tf-submit">Enviar</button>
+          <div class="tf-error" id="tf-error-envio" role="alert" aria-live="polite"></div>
         </div>
       </section>
 
