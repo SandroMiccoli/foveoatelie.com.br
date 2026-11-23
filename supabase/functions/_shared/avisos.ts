@@ -12,6 +12,7 @@ export const TIPOS_AVISO = [
   "saldo_baixo",
   "problema_entrega",
   "token_melhor_envio",
+  "feedback_novo",
 ] as const;
 
 export type TipoAviso = (typeof TIPOS_AVISO)[number];

@@ -43,3 +43,8 @@ verify_jwt = true
 # verify_jwt TEM de ficar true, pelo mesmo motivo de despachar-avisos.
 [functions.manutencao-diaria]
 verify_jwt = true
+
+# O formulário público manda a chave publishable, que não é um JWT.
+# A função não confia no corpo: valida, limita por IP e grava com a service role.
+[functions.enviar-feedback]
+verify_jwt = false

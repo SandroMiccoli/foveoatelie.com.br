@@ -69,6 +69,14 @@ import {
   ROTAS,
   normalizarAviso,
   rotuloTipoAviso,
+  contagemVelas,
+  filtrarRespostas,
+  formatarMediaNota,
+  gravarMostrarTestesRespostas,
+  lerMostrarTestesRespostas,
+  normalizarResposta,
+  resumoRespostas,
+  validarPeriodoFeedback,
 } from "../admin/js/painel.mjs";
 
 test("só o e-mail do ateliê administra", () => {
@@ -949,7 +957,7 @@ test("a etapa 5 guarda o token e os avisos fora do anon", async () => {
   assert.match(telas, /Resolver/);
   assert.match(telas, /Nenhum aviso por aqui/);
   assert.doesNotMatch(telas, /Foveo(?!ō)/);
-  assert.match(css, /grid-template-columns:\s*repeat\(5,/);
+  assert.match(css, /grid-template-columns:\s*repeat\(6,/);
   assert.equal(rotuloTipoAviso("estoque_baixo"), "Estoque baixo");
   assert.equal(rotuloTipoAviso("saldo_baixo"), "Saldo do frete");
   const aviso = normalizarAviso({
@@ -961,6 +969,83 @@ test("a etapa 5 guarda o token e os avisos fora do anon", async () => {
   });
   assert.equal(aviso.tipo, "token_melhor_envio");
   assert.equal(normalizarAviso({ ...aviso, tipo: "outro" }), null);
+  assert.equal(rotuloTipoAviso("feedback_novo"), "Feedback");
+  assert.equal(ROTAS["/respostas"], "respostas");
+});
+
+test("o resumo do feedback conta nota, vela e período", async () => {
+  const boa = normalizarResposta({
+    id: "11111111-1111-4111-8111-111111111111",
+    created_at: "2026-11-04T15:00:00.000Z",
+    candles: ["Acolher", "Despertar"],
+    rating: 5,
+    sensacao: "Quente na pele",
+    mudaria: "",
+    depoimento: "Indicaria",
+    instagram_share: "Sim, anônimo",
+    novidades: "Sim",
+    nome: "Ana",
+    contato: "ana@exemplo.com",
+    source: "foveoatelie.com.br",
+    is_test: false,
+  });
+  const teste = normalizarResposta({
+    id: "22222222-2222-4222-8222-222222222222",
+    created_at: "2026-10-02T15:00:00.000Z",
+    candles: ["Não lembro"],
+    rating: 2,
+    sensacao: "",
+    mudaria: "",
+    depoimento: "",
+    instagram_share: "Não",
+    novidades: "Não",
+    is_test: true,
+  });
+  assert.equal(normalizarResposta({ ...boa, rating: 9 }), null);
+  assert.equal(normalizarResposta({ ...boa, candles: ["Outra"] }), null);
+  assert.ok(boa);
+  assert.equal(boa.dia, "2026-11-04");
+  const semTeste = filtrarRespostas([boa, teste], { mostrarTestes: false, de: "", ate: "" });
+  assert.deepEqual(semTeste.map((item) => item.id), [boa.id]);
+  const novembro = filtrarRespostas([boa, teste], {
+    mostrarTestes: true,
+    de: "2026-11-01",
+    ate: "2026-11-30",
+  });
+  assert.deepEqual(novembro.map((item) => item.id), [boa.id]);
+  assert.equal(validarPeriodoFeedback("2026-11-30", "2026-11-01"), "A data inicial precisa ser antes da final.");
+  assert.equal(validarPeriodoFeedback("", "2026-11-01"), "Informe o começo e o fim do período.");
+  const resumo = resumoRespostas([boa]);
+  assert.equal(resumo.total, 1);
+  assert.equal(resumo.media, "5,0");
+  assert.equal(resumo.querem, 1);
+  assert.equal(formatarMediaNota([boa, { rating: 4 }]), "4,5");
+  assert.equal(contagemVelas([boa]).find((item) => item.rotulo === "Acolher").valor, 1);
+  assert.equal(contagemVelas([boa]).find((item) => item.rotulo === "Permanecer").valor, 0);
+  assert.equal(resumo.textos[0].itens[0].texto, "Quente na pele");
+  assert.equal(resumo.textos[1].itens.length, 0);
+  assert.equal(resumo.contatos[0].nome, "Ana");
+  const storage = memoria();
+  assert.equal(lerMostrarTestesRespostas(storage), false);
+  gravarMostrarTestesRespostas(storage, true);
+  assert.equal(lerMostrarTestesRespostas(storage), true);
+
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261123210000_feedback_respostas.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = sql.replace(/--.*$/gm, "");
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql, /public\.is_admin\(\)/);
+  assert.match(sql, /feedback_novo/);
+  assert.match(sql, /is_test boolean NOT NULL DEFAULT false/);
+  assert.match(sql, /interval '1 hour'/);
+  assert.match(sql, /interval '20 seconds'/);
+  assert.match(sql, /v_recentes >= 6/);
+  assert.match(sql, /GRANT UPDATE \(is_test\)/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.enviar_feedback\(jsonb\) TO service_role/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+  assert.doesNotMatch(semComentario, /GRANT INSERT/i);
 });
 
 function pedidoFixture(extra) {

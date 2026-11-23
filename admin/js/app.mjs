@@ -59,6 +59,14 @@ import {
   filtrarClientes,
   juntarEstoque,
   listarAvisos,
+  listarRespostas,
+  marcarRespostaTeste,
+  apagarResposta,
+  filtrarRespostas,
+  resumoRespostas,
+  lerMostrarTestesRespostas,
+  gravarMostrarTestesRespostas,
+  validarPeriodoFeedback,
   listarLinhasEstoque,
   listarMovimentos,
   listarProdutos,
@@ -87,7 +95,7 @@ import {
   validarMotivo,
   validarPeriodo,
 } from "./painel.mjs";
-import { mioloAvisos, mioloClientes, mioloEstoque, mioloInicio, paginaAvisos, paginaClientes, paginaEstoque, paginaInicio } from "./telas.mjs";
+import { mioloAvisos, mioloClientes, mioloEstoque, mioloInicio, mioloRespostas, paginaAvisos, paginaClientes, paginaEstoque, paginaInicio, paginaRespostas } from "./telas.mjs";
 
 const config = { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
 const app = document.querySelector("#app");
@@ -122,6 +130,21 @@ let estoqueTipo = "carregando";
 let estoqueMensagem = "";
 let clientesTipo = "carregando";
 let clientesMensagem = "";
+let cargaRespostas = 0;
+let respostasTipo = "carregando";
+let respostasMensagem = "";
+let respostasBrutas = [];
+let respostasCortada = false;
+let respostasAba = "resumo";
+let respostasModo = "tudo";
+let respostasDe = "";
+let respostasAte = "";
+let respostasAvisoPeriodo = "";
+let respostasMostrarTestes = false;
+let respostasIndice = 0;
+let respostasConfirmacao = null;
+let respostasAviso = "";
+let respostasSalvando = false;
 let avisosTipo = "carregando";
 let avisosMensagem = "";
 let avisosLista = [];
@@ -277,6 +300,7 @@ const ICONES = {
   estoque: ["M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5z", "M12 12v8", "M3.5 8.5 12 12l8.5-3.5"],
   clientes: ["M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z", "M5 20a7 7 0 0 1 14 0"],
   avisos: ["M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9", "M10 21a2 2 0 0 0 4 0"],
+  respostas: ["M6 4h12a1 1 0 0 1 1 1v9H8l-3 3V5a1 1 0 0 1 1-1z", "M9 8h6", "M9 11h4"],
   sair: ["M10 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4", "M14 12H8", "M14 12l3-3", "M14 12l3 3"],
   fixar: ["M12 3v7", "M8.5 7.5h7", "M9 10.5 12 21l3-10.5"],
 };
@@ -383,6 +407,7 @@ function casca() {
     ["/estoque", "Estoque", "estoque"],
     ["/clientes", "Clientes", "clientes"],
     ["/avisos", "Avisos", "avisos"],
+    ["/respostas", "Respostas", "respostas"],
   ].map(([href, nome, chave]) => {
     const a = el("a", {
       href,
@@ -1508,6 +1533,128 @@ async function carregarAvisos() {
   pintarRegiaoAvisos();
 }
 
+function periodoRespostas() {
+  if (respostasModo === "mes") {
+    const atual = mesAtualSp(new Date());
+    return periodoMes(atual.ano, atual.mes);
+  }
+  if (respostasModo === "personalizado") return { de: respostasDe, ate: respostasAte };
+  return { de: "", ate: "" };
+}
+
+function estadoRespostas() {
+  const periodo = periodoRespostas();
+  const filtro = { de: periodo.de, ate: periodo.ate, mostrarTestes: respostasMostrarTestes };
+  const visiveis = filtrarRespostas(respostasBrutas, filtro);
+  const noPeriodo = filtrarRespostas(respostasBrutas, { ...filtro, mostrarTestes: true });
+  if (respostasIndice > visiveis.length - 1) respostasIndice = Math.max(0, visiveis.length - 1);
+  const atual = respostasModo === "mes" ? mesAtualSp(new Date()) : null;
+  return {
+    tipo: respostasTipo,
+    mensagem: respostasMensagem,
+    aba: respostasAba,
+    modo: respostasModo,
+    tituloPeriodo: atual ? rotuloMes(atual.ano, atual.mes) : "",
+    de: respostasDe,
+    ate: respostasAte,
+    avisoPeriodo: respostasAvisoPeriodo,
+    mostrarTestes: respostasMostrarTestes,
+    ocultas: Math.max(0, noPeriodo.length - visiveis.length),
+    cortada: respostasCortada,
+    resumo: resumoRespostas(visiveis),
+    respostas: visiveis,
+    indice: respostasIndice,
+    confirmacao: respostasConfirmacao,
+    aviso: respostasAviso,
+    salvando: respostasSalvando,
+  };
+}
+
+function pintarRegiaoRespostas() {
+  const regiao = document.getElementById("regiao-respostas");
+  if (!regiao) return;
+  const estado = estadoRespostas();
+  estado.largura = larguraDoGrafico(regiao);
+  regiao.replaceChildren(mioloRespostas(estado));
+}
+
+function escolherAbaRespostas(aba) {
+  respostasAba = aba === "individual" ? "individual" : "resumo";
+  respostasConfirmacao = null;
+  pintarRegiaoRespostas();
+  const botao = document.getElementById("aba-" + respostasAba);
+  if (botao) botao.focus();
+}
+
+async function carregarRespostas() {
+  const id = ++cargaRespostas;
+  respostasTipo = "carregando";
+  let resposta = await listarRespostas(config, sessao.access_token, fetch);
+  if (id !== cargaRespostas || caminhoAgora() !== "/respostas") return;
+  const seguiu = await renovarSePreciso(resposta);
+  if (seguiu === "saiu" || id !== cargaRespostas || caminhoAgora() !== "/respostas") return;
+  if (seguiu === "renovou") {
+    resposta = await listarRespostas(config, sessao.access_token, fetch);
+    if (id !== cargaRespostas || caminhoAgora() !== "/respostas") return;
+  }
+  if (!resposta.ok) {
+    respostasTipo = "erro";
+    respostasMensagem = resposta.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : resposta.status === 404
+      ? "A tabela de respostas ainda não existe. Rode a migration no SQL editor."
+      : mensagemDeLeitura(resposta.status, resposta.body, "das respostas");
+    pintarRegiaoRespostas();
+    const alerta = document.querySelector("#regiao-respostas [role=alert]");
+    if (alerta) alerta.focus();
+    return;
+  }
+  respostasBrutas = resposta.linhas;
+  respostasCortada = resposta.cortada === true;
+  respostasTipo = "pronto";
+  pintarRegiaoRespostas();
+}
+
+async function marcarTesteResposta(id, eraTeste) {
+  if (!id || respostasSalvando) return;
+  respostasSalvando = true;
+  respostasAviso = "";
+  respostasConfirmacao = null;
+  pintarRegiaoRespostas();
+  const resultado = await marcarRespostaTeste(config, sessao.access_token, id, !eraTeste, fetch);
+  respostasSalvando = false;
+  if (!resultado.ok) {
+    respostasAviso = resultado.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : "Não foi possível marcar a resposta.";
+    pintarRegiaoRespostas();
+    return;
+  }
+  const linha = respostasBrutas.find((item) => item.id === id);
+  if (linha) linha.is_test = !eraTeste;
+  pintarRegiaoRespostas();
+}
+
+async function confirmarApagarResposta() {
+  const id = respostasConfirmacao && respostasConfirmacao.id;
+  if (!id || respostasSalvando) return;
+  respostasSalvando = true;
+  respostasAviso = "";
+  pintarRegiaoRespostas();
+  const resultado = await apagarResposta(config, sessao.access_token, id, fetch);
+  respostasSalvando = false;
+  respostasConfirmacao = null;
+  if (!resultado.ok) {
+    respostasAviso = resultado.rede
+      ? "Não consegui falar com o servidor. Tente de novo."
+      : "Não foi possível apagar a resposta.";
+    pintarRegiaoRespostas();
+    return;
+  }
+  respostasBrutas = respostasBrutas.filter((item) => item.id !== id);
+  pintarRegiaoRespostas();
+}
+
 async function alternarAviso(id, resolvidoAgora) {
   if (!id || avisoSalvandoId) return;
   avisoSalvandoId = id;
@@ -1825,6 +1972,20 @@ function pintar() {
       avisoAvisos = "";
       pintarConteudo(paginaAvisos(estadoAvisos()), true);
       carregarAvisos();
+    }
+    return;
+  }
+
+  if (caminho === "/respostas") {
+    const regiao = document.getElementById("regiao-respostas");
+    if (!regiao || mudou) {
+      limparSobrepostos();
+      respostasMostrarTestes = lerMostrarTestesRespostas(localStorage);
+      respostasTipo = "carregando";
+      respostasAviso = "";
+      respostasConfirmacao = null;
+      pintarConteudo(paginaRespostas(estadoRespostas()), true);
+      carregarRespostas();
     }
   }
 }
@@ -2261,6 +2422,13 @@ app.addEventListener("click", (event) => {
       carregarAvisos();
       return;
     }
+    if (qual === "respostas") {
+      respostasTipo = "carregando";
+      respostasAviso = "";
+      pintarRegiaoRespostas();
+      carregarRespostas();
+      return;
+    }
     const regiao = document.getElementById("regiao-pedidos");
     if (regiao) regiao.replaceChildren(mioloPedidos({ tipo: "carregando" }));
     carregarPedidos();
@@ -2280,6 +2448,72 @@ app.addEventListener("click", (event) => {
     filtros.mostrarTestes = !filtros.mostrarTestes;
     gravarMostrarTestes(localStorage, filtros.mostrarTestes);
     pintarRegiao();
+    return;
+  }
+  const toggleTestesRespostas = event.target.closest("[data-toggle-testes-respostas]");
+  if (toggleTestesRespostas) {
+    respostasMostrarTestes = !respostasMostrarTestes;
+    gravarMostrarTestesRespostas(localStorage, respostasMostrarTestes);
+    respostasIndice = 0;
+    respostasConfirmacao = null;
+    pintarRegiaoRespostas();
+    return;
+  }
+  const abaRespostas = event.target.closest("[data-aba]");
+  if (abaRespostas && caminhoAgora() === "/respostas") {
+    escolherAbaRespostas(abaRespostas.getAttribute("data-aba"));
+    return;
+  }
+  const modoRespostas = event.target.closest("[data-periodo-respostas]");
+  if (modoRespostas) {
+    const modo = modoRespostas.getAttribute("data-periodo-respostas");
+    respostasModo = modo === "mes" || modo === "personalizado" ? modo : "tudo";
+    respostasAvisoPeriodo = "";
+    respostasIndice = 0;
+    respostasConfirmacao = null;
+    pintarRegiaoRespostas();
+    return;
+  }
+  const passoResposta = event.target.closest("[data-passo-resposta]");
+  if (passoResposta && !passoResposta.disabled) {
+    respostasIndice += Number(passoResposta.getAttribute("data-passo-resposta")) || 0;
+    respostasConfirmacao = null;
+    respostasAviso = "";
+    pintarRegiaoRespostas();
+    return;
+  }
+  const indiceResposta = event.target.closest("[data-indice-resposta]");
+  if (indiceResposta) {
+    respostasIndice = Number(indiceResposta.getAttribute("data-indice-resposta")) || 0;
+    respostasConfirmacao = null;
+    respostasAviso = "";
+    pintarRegiaoRespostas();
+    return;
+  }
+  const marcarTeste = event.target.closest("[data-marcar-teste]");
+  if (marcarTeste) {
+    marcarTesteResposta(
+      marcarTeste.getAttribute("data-marcar-teste"),
+      marcarTeste.getAttribute("data-teste") === "1",
+    );
+    return;
+  }
+  const apagarRespostaBtn = event.target.closest("[data-apagar-resposta]");
+  if (apagarRespostaBtn) {
+    respostasConfirmacao = { id: apagarRespostaBtn.getAttribute("data-apagar-resposta") };
+    respostasAviso = "";
+    pintarRegiaoRespostas();
+    const dialogo = document.getElementById("confirm-resposta");
+    if (dialogo) dialogo.focus();
+    return;
+  }
+  if (event.target.closest("[data-cancelar-resposta]")) {
+    respostasConfirmacao = null;
+    pintarRegiaoRespostas();
+    return;
+  }
+  if (event.target.closest("[data-confirmar-resposta]")) {
+    confirmarApagarResposta();
     return;
   }
   const fixarRail = event.target.closest("[data-rail-fixar]");
@@ -2483,6 +2717,13 @@ app.addEventListener("click", (event) => {
 });
 
 app.addEventListener("change", (event) => {
+  if (event.target && event.target.id === "lista-respostas") {
+    respostasIndice = Number(event.target.value) || 0;
+    respostasConfirmacao = null;
+    respostasAviso = "";
+    pintarRegiaoRespostas();
+    return;
+  }
   const statusSel = event.target.closest("[data-status-pedido]");
   if (statusSel) {
     pedirMudancaStatus(statusSel.getAttribute("data-status-pedido"), statusSel.value);
@@ -2525,6 +2766,23 @@ app.addEventListener("input", (event) => {
 });
 
 app.addEventListener("keydown", (event) => {
+  const abaTecla = event.target.closest("[data-aba]");
+  if (
+    abaTecla &&
+    caminhoAgora() === "/respostas" &&
+    (event.key === "ArrowRight" || event.key === "ArrowLeft" || event.key === "Home" || event.key === "End")
+  ) {
+    event.preventDefault();
+    const ordem = ["resumo", "individual"];
+    const atual = abaTecla.getAttribute("data-aba") === "individual" ? 1 : 0;
+    let proximo = atual;
+    if (event.key === "ArrowRight") proximo = (atual + 1) % ordem.length;
+    else if (event.key === "ArrowLeft") proximo = (atual - 1 + ordem.length) % ordem.length;
+    else if (event.key === "Home") proximo = 0;
+    else proximo = ordem.length - 1;
+    escolherAbaRespostas(ordem[proximo]);
+    return;
+  }
   if (event.key === "Escape") {
     if (etiquetasUi && etiquetasUi.fase !== "comprando" && etiquetasUi.fase !== "imprimindo") {
       event.preventDefault();
@@ -2580,6 +2838,20 @@ app.addEventListener("submit", (event) => {
     aplicarPeriodo(form);
     return;
   }
+  if (form.id === "periodo-respostas") {
+    event.preventDefault();
+    const erro = validarPeriodoFeedback(form.de.value, form.ate.value);
+    respostasDe = form.de.value;
+    respostasAte = form.ate.value;
+    respostasAvisoPeriodo = erro;
+    if (!erro) {
+      respostasModo = "personalizado";
+      respostasIndice = 0;
+      respostasConfirmacao = null;
+    }
+    pintarRegiaoRespostas();
+    return;
+  }
   if (form.id === "form-entrada") {
     event.preventDefault();
     registrarEntrada(form);
@@ -2599,6 +2871,7 @@ app.addEventListener("submit", (event) => {
 
 window.addEventListener("resize", () => {
   if (caminhoAgora() === "/" && inicioTipo === "pronto") pintarRegiaoInicio();
+  if (caminhoAgora() === "/respostas" && respostasTipo === "pronto") pintarRegiaoRespostas();
 });
 
 window.addEventListener("popstate", () => {
