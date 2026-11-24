@@ -308,8 +308,81 @@
     if (el) el.textContent = "";
   }
 
+  function normalizarWhatsapp(valor) {
+    var bruto = String(valor || "").trim();
+    if (!bruto) return "";
+    if (bruto.length > 40) return null;
+    var digitos = bruto.replace(/\D/g, "");
+    if (digitos.indexOf("00") === 0) digitos = digitos.slice(2);
+    if (digitos.charAt(0) === "0" && digitos.length >= 11 && digitos.length <= 14) {
+      digitos = digitos.slice(1);
+    }
+    if (digitos.indexOf("55") === 0 && (digitos.length === 12 || digitos.length === 13)) {
+      digitos = digitos.slice(2);
+    }
+    if (!/^[1-9][1-9]\d{8,9}$/.test(digitos)) return null;
+    return "55" + digitos;
+  }
+
+  function emailValido(valor) {
+    var email = String(valor || "").trim();
+    if (!email) return true;
+    if (email.length > 254) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
+  function lerCampo(screen, nome) {
+    var campo = screen.querySelector("[name=\"" + nome + "\"]");
+    return campo ? String(campo.value || "").trim() : "";
+  }
+
+  function marcarContato(screen, invalido) {
+    ["nome_completo", "whatsapp", "email"].forEach(function (nome) {
+      var campo = screen.querySelector("[name=\"" + nome + "\"]");
+      if (!campo) return;
+      if (invalido && invalido[nome]) campo.setAttribute("aria-invalid", "true");
+      else campo.removeAttribute("aria-invalid");
+    });
+  }
+
+  function validarContato(screen) {
+    var nome = lerCampo(screen, "nome_completo");
+    var zap = lerCampo(screen, "whatsapp");
+    var email = lerCampo(screen, "email");
+    var invalido = {};
+    if (nome.length > 160) {
+      invalido.nome_completo = true;
+      marcarContato(screen, invalido);
+      showError(screen, "O nome ficou longo demais. Encurta um pouco.");
+      return false;
+    }
+    if (zap && normalizarWhatsapp(zap) === null) {
+      invalido.whatsapp = true;
+      marcarContato(screen, invalido);
+      showError(screen, "Confere o WhatsApp. Pode ser com DDD, com ou sem o +55.");
+      return false;
+    }
+    if (email && !emailValido(email)) {
+      invalido.email = true;
+      marcarContato(screen, invalido);
+      showError(screen, "Confere o e-mail.");
+      return false;
+    }
+    if (!zap && !email) {
+      invalido.whatsapp = true;
+      invalido.email = true;
+      marcarContato(screen, invalido);
+      showError(screen, "Deixa um WhatsApp ou um e-mail. Pode ser só um dos dois.");
+      return false;
+    }
+    marcarContato(screen, null);
+    clearError(screen);
+    return true;
+  }
+
   function validate(idx) {
     var screen = screens[idx];
+    if (screen && screen.dataset.contato === "1") return validarContato(screen);
     var required = screen && screen.dataset.screenRequired;
     if (!required) return true;
     // Support both plain names and array-notation names (e.g. "vela[]")
@@ -460,6 +533,13 @@
     }
   });
 
+  pager.addEventListener("input", function (e) {
+    var screen = e.target.closest(".tf-screen");
+    if (!screen || screen.dataset.contato !== "1") return;
+    clearError(screen);
+    marcarContato(screen, null);
+  });
+
   // Auto-advance on single-choice selection (radios)
   pager.addEventListener("change", function (e) {
     if (e.target.type !== "radio") return;
@@ -519,12 +599,31 @@
     return campo && "value" in campo ? campo.value : "";
   }
 
+  function aceitaContato() {
+    var novidades = form.querySelector("[name=\"novidades\"]:checked");
+    return Boolean(novidades && novidades.value === "Sim");
+  }
+
   function enviarFeedback() {
     if (!form || enviando) return;
     var bot = form.querySelector("[name=\"bot-field\"]");
     if (bot && bot.value) {
       window.location.href = destinoObrigado();
       return;
+    }
+    if (aceitaContato()) {
+      var telaContato = null;
+      var idxContato = -1;
+      screens.forEach(function (screen, idx) {
+        if (screen.dataset.contato === "1") {
+          telaContato = screen;
+          idxContato = idx;
+        }
+      });
+      if (telaContato && !validarContato(telaContato)) {
+        goTo(idxContato);
+        return;
+      }
     }
     var velas = [];
     Array.prototype.forEach.call(form.querySelectorAll("[name=\"vela[]\"]:checked"), function (input) {
@@ -541,8 +640,9 @@
       depoimento: valorCampo("depoimento"),
       compartilhar: compartilhar ? compartilhar.value : "",
       novidades: novidades ? novidades.value : "",
-      nome: valorCampo("nome"),
-      contato: valorCampo("contato")
+      nome_completo: aceitaContato() ? valorCampo("nome_completo").trim() : "",
+      whatsapp: aceitaContato() ? valorCampo("whatsapp").trim() : "",
+      email: aceitaContato() ? valorCampo("email").trim() : ""
     };
     var botao = form.querySelector(".tf-submit");
     enviando = true;

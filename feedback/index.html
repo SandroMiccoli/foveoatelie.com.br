@@ -45,6 +45,7 @@ sitemap: false
       action="{{ site.supabase.url }}/functions/v1/enviar-feedback"
       data-obrigado="{{ '/feedback/obrigado/' | relative_url }}"
       data-supabase-key="{{ site.supabase.anon_key }}"
+      novalidate
     >
       <p class="sr-only">
         <label>Não preencha se você for humano: <input name="bot-field"></label>
@@ -241,32 +242,62 @@ sitemap: false
         </div>
       </section>
 
-      <!-- ── Screen 8: Nome + Contato (condicional: novidades=Sim) -->
-      <section class="tf-screen" data-screen-idx="8" data-skip-unless="novidades=Sim">
+      <!-- ── Screen 8: nome, WhatsApp e e-mail (condicional: novidades=Sim) -->
+      <section class="tf-screen" data-screen-idx="8" data-skip-unless="novidades=Sim" data-contato="1">
         <div class="tf-content">
           <div class="tf-fieldset">
-            <p class="tf-question" tabindex="-1">Como podemos te encontrar?</p>
-            <p class="tf-hint">Apenas para te avisar quando chegar novidade. Nada de spam.</p>
+            <p class="tf-question" tabindex="-1" id="tf-contato-titulo">Como podemos te encontrar?</p>
+            <p class="tf-hint" id="tf-contato-hint">Só para avisar de novidade. Nada de spam. WhatsApp ou e-mail, pelo menos um.</p>
             <div class="tf-fields">
               <div class="tf-field">
-                <label class="tf-field-label" for="nome">
-                  Nome <span class="tf-optional">(opcional)</span>
+                <label class="tf-field-label" for="nome-completo">
+                  Nome completo <span class="tf-optional">(opcional)</span>
                 </label>
-                <input type="text" id="nome" name="nome" class="tf-input" autocomplete="name">
+                <input
+                  type="text"
+                  id="nome-completo"
+                  name="nome_completo"
+                  class="tf-input"
+                  autocomplete="name"
+                  maxlength="160"
+                  aria-describedby="tf-contato-hint"
+                >
               </div>
               <div class="tf-field">
-                <label class="tf-field-label" for="contato">
-                  WhatsApp ou e-mail <span class="tf-optional">(opcional)</span>
-                </label>
-                <input type="text" id="contato" name="contato" class="tf-input" autocomplete="off">
+                <label class="tf-field-label" for="whatsapp">WhatsApp</label>
+                <input
+                  type="tel"
+                  id="whatsapp"
+                  name="whatsapp"
+                  class="tf-input"
+                  autocomplete="tel"
+                  inputmode="tel"
+                  maxlength="40"
+                  aria-describedby="tf-contato-hint"
+                >
+              </div>
+              <div class="tf-field">
+                <label class="tf-field-label" for="email">E-mail</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  class="tf-input"
+                  autocomplete="email"
+                  inputmode="email"
+                  maxlength="254"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  aria-describedby="tf-contato-hint"
+                >
               </div>
             </div>
           </div>
+          <div class="tf-error" id="tf-error-contato" role="alert" aria-live="polite"></div>
           <div class="tf-actions">
             <button type="button" class="tf-ok" data-tf-next>
               OK <span class="tf-enter" aria-hidden="true">↵</span>
             </button>
-            <button type="button" class="tf-skip" data-tf-next>Pular</button>
           </div>
         </div>
       </section>
