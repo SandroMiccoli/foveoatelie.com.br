@@ -8,7 +8,9 @@ import {
   formatarDataCurta,
   formatarPreco,
   formatarQuantidadeMovimento,
+  formatarTelefone,
   formatarVelas,
+  contatoResposta,
   linkWhatsApp,
   nivelStatus,
   rotuloDia,
@@ -1249,7 +1251,11 @@ function painelResumo(estado) {
         const tempo = el("time", { text: data ? data.texto : "—" });
         if (data) tempo.setAttribute("datetime", data.iso);
         const nome = item.nome || "Sem nome";
-        const contato = item.contato || "Sem contato";
+        const partes = [];
+        if (item.whatsapp) partes.push(formatarTelefone(item.whatsapp) || item.whatsapp);
+        if (item.email) partes.push(item.email);
+        if (!partes.length && item.contato) partes.push(item.contato);
+        const contato = partes.join(" · ") || "Sem contato";
         return el("li", {}, [tempo, el("p", { text: nome + " — " + contato })]);
       })),
     ])
@@ -1281,6 +1287,49 @@ function campoResposta(rotulo, valor) {
   return [
     el("dt", { text: rotulo }),
     el("dd", { text: valor && String(valor).trim() ? String(valor) : "—" }),
+  ];
+}
+
+function campoLink(rotulo, href, texto, rotuloAcessivel) {
+  const dd = el("dd");
+  if (!href || !texto) {
+    dd.textContent = "—";
+  } else {
+    const attrs = { href, text: texto };
+    if (rotuloAcessivel) attrs["aria-label"] = rotuloAcessivel;
+    if (href.startsWith("http")) {
+      attrs.target = "_blank";
+      attrs.rel = "noopener noreferrer";
+    }
+    dd.append(el("a", attrs));
+  }
+  return [el("dt", { text: rotulo }), dd];
+}
+
+function camposDeContato(resposta) {
+  const contato = contatoResposta(resposta);
+  if (contato.modo === "novo") {
+    const pessoa = contato.nome.trim();
+    const zap = formatarTelefone(contato.whatsapp);
+    return [
+      ...campoResposta("Nome completo", contato.nome),
+      ...campoLink(
+        "WhatsApp",
+        linkWhatsApp(contato.whatsapp),
+        zap,
+        pessoa ? "WhatsApp de " + pessoa : "Abrir WhatsApp",
+      ),
+      ...campoLink(
+        "E-mail",
+        contato.email ? "mailto:" + contato.email : "",
+        contato.email,
+        pessoa ? "E-mail de " + pessoa : "Enviar e-mail",
+      ),
+    ];
+  }
+  return [
+    ...campoResposta("Nome", contato.nome),
+    ...campoResposta("Contato", contato.contato),
   ];
 }
 
@@ -1357,8 +1406,7 @@ function painelIndividual(estado) {
         ...campoResposta("Pra uma amiga", resposta.depoimento),
         ...campoResposta("Compartilhar", resposta.instagram_share),
         ...campoResposta("Novidades", resposta.novidades),
-        ...campoResposta("Nome", resposta.nome),
-        ...campoResposta("Contato", resposta.contato),
+        ...camposDeContato(resposta),
         ...campoResposta("Origem", resposta.source),
       ]),
       el("div", { class: "acoes-resposta" }, [

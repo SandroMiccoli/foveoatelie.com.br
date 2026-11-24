@@ -288,7 +288,7 @@ function iconeSvg(paths, viewBox = "0 0 24 24") {
     d,
     fill: "none",
     stroke: "currentColor",
-    "stroke-width": "1.5",
+    "stroke-width": "1.25",
     "stroke-linecap": "round",
     "stroke-linejoin": "round",
   })));
@@ -412,7 +412,6 @@ function casca() {
     const a = el("a", {
       href,
       "aria-label": nome,
-      title: nome,
     }, [
       iconeSvg(ICONES[chave]),
       el("span", { class: "nav-rotulo", text: nome }),

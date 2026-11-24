@@ -70,6 +70,7 @@ import {
   normalizarAviso,
   rotuloTipoAviso,
   contagemVelas,
+  contatoResposta,
   filtrarRespostas,
   formatarMediaNota,
   gravarMostrarTestesRespostas,
@@ -1025,6 +1026,25 @@ test("o resumo do feedback conta nota, vela e período", async () => {
   assert.equal(resumo.textos[0].itens[0].texto, "Quente na pele");
   assert.equal(resumo.textos[1].itens.length, 0);
   assert.equal(resumo.contatos[0].nome, "Ana");
+  assert.equal(contatoResposta(boa).modo, "antigo");
+  assert.equal(contatoResposta(boa).contato, "ana@exemplo.com");
+  const nova = normalizarResposta({
+    ...boa,
+    id: "33333333-3333-4333-8333-333333333333",
+    nome: "",
+    contato: "",
+    nome_completo: "Maria Silva",
+    whatsapp: "5511988887777",
+    email: "maria@exemplo.com",
+  });
+  assert.equal(contatoResposta(nova).modo, "novo");
+  assert.equal(contatoResposta(nova).nome, "Maria Silva");
+  assert.equal(linkWhatsApp(nova.whatsapp), "https://wa.me/5511988887777");
+  assert.equal(formatarTelefone(nova.whatsapp), "(11) 98888-7777");
+  const resumoNovo = resumoRespostas([nova]);
+  assert.equal(resumoNovo.contatos[0].nome, "Maria Silva");
+  assert.equal(resumoNovo.contatos[0].whatsapp, "5511988887777");
+  assert.equal(resumoNovo.contatos[0].email, "maria@exemplo.com");
   const storage = memoria();
   assert.equal(lerMostrarTestesRespostas(storage), false);
   gravarMostrarTestesRespostas(storage, true);
@@ -1046,6 +1066,24 @@ test("o resumo do feedback conta nota, vela e período", async () => {
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.enviar_feedback\(jsonb\) TO service_role/);
   assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
   assert.doesNotMatch(semComentario, /GRANT INSERT/i);
+
+  const contato = await readFile(
+    new URL("../supabase/migrations/20261124120000_feedback_contato.sql", import.meta.url),
+    "utf8",
+  );
+  const contatoSemComentario = contato.replace(/--.*$/gm, "");
+  assert.match(contato, /ADD COLUMN nome_completo text/);
+  assert.match(contato, /ADD COLUMN whatsapp text/);
+  assert.match(contato, /ADD COLUMN email text/);
+  assert.match(contato, /GRANT SELECT \(nome_completo, whatsapp, email\)/);
+  assert.match(contato, /jsonb_exists\(p_payload, 'whatsapp'\)/);
+  assert.match(contato, /v_novidades = 'Sim' AND v_whatsapp = '' AND v_email = ''/);
+  assert.doesNotMatch(contatoSemComentario, /GRANT[^;]*TO anon/i);
+  assert.doesNotMatch(contato, /DROP TABLE/);
+  const cssRespostas = await readFile(new URL("../admin/css/admin.css", import.meta.url), "utf8");
+  assert.match(cssRespostas, /\.nav-icone\s*\{[^}]*display:\s*block/);
+  assert.match(cssRespostas, /\.resposta-dl a/);
+  assert.match(cssRespostas, /grid-template-columns:\s*repeat\(6,/);
 });
 
 function pedidoFixture(extra) {

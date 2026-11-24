@@ -9,6 +9,9 @@ export const NOVIDADES_FEEDBACK = ["", "Sim", "Não"] as const;
 export const LIMITE_TEXTO = 2000;
 export const LIMITE_NOME = 120;
 export const LIMITE_CONTATO = 160;
+export const LIMITE_NOME_COMPLETO = 160;
+export const LIMITE_EMAIL = 254;
+export const LIMITE_WHATSAPP = 40;
 export const LIMITE_MENSAGEM = 500;
 export const LIMITE_LINHA = 80;
 
@@ -24,6 +27,10 @@ export type FeedbackLimpo = {
   novidades: string;
   nome: string;
   contato: string;
+  nome_completo: string;
+  whatsapp: string;
+  email: string;
+  contato_novo: boolean;
 };
 
 export type LeituraFeedback =
@@ -38,6 +45,31 @@ function lista(valor: unknown): string[] {
   if (Array.isArray(valor)) return valor.map((item) => texto(item)).filter(Boolean);
   if (typeof valor === "string" && valor.trim()) return [valor.trim()];
   return [];
+}
+
+// Vazio devolve "". Número brasileiro tolerante devolve 55 + DDD + assinante.
+// Formato ruim devolve null. Aceita máscara, zero de operadora e +55.
+export function normalizarWhatsapp(valor: string): string | null {
+  const bruto = valor.trim();
+  if (!bruto) return "";
+  if (bruto.length > LIMITE_WHATSAPP) return null;
+  let digitos = bruto.replace(/\D/g, "");
+  if (digitos.startsWith("00")) digitos = digitos.slice(2);
+  if (digitos.startsWith("0") && digitos.length >= 11 && digitos.length <= 14) {
+    digitos = digitos.slice(1);
+  }
+  if (digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13)) {
+    digitos = digitos.slice(2);
+  }
+  if (!/^[1-9][1-9]\d{8,9}$/.test(digitos)) return null;
+  return "55" + digitos;
+}
+
+export function emailFeedbackValido(valor: string): boolean {
+  const email = valor.trim();
+  if (!email) return true;
+  if (email.length > LIMITE_EMAIL) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
 export function honeypotCheio(corpo: unknown): boolean {
@@ -79,6 +111,27 @@ export function lerFeedback(corpo: unknown): LeituraFeedback {
   }
 
   const longo = { atual: false };
+  const contatoNovo = "nome_completo" in row || "whatsapp" in row || "email" in row;
+  let nomeCompleto = "";
+  let whatsapp = "";
+  let email = "";
+  if (contatoNovo && novidades === "Sim") {
+    nomeCompleto = texto(row.nome_completo);
+    email = texto(row.email);
+    const zapBruto = texto(row.whatsapp);
+    if (
+      nomeCompleto.length > LIMITE_NOME_COMPLETO
+      || email.length > LIMITE_EMAIL
+      || zapBruto.length > LIMITE_WHATSAPP
+    ) {
+      return { ok: false, erro: "longo" };
+    }
+    if (!emailFeedbackValido(email)) return { ok: false, erro: "invalido" };
+    const zap = normalizarWhatsapp(zapBruto);
+    if (zap === null) return { ok: false, erro: "invalido" };
+    if (!zap && !email) return { ok: false, erro: "invalido" };
+    whatsapp = zap;
+  }
   const feedback: FeedbackLimpo = {
     candles,
     rating: Number(notaTexto),
@@ -89,6 +142,10 @@ export function lerFeedback(corpo: unknown): LeituraFeedback {
     novidades,
     nome: cortar(texto(row.nome), LIMITE_NOME, longo),
     contato: cortar(texto(row.contato), LIMITE_CONTATO, longo),
+    nome_completo: nomeCompleto,
+    whatsapp,
+    email,
+    contato_novo: contatoNovo,
   };
   if (longo.atual) return { ok: false, erro: "longo" };
   return { ok: true, feedback };
@@ -97,7 +154,7 @@ export function lerFeedback(corpo: unknown): LeituraFeedback {
 export function camposDoFormulario(bruto: string): Record<string, unknown> {
   const params = new URLSearchParams(bruto);
   const velas = params.getAll("vela[]").concat(params.getAll("vela")).concat(params.getAll("candles"));
-  return {
+  const campos: Record<string, unknown> = {
     candles: velas,
     nota: params.get("nota") || params.get("rating") || "",
     sensacao: params.get("sensacao") || "",
@@ -109,6 +166,12 @@ export function camposDoFormulario(bruto: string): Record<string, unknown> {
     contato: params.get("contato") || "",
     bot: params.get("bot-field") || params.get("bot") || "",
   };
+  if (params.has("nome_completo") || params.has("whatsapp") || params.has("email")) {
+    campos.nome_completo = params.get("nome_completo") || "";
+    campos.whatsapp = params.get("whatsapp") || "";
+    campos.email = params.get("email") || "";
+  }
+  return campos;
 }
 
 export function primeiraLinha(valor: string, limite = LIMITE_LINHA): string {
