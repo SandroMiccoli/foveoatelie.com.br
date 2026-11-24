@@ -69,12 +69,14 @@ import {
   ROTAS,
   normalizarAviso,
   rotuloTipoAviso,
+  apagarResposta,
   contagemVelas,
   contatoResposta,
   filtrarRespostas,
   formatarMediaNota,
   gravarMostrarTestesRespostas,
   lerMostrarTestesRespostas,
+  marcarRespostaTeste,
   normalizarResposta,
   resumoRespostas,
   validarPeriodoFeedback,
@@ -972,6 +974,36 @@ test("a etapa 5 guarda o token e os avisos fora do anon", async () => {
   assert.equal(normalizarAviso({ ...aviso, tipo: "outro" }), null);
   assert.equal(rotuloTipoAviso("feedback_novo"), "Feedback");
   assert.equal(ROTAS["/respostas"], "respostas");
+});
+
+test("marcar e apagar resposta pedem só id e is_test na representação", async () => {
+  const urls = [];
+  const fetchSpy = async (url, init) => {
+    urls.push({
+      url: String(url),
+      method: init.method,
+      prefer: init.headers.Prefer,
+      body: init.body,
+    });
+    return resposta(200, [{ id: "11111111-1111-4111-8111-111111111111", is_test: true }]);
+  };
+  const cfg = { url: "https://exemplo", anonKey: "chave" };
+  const id = "11111111-1111-4111-8111-111111111111";
+
+  const marcar = await marcarRespostaTeste(cfg, "tok", id, true, fetchSpy);
+  assert.equal(marcar.ok, true);
+  assert.equal(urls[0].method, "PATCH");
+  assert.equal(urls[0].prefer, "return=representation");
+  assert.match(urls[0].url, /\/rest\/v1\/feedback_respostas\?id=eq\.[0-9a-f-]+&select=id,is_test$/);
+  assert.doesNotMatch(urls[0].url, /ip_hash/);
+  assert.match(urls[0].body, /"is_test":true/);
+
+  const apagar = await apagarResposta(cfg, "tok", id, fetchSpy);
+  assert.equal(apagar.ok, true);
+  assert.equal(urls[1].method, "DELETE");
+  assert.equal(urls[1].prefer, "return=representation");
+  assert.match(urls[1].url, /\/rest\/v1\/feedback_respostas\?id=eq\.[0-9a-f-]+&select=id,is_test$/);
+  assert.doesNotMatch(urls[1].url, /ip_hash/);
 });
 
 test("o resumo do feedback conta nota, vela e período", async () => {
