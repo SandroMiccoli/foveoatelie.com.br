@@ -1654,14 +1654,17 @@ async function escreverResposta(config, accessToken, id, metodo, corpo, fetchImp
   if (!UUID_RESPOSTA.test(id || "")) return { ok: false, status: 400, body: null };
   let res;
   try {
-    res = await fetchImpl(config.url + "/rest/v1/feedback_respostas?id=eq." + id, {
-      method: metodo,
-      headers: {
-        ...cabecalhos(config, accessToken),
-        Prefer: "return=representation",
+    res = await fetchImpl(
+      config.url + "/rest/v1/feedback_respostas?id=eq." + id + "&select=id,is_test",
+      {
+        method: metodo,
+        headers: {
+          ...cabecalhos(config, accessToken),
+          Prefer: "return=representation",
+        },
+        body: corpo,
       },
-      body: corpo,
-    });
+    );
   } catch (_err) {
     return { ok: false, rede: true };
   }
