@@ -164,13 +164,13 @@ BEGIN
   IF v_zap_bruto <> '' THEN
     v_digits := pg_catalog.regexp_replace(v_zap_bruto, '[^0-9]', '', 'g');
     IF v_digits ~ '^00' THEN
-      v_digits := pg_catalog.substring(v_digits FROM 3);
+      v_digits := pg_catalog.substr(v_digits, 3);
     END IF;
     IF v_digits ~ '^0' AND char_length(v_digits) BETWEEN 11 AND 14 THEN
-      v_digits := pg_catalog.substring(v_digits FROM 2);
+      v_digits := pg_catalog.substr(v_digits, 2);
     END IF;
     IF v_digits ~ '^55' AND char_length(v_digits) IN (12, 13) THEN
-      v_digits := pg_catalog.substring(v_digits FROM 3);
+      v_digits := pg_catalog.substr(v_digits, 3);
     END IF;
     IF v_digits ~ '^[1-9][1-9][0-9]{8,9}$' THEN
       v_whatsapp := '55' || v_digits;
