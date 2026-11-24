@@ -175,23 +175,27 @@ Deno.serve(async (req) => {
   const ua = (req.headers.get("user-agent") || "").trim().slice(0, 300);
   const source = origemDoPedido(origin).replace(/^https:\/\//, "").slice(0, 80);
   const feedback = leitura.feedback;
+  const payload: Record<string, unknown> = {
+    candles: feedback.candles,
+    rating: feedback.rating,
+    sensacao: feedback.sensacao,
+    mudaria: feedback.mudaria,
+    depoimento: feedback.depoimento,
+    instagram_share: feedback.instagram_share,
+    novidades: feedback.novidades,
+    nome: feedback.nome,
+    contato: feedback.contato,
+    user_agent: ua,
+    source,
+    ip_hash: ipHash,
+  };
+  if (feedback.contato_novo) {
+    payload.nome_completo = feedback.nome_completo;
+    payload.whatsapp = feedback.whatsapp;
+    payload.email = feedback.email;
+  }
 
-  const gravou = await rpc(cred, "enviar_feedback", {
-    p_payload: {
-      candles: feedback.candles,
-      rating: feedback.rating,
-      sensacao: feedback.sensacao,
-      mudaria: feedback.mudaria,
-      depoimento: feedback.depoimento,
-      instagram_share: feedback.instagram_share,
-      novidades: feedback.novidades,
-      nome: feedback.nome,
-      contato: feedback.contato,
-      user_agent: ua,
-      source,
-      ip_hash: ipHash,
-    },
-  });
+  const gravou = await rpc(cred, "enviar_feedback", { p_payload: payload });
 
   if (!gravou || gravou.ok !== true) {
     const erro = gravou && typeof gravou.erro === "string" ? gravou.erro : "indisponivel";

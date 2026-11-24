@@ -261,9 +261,15 @@ h2 {
 
 .marca-selo,
 .rail-fixar,
-.nav-icone,
 .rail-rodape {
   display: none;
+}
+
+.nav-icone {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
 }
 
 .nav {
@@ -282,18 +288,28 @@ h2 {
 
 .nav a {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.2rem;
+  min-width: 0;
   min-height: 44px;
-  padding: 0.35rem 0.1rem;
+  padding: 0.45rem 0.05rem 0.35rem;
   color: var(--paper-dim);
   font-size: 0.625rem;
   font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
+  letter-spacing: 0;
+  line-height: 1.1;
   text-align: center;
   text-decoration: none;
-  text-transform: uppercase;
+  text-transform: none;
+}
+
+.nav-rotulo {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav a[aria-current="page"] {
@@ -1266,6 +1282,8 @@ td[data-campo="total"] {
   }
 
   .nav a {
+    position: relative;
+    flex-direction: row;
     justify-content: center;
     gap: 0.7rem;
     min-height: 2.35rem;
@@ -1273,6 +1291,7 @@ td[data-campo="total"] {
     font-size: 0.8125rem;
     letter-spacing: 0.08em;
     text-align: left;
+    text-transform: uppercase;
   }
 
   .casca.rail-aberta .nav a,
@@ -1312,6 +1331,30 @@ td[data-campo="total"] {
   .casca.rail-hover .nav-rotulo {
     opacity: 1;
     width: auto;
+  }
+
+  .casca:not(.rail-aberta):not(.rail-hover) .rail {
+    overflow: visible;
+  }
+
+  .casca:not(.rail-aberta):not(.rail-hover) .nav a:hover .nav-rotulo,
+  .casca:not(.rail-aberta):not(.rail-hover) .nav a:focus-visible .nav-rotulo {
+    position: absolute;
+    left: calc(100% + 0.4rem);
+    top: 50%;
+    z-index: 3;
+    width: max-content;
+    max-width: none;
+    padding: 0.35rem 0.6rem;
+    transform: translateY(-50%);
+    border: 1px solid var(--line);
+    background: var(--ink);
+    color: var(--paper);
+    opacity: 1;
+    overflow: visible;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    pointer-events: none;
   }
 
   .pagina {
@@ -2118,6 +2161,17 @@ td[data-campo="obs"] {
   overflow-wrap: break-word;
   word-break: normal;
   hyphens: none;
+}
+
+.resposta-dl a {
+  color: var(--copper);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.resposta-dl a:hover {
+  color: var(--paper);
 }
 
 .acoes-resposta {

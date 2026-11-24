@@ -1515,6 +1515,9 @@ export function normalizarResposta(row) {
     novidades,
     nome: campo(row.nome),
     contato: campo(row.contato),
+    nome_completo: campo(row.nome_completo),
+    whatsapp: campo(row.whatsapp),
+    email: campo(row.email),
     user_agent: campo(row.user_agent),
     source: campo(row.source),
     is_test: row.is_test === true,
@@ -1578,14 +1581,32 @@ export function respostasTexto(linhas, campo) {
     }));
 }
 
+export function contatoResposta(resposta) {
+  const nomeCompleto = resposta && resposta.nome_completo ? resposta.nome_completo : "";
+  const whatsapp = resposta && resposta.whatsapp ? resposta.whatsapp : "";
+  const email = resposta && resposta.email ? resposta.email : "";
+  if (nomeCompleto || whatsapp || email) {
+    return { modo: "novo", nome: nomeCompleto, whatsapp, email };
+  }
+  return {
+    modo: "antigo",
+    nome: resposta && resposta.nome ? resposta.nome : "",
+    contato: resposta && resposta.contato ? resposta.contato : "",
+  };
+}
+
 export function contatosNovidade(linhas) {
   return linhas
-    .filter((linha) => linha.novidades === "Sim" && (linha.nome || linha.contato))
+    .filter((linha) => linha.novidades === "Sim" && (
+      linha.nome || linha.contato || linha.nome_completo || linha.whatsapp || linha.email
+    ))
     .map((linha) => ({
       id: linha.id,
       created_at: linha.created_at,
-      nome: linha.nome,
+      nome: linha.nome_completo || linha.nome,
       contato: linha.contato,
+      whatsapp: linha.whatsapp,
+      email: linha.email,
     }));
 }
 
@@ -1617,7 +1638,7 @@ export async function listarRespostas(config, accessToken, fetchImpl, signal) {
   const resposta = await lerTabela(
     config,
     accessToken,
-    "/rest/v1/feedback_respostas?select=id,created_at,candles,rating,sensacao,mudaria,depoimento,instagram_share,novidades,nome,contato,user_agent,source,is_test&order=created_at.desc&limit=2000",
+    "/rest/v1/feedback_respostas?select=id,created_at,candles,rating,sensacao,mudaria,depoimento,instagram_share,novidades,nome,contato,nome_completo,whatsapp,email,user_agent,source,is_test&order=created_at.desc&limit=2000",
     fetchImpl,
     signal,
   );
