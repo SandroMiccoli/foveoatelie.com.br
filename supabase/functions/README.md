@@ -286,3 +286,13 @@ Arquivos desse deploy: `enviar-feedback/index.ts`, `_shared/feedback.ts`, `_shar
 4. Publicar o formulário (branch do site) só depois da função estar no ar. Enquanto a função não existe, o envio responde erro em português e não perde a tela.
 
 O CSV antigo da Netlify não está no repositório. Se for trazer os testes de 04/11, insira com `is_test = true`. Insert direto não dispara o aviso.
+
+## Reserva ao expirar no painel
+
+Uma migration, o arquivo inteiro, uma vez, no SQL editor. Não usar `supabase db push`.
+
+`supabase/migrations/20261127120000_liberar_reserva_ao_expirar.sql`
+
+Faz `admin_alterar_status_pedido` devolver estoque também em `expirado` e `recusado` (antes só em `cancelado`). `expirar_reservas`, `liberar_pedido` e o ramo de recusa/expiração de `aplicar_retorno_mp` passam a gravar `estoque_restaurado_em`.
+
+Pedidos que o painel já marcou como expirado/recusado com a reserva presa: depois da migration, rode `supabase/scripts/corrigir_reservas_presas_expirados.sql` no SQL editor (ler antes; é idempotente).
