@@ -1118,6 +1118,29 @@ test("o resumo do feedback conta nota, vela e período", async () => {
   assert.match(cssRespostas, /grid-template-columns:\s*repeat\(6,/);
 });
 
+test("expirado e recusado no painel também devolvem estoque uma vez", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261127120000_liberar_reserva_ao_expirar.sql", import.meta.url),
+    "utf8",
+  );
+  const semComentario = sql.replace(/--.*$/gm, "");
+  assert.match(sql, /admin_alterar_status_pedido/);
+  assert.match(semComentario, /p_status IN \('cancelado', 'expirado', 'recusado'\)/);
+  assert.match(semComentario, /PERFORM private\.restaurar_estoque_pedido\(ped\)/);
+  assert.match(sql, /estoque_restaurado_em = COALESCE\(estoque_restaurado_em, pg_catalog\.now\(\)\)/);
+  assert.match(sql, /corrigir_reservas_presas_expirados\.sql/);
+  assert.doesNotMatch(semComentario, /GRANT[^;]*TO anon/i);
+
+  const correcao = await readFile(
+    new URL("../supabase/scripts/corrigir_reservas_presas_expirados.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(correcao, /origem = 'admin'/);
+  assert.match(correcao, /SET reservado = GREATEST\(reservado - qtd, 0\)/);
+  assert.match(correcao, /estoque_restaurado_em/);
+  assert.doesNotMatch(correcao, /disponivel = disponivel \+/);
+});
+
 function pedidoFixture(extra) {
   return normalizarPedido({
     id: "00000000-0000-0000-0000-000000000000",
